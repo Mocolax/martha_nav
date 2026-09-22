@@ -84,3 +84,21 @@ def test_standing_still_is_truncated_as_stalled():
         if term or trunc:
             break
     assert trunc and info['outcome'] == 'stalled' and steps == 150
+
+
+def test_stall_penalty_turns_stalls_into_terminal_episodes():
+    from martha_nav.sim2d.reward import RewardConfig
+    env = NavEnv(replace(OPEN, reward=RewardConfig(stalled=-5.0)))
+    env.reset(seed=3)
+    while True:
+        _, r, term, trunc, info = env.step(np.zeros(2))
+        if term or trunc:
+            break
+    assert term and not trunc and info['outcome'] == 'stalled'
+    assert info['r_stalled'] == -5.0
+
+
+def test_lidar_encoding_reaches_the_observation():
+    a, _ = NavEnv(OPEN).reset(seed=4)
+    b, _ = NavEnv(replace(OPEN, lidar_encoding='inverse')).reset(seed=4)
+    assert not np.allclose(a[:90], b[:90]) and np.allclose(a[90:], b[90:])

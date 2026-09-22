@@ -28,14 +28,26 @@ def reduce_scan(ranges, angles):
     return out
 
 
-def build_observation(ranges, angles, velocity, waypoint_rel, prev_action):
+LIDAR_ENCODINGS = ('linear', 'inverse')
+
+
+def encode_lidar(sectors, encoding='linear'):
+    """Metres -> [0, 1]. 'linear': d / 8 m. 'inverse': d / (d + 1 m), finer up close."""
+    if encoding == 'linear':
+        return sectors / LIDAR_MAX
+    if encoding == 'inverse':
+        return sectors / (sectors + 1.0)
+    raise ValueError(f'unknown lidar encoding {encoding!r}; use one of {LIDAR_ENCODINGS}')
+
+
+def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='linear'):
     """96-value observation in [-1, 1].
 
     ranges/angles: raw scan, angles relative to the robot's forward axis.
     velocity: measured (v, w). waypoint_rel: (dx, dy) in the robot frame.
     prev_action: last action sent, already in [-1, 1].
     """
-    lidar = reduce_scan(ranges, angles) / LIDAR_MAX
+    lidar = encode_lidar(reduce_scan(ranges, angles), lidar_encoding)
     dx, dy = waypoint_rel
     wp = [min(np.hypot(dx, dy), WAYPOINT_MAX) / WAYPOINT_MAX, np.arctan2(dy, dx) / np.pi]
     vel = [velocity[0] / V_MAX, velocity[1] / W_MAX]

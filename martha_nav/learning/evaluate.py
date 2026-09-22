@@ -74,6 +74,15 @@ def write_csv(rows, path):
         writer.writerows(rows)
 
 
+def _trained_lidar_encoding(model_path):
+    """The observation must match training: read it from the run's config.yaml if present."""
+    config = Path(model_path).with_name('config.yaml')
+    if not config.exists():
+        return 'linear'
+    import yaml
+    return yaml.safe_load(config.read_text())['env'].get('lidar_encoding', 'linear')
+
+
 def main(argv=None):
     import torch
     from stable_baselines3 import PPO
@@ -89,7 +98,7 @@ def main(argv=None):
     ap.add_argument('--out', default=None, help='CSV path (default: next to the model)')
     args = ap.parse_args(argv)
 
-    cfg = EnvConfig()
+    cfg = EnvConfig(lidar_encoding=_trained_lidar_encoding(args.model))
     cfg = replace(cfg, scenario=replace(cfg.scenario, sources=tuple(args.sources),
                                         obstacle_mode=CONDITIONS[args.condition]))
     model = PPO.load(args.model, device='cpu')

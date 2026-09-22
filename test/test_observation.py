@@ -49,3 +49,20 @@ def test_action_mapping_is_asymmetric():
     assert action_to_cmd([1.0, 1.0]) == (0.35, 0.8)
     assert action_to_cmd([-1.0, -1.0]) == (-0.15, -0.8)
     assert action_to_cmd([5.0, 0.0]) == (0.35, 0.0)
+
+
+def test_inverse_lidar_encoding_gives_more_resolution_up_close():
+    angles = np.zeros(2)
+    near = build_observation(np.array([0.3, 0.3]), angles, (0, 0), (1, 0), (0, 0), lidar_encoding='inverse')
+    far = build_observation(np.array([0.5, 0.5]), angles, (0, 0), (1, 0), (0, 0), lidar_encoding='inverse')
+    assert np.isclose(near[0], 0.3 / 1.3) and np.isclose(far[0], 0.5 / 1.5)
+    assert far[0] - near[0] > 0.1                        # linear /8 m gives only 0.025
+    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0),
+                              lidar_encoding='inverse')
+    assert np.isclose(empty[45], 8.0 / 9.0)
+
+
+def test_unknown_lidar_encoding_is_rejected():
+    import pytest
+    with pytest.raises(ValueError):
+        build_observation(np.ones(1), np.zeros(1), (0, 0), (1, 0), (0, 0), lidar_encoding='log')

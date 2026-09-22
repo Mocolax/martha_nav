@@ -30,6 +30,7 @@ class EnvConfig:
     lidar_noise: tuple = (0.01, 0.02)
     lidar_dropout: float = 0.01
     vel_noise: float = 0.05
+    lidar_encoding: str = 'linear'   # see observation.encode_lidar
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
 
 
@@ -81,14 +82,16 @@ class NavEnv(gym.Env):
         self.since_progress = 0 if gain > 1e-3 else self.since_progress + 1
         to_goal = np.hypot(x - self.sc.goal[0], y - self.sc.goal[1])
         reached = not collided and to_goal < self.cfg.goal_tolerance
+        stalled = not (collided or reached) and self.since_progress * DT >= self.cfg.no_progress_time
         self._scan()
         reward, terms = compute_reward(gain, reached, collided, float(self.ranges.min()),
-                                       action[1] - self.prev_action[1], self.cfg.reward)
+                                       action[1] - self.prev_action[1], self.cfg.reward, stalled)
         for k, v in terms.items():
             self.terms[k] += v
         self.prev_action = action
-        terminated = collided or reached
-        stalled = self.since_progress * DT >= self.cfg.no_progress_time
+        # A stall is free (truncated, bootstrapped) unless it is penalised; then it is terminal.
+        stall_ends = stalled and self.cfg.reward.stalled != 0.0
+        terminated = collided or reached or stall_ends
         truncated = not terminated and (self.steps >= self.max_steps or stalled)
         info = {}
         if terminated or truncated:
@@ -118,7 +121,8 @@ class NavEnv(gym.Env):
         rel = (np.cos(th) * dx + np.sin(th) * dy, -np.sin(th) * dx + np.cos(th) * dy)
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 2)
         vel = (self.dyn.v * noise[0], self.dyn.w * noise[1])
-        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action)
+        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
+                                 self.cfg.lidar_encoding)
 
     def _summary(self, outcome):
         success = outcome == 'success'

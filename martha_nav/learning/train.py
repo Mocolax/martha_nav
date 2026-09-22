@@ -97,11 +97,18 @@ class PeriodicEval(BaseCallback):
         return True
 
 
-def build_config(preset):
+def build_config(preset, collision=None, stalled=None, lidar_encoding='linear'):
+    """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
-    return replace(cfg, scenario=replace(cfg.scenario, sources=tuple(p['sources']),
-                                         obstacle_mode=p['obstacle_mode']))
+    reward = cfg.reward
+    if collision is not None:
+        reward = replace(reward, collision=collision)
+    if stalled is not None:
+        reward = replace(reward, stalled=stalled)
+    return replace(cfg, reward=reward, lidar_encoding=lidar_encoding,
+                   scenario=replace(cfg.scenario, sources=tuple(p['sources']),
+                                    obstacle_mode=p['obstacle_mode']))
 
 
 def main(argv=None):
@@ -116,13 +123,17 @@ def main(argv=None):
     ap.add_argument('--device', default='auto', help="'auto' uses CUDA when available (~40%% faster)")
     ap.add_argument('--runs-dir', default=str(RUNS_DIR))
     ap.add_argument('--name', default=None)
+    ap.add_argument('--reward-collision', type=float, default=None, help='override RewardConfig.collision')
+    ap.add_argument('--reward-stalled', type=float, default=None,
+                    help='override RewardConfig.stalled (non-zero makes stalls terminal)')
+    ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='linear')
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']
     name = args.name or f'{args.preset}_{args.arch}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
-    env_cfg = build_config(args.preset)
+    env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled, args.lidar_encoding)
     config = {'preset': args.preset, 'arch': args.arch, 'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,

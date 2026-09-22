@@ -25,3 +25,13 @@ def test_optional_terms_when_enabled():
     _, t = compute_reward(0.0, False, False, 0.25, 1.0, cfg)
     assert abs(t['proximity'] + 0.05) < 1e-12      # half of proximity_dist
     assert abs(t['turn'] + 0.02) < 1e-12
+
+
+def test_stall_penalty_is_off_by_default_and_paid_only_on_stall():
+    _, t = compute_reward(0.0, False, False, 2.0, 0.0)
+    assert t['stalled'] == 0.0
+    cfg = RewardConfig(stalled=-5.0)
+    _, t = compute_reward(0.0, False, False, 2.0, 0.0, cfg, stalled=True)
+    assert t['stalled'] == -5.0
+    _, t = compute_reward(0.0, False, False, 2.0, 0.0, cfg)
+    assert t['stalled'] == 0.0

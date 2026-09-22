@@ -30,3 +30,10 @@ def test_run_episodes_plays_each_seed_once():
     assert [r['episode_seed'] for r in rows] == seeds
     s = summarize(rows)
     assert s['episodes'] == 6 and s['success'] >= 5 / 6
+
+
+def test_evaluation_uses_the_lidar_encoding_the_model_was_trained_with(tmp_path):
+    from martha_nav.learning.evaluate import _trained_lidar_encoding
+    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'linear'
+    (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
+    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'
