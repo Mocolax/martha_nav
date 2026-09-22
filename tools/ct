@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Run a command inside the ros2_humble container, in this repository.
+exec docker exec -w /home/ros/ros2_ws/src/martha_nav ros2_humble "$@"

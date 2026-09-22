@@ -1,0 +1,6 @@
+# Installed on top of the ROS 2 Humble image (see ~/ros2_ws/Dockerfile).
+# numpy stays on the system 1.21 so ROS packages keep working.
+stable-baselines3==2.3.2
+pandas<2
+numpy<2
+tensorboard<2.18
