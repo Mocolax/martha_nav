@@ -10,6 +10,13 @@
 
 **Spec:** `docs/ppo-local-planner-design.md` (sección 7; E2 en la sección 9)
 
+**Estado de ejecución (2026-09-22):** tareas 1–5 **hechas y verificadas** (102 pruebas en verde). Quedan las tareas 6 y 7, que necesitan Gazebo.
+
+Cambios respecto a lo planeado, ya aplicados:
+- El URDF **se reutilizó** del paquete anterior en vez de escribirse de cero (decisión del usuario). El robot usa `base_link` como raíz, sin `base_footprint`.
+- Las ruedas se movieron a `x = 0.20` para que queden dentro de la coraza de contacto: si sobresalen, una pared toca primero la rueda, que no reporta contacto, y el episodio parece un atasco en vez de un choque.
+- La prueba *golden* compara con tolerancia 1e-6, no bit a bit: `LaserScan` guarda los rangos en float32 y eso introduce 6e-8 de diferencia.
+
 **Estado de verificación:** ⚠️ **a diferencia del plan 1, este plan NO se prototipó.** El plan 1 se escribió a partir de código ya ejecutado; aquí no, porque el experimento E1 ocupaba la máquina. El código de las tareas es correcto por construcción pero **no está probado**, así que cada tarea trae sus verificaciones y hay que tratarlas como reales: si algo no da lo esperado, hay que investigar, no forzar.
 
 Datos que sí se verificaron en el contenedor antes de escribir el plan:
@@ -33,7 +40,7 @@ Datos que sí se verificaron en el contenedor antes de escribir el plan:
 | archivo | responsabilidad |
 |---|---|
 | `tools/ct_ros` | ejecutar un comando en el contenedor **con ROS cargado** |
-| `urdf/martha.urdf.xacro` | robot mínimo: caja 0.56 × 0.41, LiDAR, bumper, `planar_move` |
+| `urdf/martha.urdf.xacro` | robot reutilizado de `martha/urdf/learning.xacro`, sin namespaces, IMU, ruedas mecanum ni `ros2_control` |
 | `martha_nav/ros/occupancy.py` | `Grid` ↔ `nav_msgs/OccupancyGrid` |
 | `martha_nav/ros/scan_adapter.py` | `sensor_msgs/LaserScan` → `(ranges, angles)` en el marco del robot |
 | `martha_nav/ros/planner_core.py` | lógica pura del planificador: cuándo replanificar, ruta, estado |
@@ -129,7 +136,7 @@ Expected: FAIL (el archivo `urdf/martha.urdf.xacro` no existe)
   <xacro:arg name="lidar_samples" default="360"/>
   <xacro:arg name="lidar_visualize" default="false"/>
 
-  <link name="base_footprint"/>
+  <link name="base_link"/>
 
   <link name="base_link">
     <visual>
@@ -149,7 +156,7 @@ Expected: FAIL (el archivo `urdf/martha.urdf.xacro` no existe)
   </link>
 
   <joint name="base_joint" type="fixed">
-    <parent link="base_footprint"/>
+    <parent link="base_link"/>
     <child link="base_link"/>
     <origin xyz="0 0 0.05"/>
   </joint>
@@ -176,7 +183,7 @@ Expected: FAIL (el archivo `urdf/martha.urdf.xacro` no existe)
       <always_on>true</always_on>
       <update_rate>50</update_rate>
       <contact>
-        <collision>base_footprint_fixed_joint_lump__base_link_collision</collision>
+        <collision>base_link_fixed_joint_lump__base_link_collision</collision>
       </contact>
       <plugin name="gazebo_ros_bumper" filename="libgazebo_ros_bumper.so">
         <ros>
@@ -229,7 +236,7 @@ Expected: FAIL (el archivo `urdf/martha.urdf.xacro` no existe)
         <remapping>odom:=/odom</remapping>
       </ros>
       <odometry_frame>odom</odometry_frame>
-      <robot_base_frame>base_footprint</robot_base_frame>
+      <robot_base_frame>base_link</robot_base_frame>
       <odometry_rate>50.0</odometry_rate>
       <publish_odom>true</publish_odom>
       <publish_odom_tf>true</publish_odom_tf>
@@ -903,7 +910,7 @@ class PlannerNode(Node):
             replan_distance=self.declare_parameter('replan_distance', 1.0).value,
             goal_tolerance=self.declare_parameter('goal_tolerance', 0.3).value)
         self.map_frame = self.declare_parameter('map_frame', 'map').value
-        self.base_frame = self.declare_parameter('base_frame', 'base_footprint').value
+        self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self)
         self.create_subscription(OccupancyGrid, '/map', self.on_map, LATCHED)
@@ -1011,7 +1018,7 @@ class PolicyNode(Node):
                                lidar_encoding=self.declare_parameter('lidar_encoding',
                                                                      'inverse').value)
         self.map_frame = self.declare_parameter('map_frame', 'map').value
-        self.base_frame = self.declare_parameter('base_frame', 'base_footprint').value
+        self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self)
         self.scan = self.scan_time = None
@@ -1131,7 +1138,7 @@ class GroundTruthTf(Node):
     def __init__(self):
         super().__init__('ground_truth_tf')
         self.model = self.declare_parameter('model_name', 'martha').value
-        self.truth = None      # (x, y, yaw) of base_footprint in map
+        self.truth = None      # (x, y, yaw) of base_link in map
         self.broadcaster = TransformBroadcaster(self)
         self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
         self.create_subscription(Odometry, '/odom', self.on_odom, qos_profile_sensor_data)
@@ -1294,11 +1301,11 @@ Terminal 2, comprobaciones en orden:
 ```bash
 ./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic hz /scan'          # ~10 Hz
 ./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic echo --once /map --field info'
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 run tf2_ros tf2_echo map base_footprint'
+./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 run tf2_ros tf2_echo map base_link'
 ./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: map}, pose: {position: {x: 2.0, y: 2.0}, orientation: {w: 1.0}}}"'
 ./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic echo /nav_status'   # active -> succeeded
 ```
-Expected: `/scan` a ~10 Hz, el mapa con el tamaño del laboratorio, `map → base_footprint` coincidiendo con la posición de spawn, y Martha llegando a la meta con `/nav_status` en `succeeded`.
+Expected: `/scan` a ~10 Hz, el mapa con el tamaño del laboratorio, `map → base_link` coincidiendo con la posición de spawn, y Martha llegando a la meta con `/nav_status` en `succeeded`.
 
 **Puntos donde esto puede fallar, y qué mirar:**
 - `/scan` vacío o sin publicar → el nombre del sensor o el remapeo del plugin ray.
