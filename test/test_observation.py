@@ -37,7 +37,10 @@ def test_observation_layout_and_bounds():
     obs = build_observation(np.full(180, 4.0), np.linspace(-np.pi, np.pi, 180, endpoint=False),
                             velocity=(0.35, -0.8), waypoint_rel=(0.0, 1.5), prev_action=(0.5, -1.0))
     assert obs.shape == (OBS_DIM,) and obs.dtype == np.float32
-    assert np.allclose(obs[:90], 0.5)
+    assert np.allclose(obs[:90], 0.8)                               # default encoding: 4 / (4 + 1)
+    linear = build_observation(np.full(180, 4.0), np.linspace(-np.pi, np.pi, 180, endpoint=False),
+                               (0.35, -0.8), (0.0, 1.5), (0.5, -1.0), lidar_encoding='linear')
+    assert np.allclose(linear[:90], 0.5)                            # 4 / 8 m
     assert np.isclose(obs[90], 0.5) and np.isclose(obs[91], 0.5)   # 1.5/3 m, +90 deg
     assert np.allclose(obs[92:94], [1.0, -1.0])
     assert np.allclose(obs[94:], [0.5, -1.0])

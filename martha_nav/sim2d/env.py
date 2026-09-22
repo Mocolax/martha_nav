@@ -30,7 +30,7 @@ class EnvConfig:
     lidar_noise: tuple = (0.01, 0.02)
     lidar_dropout: float = 0.01
     vel_noise: float = 0.05
-    lidar_encoding: str = 'linear'   # see observation.encode_lidar
+    lidar_encoding: str = 'inverse'  # see observation.encode_lidar; 'linear' in full_cnn_s0
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
 
 

@@ -34,6 +34,8 @@ def test_run_episodes_plays_each_seed_once():
 
 def test_evaluation_uses_the_lidar_encoding_the_model_was_trained_with(tmp_path):
     from martha_nav.learning.evaluate import _trained_lidar_encoding
-    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'linear'
+    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'   # no config: default
+    (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
+    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'linear'    # runs before the option
     (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
     assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'

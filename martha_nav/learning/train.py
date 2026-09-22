@@ -97,7 +97,7 @@ class PeriodicEval(BaseCallback):
         return True
 
 
-def build_config(preset, collision=None, stalled=None, lidar_encoding='linear'):
+def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse'):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
@@ -126,7 +126,7 @@ def main(argv=None):
     ap.add_argument('--reward-collision', type=float, default=None, help='override RewardConfig.collision')
     ap.add_argument('--reward-stalled', type=float, default=None,
                     help='override RewardConfig.stalled (non-zero makes stalls terminal)')
-    ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='linear')
+    ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='inverse')
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']

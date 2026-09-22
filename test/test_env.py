@@ -100,5 +100,5 @@ def test_stall_penalty_turns_stalls_into_terminal_episodes():
 
 def test_lidar_encoding_reaches_the_observation():
     a, _ = NavEnv(OPEN).reset(seed=4)
-    b, _ = NavEnv(replace(OPEN, lidar_encoding='inverse')).reset(seed=4)
+    b, _ = NavEnv(replace(OPEN, lidar_encoding='linear')).reset(seed=4)
     assert not np.allclose(a[:90], b[:90]) and np.allclose(a[90:], b[90:])

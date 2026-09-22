@@ -12,7 +12,7 @@ def test_terminal_values():
     _, t = compute_reward(0.0, True, False, 2.0, 0.0)
     assert t['goal'] == 20.0
     _, t = compute_reward(0.0, False, True, 0.1, 0.0)
-    assert t['collision'] == -10.0
+    assert t['collision'] == -20.0
 
 
 def test_negative_progress_is_not_paid():

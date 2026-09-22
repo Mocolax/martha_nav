@@ -2,7 +2,7 @@
 import numpy as np
 
 N_SECTORS = 90
-LIDAR_MAX = 8.0     # m, RPLIDAR A2M8
+LIDAR_MAX = 8.0     # m, RPLIDAR A2M8 (clip range; encoding in encode_lidar)
 WAYPOINT_MAX = 3.0  # m
 V_MAX = 0.35        # m/s forward
 V_REVERSE = 0.15    # m/s backward
@@ -31,7 +31,7 @@ def reduce_scan(ranges, angles):
 LIDAR_ENCODINGS = ('linear', 'inverse')
 
 
-def encode_lidar(sectors, encoding='linear'):
+def encode_lidar(sectors, encoding='inverse'):
     """Metres -> [0, 1]. 'linear': d / 8 m. 'inverse': d / (d + 1 m), finer up close."""
     if encoding == 'linear':
         return sectors / LIDAR_MAX
@@ -40,7 +40,7 @@ def encode_lidar(sectors, encoding='linear'):
     raise ValueError(f'unknown lidar encoding {encoding!r}; use one of {LIDAR_ENCODINGS}')
 
 
-def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='linear'):
+def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='inverse'):
     """96-value observation in [-1, 1].
 
     ranges/angles: raw scan, angles relative to the robot's forward axis.

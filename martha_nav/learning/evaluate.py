@@ -78,8 +78,9 @@ def _trained_lidar_encoding(model_path):
     """The observation must match training: read it from the run's config.yaml if present."""
     config = Path(model_path).with_name('config.yaml')
     if not config.exists():
-        return 'linear'
+        return EnvConfig().lidar_encoding
     import yaml
+    # Runs trained before the option existed used the linear encoding.
     return yaml.safe_load(config.read_text())['env'].get('lidar_encoding', 'linear')
 
 

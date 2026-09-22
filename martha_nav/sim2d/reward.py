@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class RewardConfig:
     progress: float = 1.0        # per metre of new-record route progress
     goal: float = 20.0
-    collision: float = -10.0
+    collision: float = -20.0     # -10 in full_cnn_s0; see docs/resultados.md (A/B/C)
     step: float = -0.005
     proximity: float = 0.0       # optional, off by default
     proximity_dist: float = 0.5  # m
