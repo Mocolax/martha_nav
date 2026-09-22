@@ -147,7 +147,7 @@ gradual. No se implementa salvo que haga falta.
 
 | parte | tamaño | codificación |
 |---|---|---|
-| LiDAR | 90 | mínimo por sector de 4°, `min(d, 8 m) / 8 m`; rayos desde la posición del LiDAR (+0.2325 m en x) |
+| LiDAR | 90 | mínimo por sector de 4°, `d / (d + 1 m)` con `d ≤ 8 m`; rayos desde la posición del LiDAR (+0.2325 m en x). *Cambiado el 2026-09-22: la versión inicial `d / 8 m` rendía la mitad con obstáculos (ver `docs/resultados.md`, experimentos A/B/C).* |
 | waypoint | 2 | distancia `min(d, 3 m) / 3 m`, ángulo `atan2 / π` en [−1, 1] (**sin seno/coseno**) |
 | velocidad medida | 2 | `v / 0.35`, `ω / 0.8` |
 | acción anterior | 2 | en [−1, 1] |
@@ -185,7 +185,7 @@ devuelve el total y cada término por separado.
 |---|---|
 | progreso | +1.0 × (metros de **nuevo récord** de `s` sobre la ruta estática) |
 | llegada | +20 |
-| choque | −10 |
+| choque | −20 (−10 en la versión inicial; ver `docs/resultados.md`) |
 | tiempo | −0.005 por paso |
 | proximidad (opcional) | 0 por defecto |
 | giro brusco (opcional) | 0 por defecto |
