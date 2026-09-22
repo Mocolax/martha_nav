@@ -51,3 +51,30 @@ Las colisiones ocurren de media al 40% de la ruta, tras unos 203 pasos.
 truncan con bootstrap) por choques. `lab`, que nunca vio, rinde igual que las fuentes de entrenamiento
 (0.39 frente a 0.37): **la generalización funciona; lo que falla es la evitación.** Hay que revisar la
 recompensa antes de E1.
+
+## Experimentos A / B / C (2M pasos cada uno, semilla 0)
+
+Script: `tools/run_experiments_abc.sh`. Figura: `docs/figures/exp_abc.png`
+(`tools/compare_runs.py`). Perfil `performance`, ~1 150 pasos/s.
+
+| run | cambio frente al base | limpio | obstáculos | obstáculos, `lab` | colisión (obst.) | estancado (obst.) |
+|---|---|---|---|---|---|---|
+| base `full_cnn_s0` (mejor, 1.5M) | — | 0.682 | 0.366 [0.325, 0.409] | 0.390 | 0.266 | 0.336 |
+| A `expA_col20` | choque −20 | 0.566 | 0.340 [0.300, 0.383] | 0.350 | 0.282 | 0.324 |
+| B `expB_col20_stall5` | A + atasco terminal −5 | 0.274 | 0.148 [0.120, 0.182] | 0.230 | 0.266 | 0.408 |
+| **C `expC_col20_inverse`** | A + LiDAR `d/(d+1)` | **0.910** | **0.712 [0.671, 0.750]** | **0.590** | **0.046** | 0.232 |
+
+Evaluación determinista del `best_model.zip` de cada run: 500 episodios (200 en `lab`) con las mismas
+semillas reservadas que el base.
+
+**Conclusiones:**
+- **La codificación del LiDAR era el cuello de botella.** Con `d/(d+1)`, el éxito con obstáculos pasa de
+  0.37 a **0.71** (los IC95 no se solapan) y la colisión baja de 0.27 a 0.05. En `lab` (no visto) sube de
+  0.39 a 0.59. A aísla el efecto de la recompensa (choque −20 solo no mejora), así que la ganancia de C
+  viene de la codificación.
+- **Choque −20 solo no ayuda** (A, dentro del error respecto al base, peor en limpio).
+- **Hacer terminal el atasco es contraproducente** (B): la política no despega. Coincide con la §13 de
+  la bitácora anterior: una penalización grande respecto al progreso inicial enseña a no moverse.
+- **Queda un problema:** en C el mejor modelo es el de **250k pasos**; después la evaluación periódica
+  baja de 0.765 a ~0.69 y la colisión sube de 0.025 a ~0.21. La degradación con el entrenamiento
+  persiste, aunque en un nivel mucho más alto. En `lab`, el fallo dominante de C es el estancamiento (0.275).
