@@ -75,7 +75,10 @@ def write_csv(rows, path):
 
 
 def main(argv=None):
+    import torch
     from stable_baselines3 import PPO
+
+    torch.set_num_threads(4)   # default (all cores) starves the env workers
 
     ap = argparse.ArgumentParser(description='Evaluate a trained policy in the 2D simulator.')
     ap.add_argument('--model', required=True)
