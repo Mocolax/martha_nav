@@ -27,8 +27,8 @@ política, robot simplificado para Gazebo.
 (sysid), fine-tune en Gazebo, planificadores clásicos de comparación (opcional si
 sobra tiempo). Del robot real solo se fija el contrato de interfaz (sección 7.5).
 
-**Restricción:** ~5 semanas (22 sep – 26 oct 2026). Ante la duda, lo más simple
-que converja.
+**Restricción:** plazo corto (entrega hacia finales de octubre de 2026). Ante la
+duda, lo más simple que converja.
 
 ## 2. Decisiones principales
 
@@ -356,15 +356,18 @@ llegar a ≥ 80% de éxito en ≤ 500k pasos. No se añade dificultad hasta pasa
   aparte).
 - **Opcionales:** término de proximidad encendido; comparación con DWA.
 
-## 10. Cronograma
+## 10. Orden de trabajo
 
-| semana | fechas | entregable | puerta |
-|---|---|---|---|
-| 1 | 22–28 sep | `sim2d` + pruebas, rasterizador de `.world`, revisión de papers para las plantillas | `check_env` pasa; pasos/s medidos |
-| 2 | 29 sep – 5 oct | `learning/`, primeros runs | puerta de convergencia |
-| 3 | 6–12 oct | E1 en segundo plano; URDF, launch, nodos, `gazebo_eval.py` | Martha navega en Gazebo |
-| 4 | 13–19 oct | E2, análisis de la brecha, decisión sobre el fine-tune | tablas de E1 y E2 |
-| 5 | 20–26 oct | colchón, gráficas, robot real si el hardware está listo | — |
+Orientativo: define el orden y las puertas, no fechas. El usuario tiene otras
+entregas (documento de tesis) que se planifican aparte.
+
+| fase | entregable | puerta para pasar a la siguiente |
+|---|---|---|
+| 1 | `sim2d` + pruebas, rasterizador de `.world`, revisión de papers para las plantillas | `check_env` pasa; pasos/s medidos |
+| 2 | `learning/`, primeros runs | puerta de convergencia |
+| 3 | E1 en segundo plano; URDF, launch, nodos, `gazebo_eval.py` | Martha navega en Gazebo |
+| 4 | E2, análisis de la brecha, decisión sobre el fine-tune | tablas de E1 y E2 |
+| 5 | gráficas; robot real si el hardware está listo | — |
 
 **Riesgo principal:** la demo real depende de reparar el hardware, lo cual está
 fuera de este diseño. Plan B: defender con E1 y E2 más la demo de `lab.world` en
