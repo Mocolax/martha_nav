@@ -97,3 +97,30 @@ y después se degrada.
 **Arreglo:** `target_kl = 0.02` en `PPO_PARAMS` (SB3 corta las épocas del lote cuando el KL lo supera).
 Run de verificación: `runs/long_c_kl_s0` (configuración C + `target_kl`, 5M pasos). El run
 `runs/long_c_s0_stopped` (sin `target_kl`) se detuvo a los 100k pasos, a favor de este.
+
+### Verificación: `long_c_kl_s0` (configuración C + `target_kl = 0.02`, 5M pasos)
+
+78 min, ~1 070 pasos/s, perfil `performance`. Figuras: `docs/figures/target_kl.png` (comparación) y
+`docs/figures/long_c_kl_s0.png`.
+
+**Indicadores de PPO, ya sanos:** `approx_kl` 0.015–0.022, `clip_fraction` 0.13–0.18, `std` baja de forma
+gradual (0.60 → 0.38 → 0.30 → 0.25 → 0.19 → 0.15 cada 1M pasos) y `explained_variance` 0.85–0.90.
+
+**Evaluación periódica:** estable entre 0.86 y 0.91 de éxito desde 2.5M pasos, con colisión 0.02–0.06.
+**No hay degradación.** Mejor punto: 0.91 a 3.2M.
+
+| modelo | limpio | obstáculos | obstáculos, `lab` (no visto) | colisión (obst. / `lab`) | estancado (obst.) |
+|---|---|---|---|---|---|
+| mejor (3.2M) | **0.958** [0.937, 0.972] | **0.868** [0.836, 0.895] | **0.865** [0.811, 0.906] | 0.012 / 0.025 | 0.116 |
+| final (5M) | 0.976 [0.959, 0.986] | 0.878 [0.846, 0.904] | 0.780 [0.718, 0.832] | 0.042 / 0.125 | 0.078 |
+
+Evolución del éxito con obstáculos (mejor modelo, mismas semillas):
+base 0.37 → C 0.71 → **C + `target_kl` 0.87**. En `lab`: 0.39 → 0.59 → **0.87**.
+
+**Conclusiones:**
+- Con `target_kl` el entrenamiento largo **sí mejora** y ya no se degrada: era la condición para que
+  "entrenar más" sirviera.
+- La política generaliza a `lab` casi igual que a las fuentes de entrenamiento (0.865 frente a 0.868).
+- El modelo final es algo más agresivo en `lab` (colisión 0.125 frente a 0.025): la selección del modelo
+  por evaluación importa. **Modelo candidato para Gazebo: `runs/long_c_kl_s0/best_model.zip`.**
+- El fallo restante dominante es el **estancamiento** (~0.1), no el choque.
