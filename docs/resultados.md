@@ -78,3 +78,22 @@ semillas reservadas que el base.
 - **Queda un problema:** en C el mejor modelo es el de **250k pasos**; después la evaluación periódica
   baja de 0.765 a ~0.69 y la colisión sube de 0.025 a ~0.21. La degradación con el entrenamiento
   persiste, aunque en un nivel mucho más alto. En `lab`, el fallo dominante de C es el estancamiento (0.275).
+
+## Por qué empeoraba con el entrenamiento: colapso del `std` y actualizaciones sin límite
+
+Leído de TensorBoard (`runs/*/tb`):
+
+| indicador | referencia en PPO | `full_cnn_s0` (1–3M pasos) | `expC_col20_inverse` (0.8–1.2M) |
+|---|---|---|---|
+| `approx_kl` | 0.01–0.02 | 1.2–2.0 | 0.13–0.17 |
+| `clip_fraction` | 0.1–0.2 | 0.63–0.71 | 0.39–0.41 |
+| `std` | baja poco a poco | 0.60 → 0.087 (1M) → 0.007 (5M) | 0.60 → 0.077 (2M) |
+
+Con `ent_coef = 0` el ruido de la política colapsa. Con un `std` diminuto, cualquier cambio de la
+media es un cambio enorme de probabilidad, y 10 épocas por lote aplican el cambio aunque la mayoría de
+las muestras estén recortadas. Cada actualización reescribe la política: el mejor modelo aparece pronto
+y después se degrada.
+
+**Arreglo:** `target_kl = 0.02` en `PPO_PARAMS` (SB3 corta las épocas del lote cuando el KL lo supera).
+Run de verificación: `runs/long_c_kl_s0` (configuración C + `target_kl`, 5M pasos). El run
+`runs/long_c_s0_stopped` (sin `target_kl`) se detuvo a los 100k pasos, a favor de este.
