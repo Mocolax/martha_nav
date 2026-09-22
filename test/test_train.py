@@ -27,3 +27,9 @@ def test_experiment_flags_reach_the_env_config():
     assert default.lidar_encoding == 'inverse'
     base = build_config('full', collision=-10.0, lidar_encoding='linear')   # reproduces full_cnn_s0
     assert base.reward.collision == -10.0 and base.lidar_encoding == 'linear'
+
+
+def test_ppo_updates_are_kl_limited():
+    # Without it the policy std collapsed and approx_kl reached 1-2 (docs/resultados.md).
+    from martha_nav.learning.train import PPO_PARAMS
+    assert PPO_PARAMS['target_kl'] == 0.02
