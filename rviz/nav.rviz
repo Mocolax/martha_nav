@@ -55,7 +55,9 @@ Visualization Manager:
       Enabled: true
       Topic:
         Value: /goal_pose
-        Durability Policy: Transient Local
+        # Volatile on purpose: RViz's own 2D Goal Pose tool publishes volatile, and a
+        # transient-local subscription would refuse those messages.
+        Durability Policy: Volatile
         Reliability Policy: Reliable
       Color: 27; 175; 122
       Shaft Length: 0.6
