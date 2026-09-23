@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 OUTCOMES = [('success', 'éxito', '#2a78d6'), ('collision', 'colisión', '#eb6834'),
             ('stuck', 'estancado / timeout', '#1baf7a'), ('failed', 'sin ruta', '#eda100')]
 INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
-CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab.csv'),
+CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab_v2.csv'),
               ('puntos fijos del\npaquete anterior', 'eval_obstacles_lab-points.csv',
-               'eval_gazebo_lab_points.csv')]
+               'eval_gazebo_lab_points_v2.csv')]
 
 
 def shares(path, seeds=None):

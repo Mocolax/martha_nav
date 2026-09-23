@@ -158,3 +158,30 @@ fallo.
 > **Conclusión citable:** la política entrenada en el simulador 2D **transfiere a Gazebo con una
 > pérdida de 4 a 12 puntos** de éxito, sin aumentar las colisiones. El fallo dominante en ambos
 > simuladores es quedarse bloqueado, no chocar.
+
+### Corrección de E2: la brecha era nuestra propia parada de seguridad
+
+Los 1 276 avisos de "obstáculo dentro de la huella" registrados durante E2 revelaron un fallo de
+diseño: la protección del `policy_node` publicaba velocidad cero **en todas las direcciones**, así
+que el robot quedaba congelado a 5 cm del obstáculo, sin poder girar ni retroceder, hasta agotar el
+tiempo límite. Nunca llegaba a tocar, así que tampoco contaba como colisión.
+
+Dos arreglos: la protección pasa a ser **direccional** (bloquea solo el movimiento que chocaría,
+clasificando la intrusión por su eje dominante) y `gazebo_eval` corta el episodio tras **15 s sin
+avanzar**, la misma regla que el entorno 2D.
+
+Repetición con las 100 semillas, pareada episodio a episodio:
+
+| | éxito [IC95] | colisión | bloqueo | sin ruta |
+|---|---|---|---|---|
+| 2D | 0.880 [0.802, 0.930] | 0.020 | 0.100 | 0.000 |
+| Gazebo, antes | 0.760 [0.668, 0.833] | 0.000 | 0.220 | 0.020 |
+| **Gazebo, corregido** | **0.880 [0.802, 0.930]** | 0.020 | 0.080 | 0.020 |
+
+De los 22 episodios que antes agotaban el tiempo, **14 pasan a ser éxitos**, 7 siguen bloqueados y 1
+resulta ser una colisión real. El tiempo medio por episodio baja de 46 a 36 s.
+
+> **Conclusión revisada, que sustituye a la anterior:** la política entrenada en el simulador 2D
+> **transfiere a Gazebo sin pérdida medible** (0.880 frente a 0.880, con la misma tasa de colisión).
+> La brecha de 12 puntos que medimos primero no era del simulador: era un guardia de seguridad mal
+> diseñado por nuestra parte. Queda pendiente repetir también la condición de puntos fijos.
