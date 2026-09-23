@@ -185,3 +185,32 @@ resulta ser una colisión real. El tiempo medio por episodio baja de 46 a 36 s.
 > **transfiere a Gazebo sin pérdida medible** (0.880 frente a 0.880, con la misma tasa de colisión).
 > La brecha de 12 puntos que medimos primero no era del simulador: era un guardia de seguridad mal
 > diseñado por nuestra parte. Queda pendiente repetir también la condición de puntos fijos.
+
+### E2 final, con la regla de estancamiento activa
+
+Segundo fallo encontrado al revisar los CSV: `gazebo_eval` tomaba la posición de `/odom`, que la
+tracción mecanum **no publica** (su odometría va en `/mecanum_drive_controller/odometry`). La
+posición quedaba en `None` y la regla de los 15 s sin avanzar no se activaba nunca: todos los
+bloqueos agotaban los 120 s y se etiquetaban `timeout`. Ahora la posición viene de la pose real de
+Gazebo, que existe con cualquier tracción.
+
+Repetición final de las dos condiciones, pareada contra el 2D:
+
+| condición | simulador | éxito [IC95] | colisión | estancado | timeout |
+|---|---|---|---|---|---|
+| semillas generadas (100) | 2D | 0.880 [0.802, 0.930] | 0.020 | 0.090 | 0.010 |
+| semillas generadas (100) | Gazebo | 0.830 [0.745, 0.891] | 0.010 | 0.080 | 0.070 |
+| puntos fijos (90) | 2D | 0.722 [0.622, 0.804] | 0.056 | 0.222 | 0.000 |
+| puntos fijos (90) | Gazebo | 0.733 [0.634, 0.814] | 0.011 | 0.067 | 0.178 |
+
+**Repetibilidad de Gazebo:** dos pasadas de los **mismos** 100 episodios dan 0.880 y 0.830, y
+coinciden en 85 de 100. Es decir, el propio simulador tiene un ruido de ±5 puntos entre
+repeticiones, del orden de la brecha que queremos medir.
+
+> **Conclusión final de E2:** la política transfiere del simulador 2D a Gazebo **sin pérdida
+> distinguible del ruido del propio simulador**: −5.0 puntos con las semillas generadas y +1.1 con
+> los puntos fijos, con intervalos que se solapan ampliamente. Las colisiones son iguales o menores
+> en Gazebo. Entrenar en 2D, unas 50 veces más rápido, no se paga con un peor resultado.
+
+Queda un 7–18% de episodios que agotan el tiempo sin ser estancamiento: el robot se mueve, pero
+avanza demasiado poco para llegar. Es el mismo fallo que en 2D, visto con otro reloj.
