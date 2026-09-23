@@ -17,7 +17,7 @@ import pandas as pd
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 
-WINDOW = 200            # episodes in the rolling mean
+WINDOW = 50             # episodes in the rolling mean, like REPORT_WINDOW in the old package
 OUTCOMES = ('success', 'collision', 'stalled', 'timeout')
 COLORS = {'success': '#2a78d6', 'collision': '#eb6834', 'stalled': '#1baf7a', 'timeout': '#eda100'}
 LABELS = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado', 'timeout': 'timeout'}
@@ -25,7 +25,8 @@ SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7']
 INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
 
 
-def style(ax, title, ylabel=None, percent=False):
+def style(ax, title, ylabel=None, percent=False, steps_axis=None, xlabel='episodio'):
+    """steps_axis: (episodes, timesteps) to add a second x axis in millions of steps."""
     ax.set_facecolor(SURFACE)
     ax.set_title(title, loc='left', color=INK, fontsize=11, fontweight='bold')
     ax.grid(axis='y', color=GRID, linewidth=0.8)
@@ -34,17 +35,42 @@ def style(ax, title, ylabel=None, percent=False):
         ax.spines[side].set_visible(False)
     ax.spines['bottom'].set_color(MUTED)
     ax.tick_params(colors=MUTED, labelsize=9, length=0)
-    ax.set_xlabel('millones de pasos', color=MUTED, fontsize=9)
+    ax.set_xlabel(xlabel, color=MUTED, fontsize=9)
     if ylabel:
         ax.set_ylabel(ylabel, color=MUTED, fontsize=9)
     if percent:
         ax.set_ylim(0, 1)
         ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    if steps_axis is not None:
+        episodes, timesteps = steps_axis
+        top = ax.secondary_xaxis(
+            'top',
+            functions=(lambda e: np.interp(e, episodes, timesteps / 1e6),
+                       lambda m: np.interp(m, timesteps / 1e6, episodes)))
+        top.set_xlabel('millones de pasos', color=MUTED, fontsize=8)
+        top.tick_params(colors=MUTED, labelsize=8, length=0)
+
+
+def trace(ax, x, series, color, label=None, window=WINDOW):
+    """Rolling mean, over a light band with the 10th to 90th percentile of the window.
+
+    With tens of thousands of episodes the raw per-episode line is an unreadable
+    blur in print, so the spread is shown as a band instead.
+    """
+    # Band: 10th to 90th percentile inside bins, so it stays smooth with 20k episodes.
+    bins = max(1, len(series) // max(window, len(series) // 300))
+    group = pd.Series(series.to_numpy()).groupby(np.minimum(np.arange(len(series)) // bins,
+                                                            len(series) // bins))
+    centre = group.apply(lambda g: g.index.to_numpy().mean() + 1)
+    ax.fill_between(centre, group.quantile(0.1), group.quantile(0.9), color=color, alpha=0.16,
+                    linewidth=0)
+    ax.plot(x, series.rolling(window, min_periods=max(3, window // 5)).mean(), color=color,
+            linewidth=1.8, label=label)
 
 
 def load(run):
     episodes = pd.read_csv(run / 'episodes.csv')
-    episodes['x'] = episodes.timesteps / 1e6
+    episodes['x'] = np.arange(1, len(episodes) + 1)
     terms = [c for c in episodes.columns if c.startswith('r_')]
     episodes['reward'] = episodes[terms].sum(axis=1)
     evals = pd.read_csv(run / 'evals.csv') if (run / 'evals.csv').exists() else None
@@ -72,9 +98,11 @@ def rolling(series, window=WINDOW):
 
 def learning_report(run, episodes, terms, evals, out):
     fig, ax = plt.subplots(3, 2, figsize=(15, 13), facecolor=SURFACE, constrained_layout=True)
+    steps_axis = (episodes.x.to_numpy(), episodes.timesteps.to_numpy())
 
-    ax[0, 0].plot(episodes.x, rolling(episodes.reward), color=SLOTS[0], linewidth=2)
-    style(ax[0, 0], 'Recompensa de entrenamiento', 'recompensa por episodio')
+    trace(ax[0, 0], episodes.x, episodes.reward, SLOTS[0])
+    style(ax[0, 0], f'Recompensa por episodio (media móvil de {WINDOW})',
+          'recompensa', steps_axis=steps_axis)
 
     share = pd.DataFrame({o: rolling((episodes.outcome == o).astype(float)) for o in OUTCOMES})
     bottom = np.zeros(len(episodes))
@@ -83,30 +111,37 @@ def learning_report(run, episodes, terms, evals, out):
                               label=LABELS[o], linewidth=0)
         bottom = bottom + share[o].fillna(0).to_numpy()
     ax[0, 1].legend(loc='lower right', frameon=False, fontsize=9, ncol=4)
-    style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', percent=True)
+    style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', percent=True,
+          steps_axis=steps_axis)
 
-    ax[1, 0].plot(episodes.x, rolling(episodes.steps), color=SLOTS[0], linewidth=2)
-    style(ax[1, 0], 'Duración de los episodios', 'pasos')
+    trace(ax[1, 0], episodes.x, episodes.steps, SLOTS[0])
+    style(ax[1, 0], 'Duración de los episodios', 'pasos', steps_axis=steps_axis)
 
-    ax[1, 1].plot(episodes.x, rolling(episodes.spl), color=SLOTS[2], linewidth=2)
-    style(ax[1, 1], 'Eficiencia de ruta (SPL)', percent=True)
+    # SPL is 0 on every failure, so averaging it over all episodes hides the shape.
+    spl = episodes.spl.where(episodes.outcome == 'success')
+    trace(ax[1, 1], episodes.x, spl, SLOTS[2])
+    style(ax[1, 1], 'Eficiencia de ruta (SPL entre los éxitos)', percent=True,
+          steps_axis=steps_axis)
 
     for term, color in zip(terms, SLOTS):
         ax[2, 0].plot(episodes.x, rolling(episodes[term]), color=color, linewidth=2,
                       label=term.replace('r_', ''))
     ax[2, 0].legend(loc='upper left', frameon=False, fontsize=9, ncol=3)
     ax[2, 0].axhline(0, color=MUTED, linewidth=0.8)
-    style(ax[2, 0], 'Contribución de cada término de recompensa', 'por episodio')
+    style(ax[2, 0], 'Contribución de cada término de recompensa', 'por episodio',
+          steps_axis=steps_axis)
 
     if evals is not None:
+        at_episode = np.interp(evals.timesteps, episodes.timesteps, episodes.x)
         for key in ('success', 'collision'):
-            ax[2, 1].plot(evals.timesteps / 1e6, evals[key], color=COLORS[key], marker='o',
+            ax[2, 1].plot(at_episode, evals[key], color=COLORS[key], marker='o',
                           markersize=4, linewidth=2, label=LABELS[key])
         best = evals.success.idxmax()
-        ax[2, 1].plot(evals.timesteps[best] / 1e6, evals.success[best], 'o', markersize=9,
+        ax[2, 1].plot(at_episode[best], evals.success[best], 'o', markersize=9,
                       markerfacecolor='none', markeredgecolor=INK, markeredgewidth=1.5)
         ax[2, 1].legend(loc='center right', frameon=False, fontsize=9)
-    style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True)
+    style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True,
+          steps_axis=steps_axis)
 
     fig.suptitle(f'Run {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
     fig.savefig(out, dpi=150, facecolor=SURFACE)
@@ -135,7 +170,7 @@ def diagnostics_report(run, tb, out):
             axis.annotate(f'objetivo {reference}', (steps[-1], reference), xytext=(-70, 4),
                           textcoords='offset points', color=MUTED, fontsize=8)
         axis.legend(loc='best', frameon=False, fontsize=9)
-        style(axis, title)
+        style(axis, title, xlabel='millones de pasos')
     fig.suptitle(f'PPO · {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)

@@ -1,8 +1,10 @@
 """Episode generation: static map, start/goal, static route, surprise obstacles."""
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
+import yaml
 
 from martha_nav.sim2d.geometry import Grid, draw_box, draw_circle, empty_grid
 from martha_nav.sim2d.planner import INFLATION, PlanningGrid
@@ -110,6 +112,34 @@ WORLD_SOURCES = ('four_rooms', 'hall', 'multi', 'roblab', 'room', 'tube')
 TRAIN_SOURCES = ('corridor', 'doorway', 'l_turn', 'furniture_walls', 'furniture_center',
                  'narrow_passage') + WORLD_SOURCES
 EVAL_ONLY_SOURCES = ('lab',)
+POINTS_FILE = Path(__file__).resolve().parents[2] / 'config' / 'training_points.yaml'
+
+
+@lru_cache(maxsize=None)
+def load_points(world, path=None):
+    """The hand-placed start/goal points of a world, from the previous package."""
+    data = yaml.safe_load(Path(path or POINTS_FILE).read_text())['worlds']
+    if world not in data:
+        raise KeyError(f'{world} has no points in {path or POINTS_FILE}')
+    return tuple((float(p['x']), float(p['y'])) for p in data[world]['points'])
+
+
+@lru_cache(maxsize=None)
+def point_pairs(world, route_min=2.0, route_max=20.0, inflation=INFLATION):
+    """Ordered (start, goal) pairs of a world's points that have a route between them."""
+    points = load_points(world)
+    _, pg = _world_planning(world, inflation)
+    pairs = []
+    for start in points:
+        if pg.node_at(*start) < 0:
+            continue
+        for goal in points:
+            if goal == start or pg.node_at(*goal) < 0:
+                continue
+            route = pg.route(start, goal)
+            if route is not None and route_min <= route.length <= route_max:
+                pairs.append((start, goal))
+    return tuple(pairs)
 
 
 @dataclass
@@ -146,6 +176,9 @@ class ScenarioConfig:
     start_clearance: float = 1.0
     goal_clearance: float = 0.6
     lateral_offset: float = 0.5
+    # When set, the seed picks one of these fixed (start, goal) pairs instead of
+    # sampling them, so the same seed is the same episode in 2D and in Gazebo.
+    point_pairs: tuple = ()
 
 
 @dataclass
@@ -192,6 +225,18 @@ def _sample_obstacle(rng, path, start, goal, cfg):
     return None
 
 
+def _generate_from_pair(seed, rng, cfg):
+    """Episode on a fixed start/goal pair; obstacles still depend on the seed."""
+    source = str(cfg.sources[0])
+    start_xy, goal = cfg.point_pairs[seed % len(cfg.point_pairs)]
+    static, pg = static_map(source, rng, cfg.inflation)
+    path = pg.route(start_xy, goal)
+    if path is None:
+        raise RuntimeError(f'no route between {start_xy} and {goal} in {source}')
+    start = np.array([start_xy[0], start_xy[1], rng.uniform(-np.pi, np.pi)])
+    return _with_obstacles(rng, cfg, source, static, start, np.asarray(goal, dtype=float), path)
+
+
 def _detour(full, path, start, goal, cfg, margin=2.0):
     """Route around the obstacles, planned on a crop around the static route (faster)."""
     lo = path.points.min(axis=0) - margin
@@ -210,6 +255,8 @@ def _n_obstacles(rng, cfg):
 def generate(seed, cfg=ScenarioConfig()):
     """Deterministic episode for an integer seed."""
     rng = np.random.default_rng(seed)
+    if cfg.point_pairs:
+        return _generate_from_pair(seed, rng, cfg)
     for _ in range(100):
         source = str(cfg.sources[rng.integers(len(cfg.sources))])
         static, pg = static_map(source, rng, cfg.inflation)
@@ -229,6 +276,11 @@ def generate(seed, cfg=ScenarioConfig()):
     else:
         raise RuntimeError(f'no valid start/goal for seed {seed}')
 
+    return _with_obstacles(rng, cfg, source, static, start, goal, path)
+
+
+def _with_obstacles(rng, cfg, source, static, start, goal, path):
+    """Add the surprise obstacles to an episode, checking that a gap remains."""
     n = _n_obstacles(rng, cfg)
     if n == 0:
         return Scenario(source, static, static, start, goal, path, path.length)

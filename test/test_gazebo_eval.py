@@ -1,0 +1,20 @@
+"""Tests for the parts of gazebo_eval that do not need a running Gazebo."""
+from martha_nav.ros.gazebo_eval import BOX_SDF, CYLINDER_SDF
+from martha_nav.sim2d.scenarios import Obstacle
+
+
+def test_box_sdf_is_well_formed_and_uses_the_size():
+    import xml.etree.ElementTree as ET
+    ob = Obstacle('box', 1.0, 2.0, sx=0.4, sy=0.25, yaw=0.3)
+    xml = BOX_SDF.format(name='obstacle_0', sx=ob.sx, sy=ob.sy)
+    size = ET.fromstring(xml).find('model/link/collision/geometry/box/size').text
+    assert size.startswith('0.4 0.25')
+    assert ET.fromstring(xml).find('model').get('name') == 'obstacle_0'
+
+
+def test_cylinder_sdf_is_well_formed_and_uses_the_radius():
+    import xml.etree.ElementTree as ET
+    xml = CYLINDER_SDF.format(name='obstacle_1', r=0.17)
+    radius = ET.fromstring(xml).find('model/link/collision/geometry/cylinder/radius').text
+    assert float(radius) == 0.17
+    assert ET.fromstring(xml).find('model').get('name') == 'obstacle_1'

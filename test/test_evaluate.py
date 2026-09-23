@@ -39,3 +39,16 @@ def test_evaluation_uses_the_lidar_encoding_the_model_was_trained_with(tmp_path)
     assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'linear'    # runs before the option
     (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
     assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'
+
+
+def test_point_mode_builds_one_episode_per_pair():
+    from dataclasses import replace
+
+    from martha_nav.sim2d.scenarios import point_pairs
+    pairs = point_pairs('lab')
+    cfg = replace(OPEN, scenario=replace(OPEN.scenario, sources=('lab',), point_pairs=pairs,
+                                         obstacle_mode='always'))
+    seeds = eval_seeds(len(pairs))
+    rows = run_episodes(Pursuit(), cfg, seeds, n_envs=2)
+    assert len(rows) == len(pairs)
+    assert {r['source'] for r in rows} == {'lab'}

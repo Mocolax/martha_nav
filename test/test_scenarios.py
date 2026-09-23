@@ -3,7 +3,7 @@ import pytest
 
 from martha_nav.sim2d.planner import PlanningGrid
 from martha_nav.sim2d.scenarios import (EVAL_ONLY_SOURCES, TEMPLATES, TRAIN_SOURCES,
-                                        ScenarioConfig, generate)
+                                        ScenarioConfig, generate, point_pairs)
 
 
 def test_lab_is_never_a_training_source():
@@ -49,3 +49,30 @@ def test_500_mixed_episodes_respect_every_rule():
             assert detour is not None                        # gap >= 0.8 m exists
             assert detour.length <= 1.5 * sc.path.length + 2.0
     assert 0.6 <= with_obstacles / 500 <= 0.9               # ~80% nominal minus drops
+
+
+def test_point_pairs_of_the_lab_are_reachable():
+    pairs = point_pairs('lab')
+    assert 40 <= len(pairs) <= 90                      # 10 points, minus unreachable/short pairs
+    for start, goal in pairs[:5]:
+        assert len(start) == 2 and len(goal) == 2
+
+
+def test_a_seed_maps_to_one_fixed_pair():
+    cfg = ScenarioConfig(sources=('lab',), point_pairs=point_pairs('lab'), obstacle_mode='always')
+    pairs = cfg.point_pairs
+    for seed in (1_000_000, 1_000_001, 1_000_000 + len(pairs)):
+        sc = generate(seed, cfg)
+        start, goal = pairs[seed % len(pairs)]
+        assert np.allclose(sc.start[:2], start) and np.allclose(sc.goal, goal)
+        assert sc.source == 'lab'
+    # Same seed, same obstacles: the episode is reproducible in 2D and in Gazebo.
+    a, b = generate(1_000_005, cfg), generate(1_000_005, cfg)
+    assert [(o.x, o.y) for o in a.obstacles] == [(o.x, o.y) for o in b.obstacles]
+
+
+def test_point_episodes_have_a_route():
+    cfg = ScenarioConfig(sources=('lab',), point_pairs=point_pairs('lab'), obstacle_mode='none')
+    for seed in range(1_000_000, 1_000_010):
+        sc = generate(seed, cfg)
+        assert sc.path.length >= 1.0

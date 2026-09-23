@@ -30,6 +30,7 @@ setup(
             'planner_node = martha_nav.ros.planner_node:main',
             'policy_node = martha_nav.ros.policy_node:main',
             'cmd_vel_bridge = martha_nav.ros.cmd_vel_bridge:main',
+            'gazebo_eval = martha_nav.ros.gazebo_eval:main',
         ],
     },
 )

@@ -8,7 +8,7 @@ import numpy as np
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig, NavEnv
-from martha_nav.sim2d.scenarios import TRAIN_SOURCES
+from martha_nav.sim2d.scenarios import TRAIN_SOURCES, point_pairs
 
 CONDITIONS = {'clean': 'none', 'obstacles': 'always', 'mixed': 'mixed'}
 
@@ -96,16 +96,24 @@ def main(argv=None):
     ap.add_argument('--condition', choices=list(CONDITIONS), default='obstacles')
     ap.add_argument('--sources', nargs='+', default=list(TRAIN_SOURCES))
     ap.add_argument('--n-envs', type=int, default=8)
+    ap.add_argument('--points', default=None,
+                    help='use the fixed start/goal pairs of this world (e.g. lab)')
     ap.add_argument('--out', default=None, help='CSV path (default: next to the model)')
     args = ap.parse_args(argv)
 
     cfg = EnvConfig(lidar_encoding=_trained_lidar_encoding(args.model))
-    cfg = replace(cfg, scenario=replace(cfg.scenario, sources=tuple(args.sources),
-                                        obstacle_mode=CONDITIONS[args.condition]))
+    scenario = replace(cfg.scenario, sources=tuple(args.sources),
+                       obstacle_mode=CONDITIONS[args.condition])
+    if args.points:
+        pairs = point_pairs(args.points)
+        scenario = replace(scenario, sources=(args.points,), point_pairs=pairs)
+        args.episodes = args.episodes if args.episodes != 500 else len(pairs)
+    cfg = replace(cfg, scenario=scenario)
     model = PPO.load(args.model, device='cpu')
     rows = run_episodes(model, cfg, eval_seeds(args.episodes), args.n_envs)
-    out = args.out or Path(args.model).with_name(
-        f'eval_{args.condition}_{"-".join(args.sources) if len(args.sources) < 3 else "train"}.csv')
+    name = args.points + '-points' if args.points else (
+        '-'.join(args.sources) if len(args.sources) < 3 else 'train')
+    out = args.out or Path(args.model).with_name(f'eval_{args.condition}_{name}.csv')
     write_csv(rows, out)
     s = summarize(rows)
     print(f'{args.condition}: episodes={s["episodes"]} success={s["success"]:.3f} '
