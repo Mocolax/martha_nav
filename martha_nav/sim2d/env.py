@@ -8,8 +8,8 @@ from gymnasium import spaces
 
 from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_params
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, footprint_collides, raycast
-from martha_nav.sim2d.observation import (LIDAR_MAX, OBS_DIM, V_MAX, action_to_cmd,
-                                          build_observation)
+from martha_nav.sim2d.observation import (LIDAR_MAX, V_MAX, action_to_cmd, build_observation,
+                                          obs_dim)
 from martha_nav.sim2d.planner import carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
@@ -31,6 +31,8 @@ class EnvConfig:
     lidar_dropout: float = 0.01
     vel_noise: float = 0.05
     lidar_encoding: str = 'inverse'  # see observation.encode_lidar; 'linear' in full_cnn_s0
+    # 2 -> (v, w); 3 -> (vx, vy, w), which uses Martha's mecanum wheels sideways.
+    action_dim: int = 2
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
 
 
@@ -39,8 +41,8 @@ class NavEnv(gym.Env):
 
     def __init__(self, cfg=None):
         self.cfg = cfg or EnvConfig()
-        self.observation_space = spaces.Box(-1.0, 1.0, (OBS_DIM,), np.float32)
-        self.action_space = spaces.Box(-1.0, 1.0, (2,), np.float32)
+        self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
+        self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
         self._seed_index = 0
 
@@ -55,14 +57,15 @@ class NavEnv(gym.Env):
             self.episode_seed = int(self.np_random.integers(TRAIN_SEED_LIMIT))
         self.sc = generate(self.episode_seed, self.cfg.scenario)
         self.rng = np.random.default_rng([self.episode_seed, 1])
-        self.dyn = Dynamics(sample_params(self.rng, self.cfg.dynamics))
+        self.dyn = Dynamics(sample_params(self.rng, self.cfg.dynamics),
+                            holonomic=self.cfg.action_dim == 3)
         self.dyn.reset(self.sc.start)
         self.lookahead = self.rng.uniform(*self.cfg.carrot_range)
         self.lidar_sigma = self.rng.uniform(*self.cfg.lidar_noise)
         self.s = self.s_best = 0.0
         self.steps = self.since_progress = 0
         self.max_steps = int(np.ceil((3 * self.sc.path.length / V_MAX + 10) / DT))
-        self.prev_action = np.zeros(2)
+        self.prev_action = np.zeros(self.cfg.action_dim)
         self.travelled = 0.0
         self.terms = defaultdict(float)
         self._scan()
@@ -71,8 +74,9 @@ class NavEnv(gym.Env):
     def step(self, action):
         action = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
         before = self.dyn.pose[:2].copy()
-        collided = self.dyn.step(*action_to_cmd(action),
-                                 lambda x, y, t: footprint_collides(self.sc.full, x, y, t))
+        commands = action_to_cmd(action)
+        step = self.dyn.step_holonomic if len(commands) == 3 else self.dyn.step
+        collided = step(*commands, lambda x, y, t: footprint_collides(self.sc.full, x, y, t))
         x, y, _ = self.dyn.pose
         self.travelled += float(np.hypot(*(self.dyn.pose[:2] - before)))
         self.steps += 1
@@ -85,7 +89,7 @@ class NavEnv(gym.Env):
         stalled = not (collided or reached) and self.since_progress * DT >= self.cfg.no_progress_time
         self._scan()
         reward, terms = compute_reward(gain, reached, collided, float(self.ranges.min()),
-                                       action[1] - self.prev_action[1], self.cfg.reward, stalled)
+                                       action[-1] - self.prev_action[-1], self.cfg.reward, stalled)
         for k, v in terms.items():
             self.terms[k] += v
         self.prev_action = action
@@ -119,8 +123,9 @@ class NavEnv(gym.Env):
                           self.cfg.carrot_clearance)
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(th) * dx + np.sin(th) * dy, -np.sin(th) * dx + np.cos(th) * dy)
-        noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 2)
-        vel = (self.dyn.v * noise[0], self.dyn.w * noise[1])
+        noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
+        vel = ((self.dyn.v * noise[0], self.dyn.vy * noise[1], self.dyn.w * noise[2])
+               if self.cfg.action_dim == 3 else (self.dyn.v * noise[0], self.dyn.w * noise[2]))
         return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
                                  self.cfg.lidar_encoding)
 

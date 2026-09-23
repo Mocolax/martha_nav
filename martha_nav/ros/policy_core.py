@@ -7,41 +7,53 @@ from martha_nav.sim2d.planner import carrot
 
 
 def footprint_blocked(ranges, angles, margin=0.05):
-    """Which side of the footprint a scan point has entered.
+    """Which sides of the footprint a scan point has entered.
 
-    Returns 'front', 'rear', 'both' or None. Ranges are measured from the LiDAR,
-    which sits LIDAR_OFFSET_X ahead of the footprint centre, so the rectangle is
-    shifted by that amount. The side matters because a guard that blocks every
-    motion leaves the robot frozen against the obstacle forever.
+    Returns a set from {'front', 'rear', 'left', 'right'}, empty when clear. Ranges
+    are measured from the LiDAR, which sits LIDAR_OFFSET_X ahead of the footprint
+    centre, so the rectangle is shifted by that amount. The side matters because a
+    guard that blocks every motion leaves the robot frozen against the obstacle.
     """
     ranges = np.asarray(ranges, dtype=float)
     angles = np.asarray(angles, dtype=float)
     valid = np.isfinite(ranges) & (ranges > 0)
     x = ranges[valid] * np.cos(angles[valid]) + LIDAR_OFFSET_X
     y = ranges[valid] * np.sin(angles[valid])
-    inside = (np.abs(x) <= ROBOT_LENGTH / 2 + margin) & (np.abs(y) <= ROBOT_WIDTH / 2 + margin)
-    front, rear = bool((inside & (x >= 0)).any()), bool((inside & (x < 0)).any())
-    if front and rear:
-        return 'both'
-    return 'front' if front else ('rear' if rear else None)
+    half_x, half_y = ROBOT_LENGTH / 2 + margin, ROBOT_WIDTH / 2 + margin
+    inside = (np.abs(x) <= half_x) & (np.abs(y) <= half_y)
+    # Classify by the dominant axis of the intrusion, in units of the half extents:
+    # a point dead ahead blocks driving forward, not sliding sideways.
+    nx, ny = x[inside] / half_x, y[inside] / half_y
+    along_x = np.abs(nx) >= np.abs(ny)
+    sides = set()
+    for name, mask in (('front', along_x & (nx >= 0)), ('rear', along_x & (nx < 0)),
+                       ('left', ~along_x & (ny >= 0)), ('right', ~along_x & (ny < 0))):
+        if bool(mask.any()):
+            sides.add(name)
+    return sides
 
 
 class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
-    def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, lidar_encoding='inverse'):
+    def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, lidar_encoding='inverse',
+                 action_dim=2):
         self.model = model
         self.lookahead = lookahead
         self.carrot_clearance = carrot_clearance
         self.lidar_encoding = lidar_encoding
+        self.action_dim = action_dim
         self.reset()
 
     def reset(self):
-        self.prev_action = np.zeros(2)
+        self.prev_action = np.zeros(self.action_dim)
         self.s = 0.0
 
     def compute(self, path, pose, ranges, angles, velocity):
-        """pose is (x, y, yaw) in the map frame. Returns (v, w, info)."""
+        """pose is (x, y, yaw) in the map frame.
+
+        Returns (v, w, info), or (vx, vy, w, info) with the holonomic action space.
+        """
         x, y, yaw = pose
         blocked = footprint_blocked(ranges, angles)
         self.s = path.project(x, y, s_hint=self.s)
@@ -52,15 +64,20 @@ class PolicyCore:
         obs = build_observation(ranges, angles, velocity, rel, self.prev_action,
                                 self.lidar_encoding)
         action, _ = self.model.predict(obs, deterministic=True)
-        action = np.clip(np.asarray(action, dtype=float).reshape(2), -1.0, 1.0)
+        action = np.clip(np.asarray(action, dtype=float).reshape(-1), -1.0, 1.0)
         self.prev_action = action
-        v, w = action_to_cmd(action)
+        commands = list(action_to_cmd(action))
         # Directional guard: stop the motion that would hit, keep the one that escapes.
-        if blocked in ('front', 'both') and v > 0:
-            v = 0.0
-        if blocked in ('rear', 'both') and v < 0:
-            v = 0.0
-        return v, w, {'blocked': blocked, 's': self.s, 'carrot': point}
+        if 'front' in blocked:
+            commands[0] = min(commands[0], 0.0)
+        if 'rear' in blocked:
+            commands[0] = max(commands[0], 0.0)
+        if len(commands) == 3:
+            if 'left' in blocked:
+                commands[1] = min(commands[1], 0.0)
+            if 'right' in blocked:
+                commands[1] = max(commands[1], 0.0)
+        return (*commands, {'blocked': sorted(blocked), 's': self.s, 'carrot': point})
 
     def _scan_points(self, ranges, angles, pose):
         """Scan hits in map coordinates, for the carrot's obstacle skipping."""

@@ -64,7 +64,7 @@ def test_an_obstacle_ahead_blocks_forward_motion_but_allows_turning():
     ranges[180] = 0.04                            # right in front of the LiDAR
     v, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     assert v == 0.0 and w != 0.0
-    assert info['blocked'] == 'front'
+    assert info['blocked'] == ['front']
 
 
 def test_an_obstacle_ahead_still_allows_reversing():
@@ -80,7 +80,7 @@ def test_an_obstacle_behind_blocks_only_reverse():
     ranges, angles = clear_scan()
     ranges[0] = 0.30                              # beam 0 points backwards
     v, _, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
-    assert v == 0.0 and info['blocked'] == 'rear'
+    assert v == 0.0 and info['blocked'] == ['rear']
     forward = PolicyCore(FakeModel((1.0, 0.0)))
     v, _, _ = forward.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     assert v > 0.0
@@ -89,11 +89,14 @@ def test_an_obstacle_behind_blocks_only_reverse():
 def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     angles = np.array([0.0, np.pi])
     # Forward the footprint ends 0.28 - 0.2325 = 0.0475 m ahead of the LiDAR.
-    assert footprint_blocked(np.array([0.04, 8.0]), angles) == 'front'
-    assert footprint_blocked(np.array([0.5, 8.0]), angles) is None
+    assert 'front' in footprint_blocked(np.array([0.04, 8.0]), angles)
+    assert footprint_blocked(np.array([0.5, 8.0]), angles) == set()
     # Backwards it reaches 0.28 + 0.2325 = 0.5125 m behind it.
-    assert footprint_blocked(np.array([8.0, 0.40]), angles) == 'rear'
-    assert footprint_blocked(np.array([0.04, 0.40]), angles) == 'both'
+    assert 'rear' in footprint_blocked(np.array([8.0, 0.40]), angles)
+    assert footprint_blocked(np.array([0.04, 0.40]), angles) == {'front', 'rear'}
+    # A point beside the robot blocks sliding that way, not driving forward.
+    beside = footprint_blocked(np.array([0.30]), np.array([3 * np.pi / 4]))
+    assert beside == {'left'}
 
 
 def test_the_carrot_skips_a_scanned_obstacle():
@@ -104,3 +107,14 @@ def test_the_carrot_skips_a_scanned_obstacle():
     ranges[180] = 1.5                             # beam 180 points forward (angle 0)
     core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     assert model.last_obs[90] > 1.5 / 3.0         # carrot pushed further along
+
+
+def test_holonomic_core_returns_three_velocities_and_guards_the_sides():
+    from martha_nav.sim2d.observation import V_LATERAL
+    core = PolicyCore(FakeModel((0.0, 1.0, 0.0)), action_dim=3)   # wants to slide left
+    ranges, angles = clear_scan()
+    vx, vy, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0, 0.0))
+    assert (vx, vy, w) == (0.0, V_LATERAL, 0.0) and info['blocked'] == []
+    ranges[315] = 0.30                                 # beam 315 points back-left, beside the robot
+    vx, vy, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0, 0.0))
+    assert vy == 0.0 and 'left' in info['blocked']

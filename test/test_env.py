@@ -102,3 +102,18 @@ def test_lidar_encoding_reaches_the_observation():
     a, _ = NavEnv(OPEN).reset(seed=4)
     b, _ = NavEnv(replace(OPEN, lidar_encoding='linear')).reset(seed=4)
     assert not np.allclose(a[:90], b[:90]) and np.allclose(a[90:], b[90:])
+
+
+def test_holonomic_env_matches_the_contract():
+    from martha_nav.sim2d.observation import obs_dim
+    env = NavEnv(replace(OPEN, action_dim=3))
+    check_env(env, skip_render_check=True)
+    obs, _ = env.reset(seed=5)
+    assert obs.shape == (obs_dim(3),) and env.action_space.shape == (3,)
+    obs, _, _, _, _ = env.step(np.array([0.5, 0.5, 0.0]))
+    assert np.isfinite(obs).all()
+
+
+def test_the_default_env_stays_two_dimensional():
+    env = NavEnv()
+    assert env.action_space.shape == (2,) and env.observation_space.shape == (96,)

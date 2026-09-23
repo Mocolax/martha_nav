@@ -15,6 +15,7 @@ from stable_baselines3 import PPO
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
 
+from martha_nav.learning.evaluate import _trained_env
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
 from martha_nav.sim2d.planner import Path
@@ -32,10 +33,15 @@ class PolicyNode(Node):
             raise RuntimeError('parameter "checkpoint" is required')
         torch.set_num_threads(1)
         model = PPO.load(checkpoint, device='cpu')
+        trained = _trained_env(checkpoint)      # LiDAR encoding and action space of the run
         self.core = PolicyCore(
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
-            lidar_encoding=self.declare_parameter('lidar_encoding', 'inverse').value)
+            lidar_encoding=trained.get('lidar_encoding', 'inverse'),
+            action_dim=trained.get('action_dim', 2))
+        self.action_dim = self.core.action_dim
+        self.get_logger().info(f'action space: {self.action_dim}D, '
+                               f"lidar {trained.get('lidar_encoding', 'inverse')}")
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
@@ -59,7 +65,9 @@ class PolicyNode(Node):
         self.scan_time = self.get_clock().now()
 
     def on_odom(self, msg):
-        self.velocity = (msg.twist.twist.linear.x, msg.twist.twist.angular.z)
+        twist = msg.twist.twist
+        self.velocity = ((twist.linear.x, twist.linear.y, twist.angular.z) if self.action_dim == 3
+                         else (twist.linear.x, twist.angular.z))
         self.odom_time = self.get_clock().now()
 
     def on_plan(self, msg):
@@ -98,12 +106,15 @@ class PolicyNode(Node):
         if pose is None:
             return self.stop('no map -> base transform')
         ranges, angles = self.scan
-        v, w, info = self.core.compute(self.path, pose, ranges, angles, self.velocity)
+        *velocities, info = self.core.compute(self.path, pose, ranges, angles, self.velocity)
         if info['blocked']:
             self.get_logger().warning(f"obstacle inside the footprint ({info['blocked']}), "
-                                      'blocking that direction', throttle_duration_sec=2.0)
+                                      'blocking those directions', throttle_duration_sec=2.0)
         cmd = Twist()
-        cmd.linear.x, cmd.angular.z = float(v), float(w)
+        cmd.linear.x = float(velocities[0])
+        if len(velocities) == 3:
+            cmd.linear.y = float(velocities[1])
+        cmd.angular.z = float(velocities[-1])
         self.cmd_pub.publish(cmd)
         if info['carrot'] is not None:
             point = PointStamped()

@@ -1,8 +1,8 @@
 import numpy as np
 
 from martha_nav.sim2d.geometry import draw_box, empty_grid, raycast
-from martha_nav.sim2d.observation import (LIDAR_MAX, OBS_DIM, action_to_cmd, build_observation,
-                                          reduce_scan)
+from martha_nav.sim2d.observation import (LIDAR_MAX, OBS_DIM, V_MAX, W_MAX, action_to_cmd,
+                                          build_observation, reduce_scan)
 
 
 def test_sector_zero_is_front_and_sectors_grow_counter_clockwise():
@@ -69,3 +69,20 @@ def test_unknown_lidar_encoding_is_rejected():
     import pytest
     with pytest.raises(ValueError):
         build_observation(np.ones(1), np.zeros(1), (0, 0), (1, 0), (0, 0), lidar_encoding='log')
+
+
+def test_holonomic_action_adds_a_lateral_command():
+    from martha_nav.sim2d.observation import V_LATERAL, obs_dim
+    assert action_to_cmd([1.0, 0.0]) == (V_MAX, 0.0)                 # (v, w)
+    vx, vy, w = action_to_cmd([1.0, -1.0, 0.5])                      # (vx, vy, w)
+    assert (vx, vy) == (V_MAX, -V_LATERAL) and np.isclose(w, 0.5 * W_MAX)
+    assert obs_dim(2) == 96 and obs_dim(3) == 98
+
+
+def test_holonomic_observation_carries_three_velocities_and_actions():
+    from martha_nav.sim2d.observation import obs_dim
+    obs = build_observation(np.full(4, 8.0), np.zeros(4), velocity=(0.35, 0.25, -0.8),
+                            waypoint_rel=(1.5, 0.0), prev_action=(0.1, 0.2, 0.3))
+    assert obs.shape == (obs_dim(3),)
+    assert np.allclose(obs[92:95], [1.0, 1.0, -1.0])                 # vx, vy, w normalised
+    assert np.allclose(obs[95:], [0.1, 0.2, 0.3])

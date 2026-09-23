@@ -32,13 +32,15 @@ def test_run_episodes_plays_each_seed_once():
     assert s['episodes'] == 6 and s['success'] >= 5 / 6
 
 
-def test_evaluation_uses_the_lidar_encoding_the_model_was_trained_with(tmp_path):
-    from martha_nav.learning.evaluate import _trained_lidar_encoding
-    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'   # no config: default
+def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
+    from martha_nav.learning.evaluate import _trained_env
+    assert _trained_env(tmp_path / 'best_model.zip') == {}                     # no config: defaults
     (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
-    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'linear'    # runs before the option
-    (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
-    assert _trained_lidar_encoding(tmp_path / 'best_model.zip') == 'inverse'
+    old = _trained_env(tmp_path / 'best_model.zip')                            # before the options
+    assert old == {'lidar_encoding': 'linear', 'action_dim': 2}
+    (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n  action_dim: 3\n')
+    assert _trained_env(tmp_path / 'best_model.zip') == {'lidar_encoding': 'inverse',
+                                                         'action_dim': 3}
 
 
 def test_point_mode_builds_one_episode_per_pair():

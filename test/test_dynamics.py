@@ -54,3 +54,18 @@ def test_sampled_params_stay_in_ranges():
         p = sample_params(rng, r)
         assert r.tau[0] <= p.tau_v <= r.tau[1] and r.acc_w[0] <= p.acc_w <= r.acc_w[1]
         assert r.gain[0] <= p.gain_v <= r.gain[1]
+
+
+def test_lateral_command_moves_the_robot_sideways():
+    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100), holonomic=True)
+    for _ in range(11):
+        d.step_holonomic(0.0, 0.2, 0.0, never)
+    assert abs(d.pose[1] - 0.2) < 0.01 and abs(d.pose[0]) < 1e-9
+
+
+def test_lateral_motion_follows_the_heading():
+    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100), holonomic=True)
+    d.reset([0.0, 0.0, np.pi / 2])
+    for _ in range(11):
+        d.step_holonomic(0.0, 0.2, 0.0, never)
+    assert abs(d.pose[0] + 0.2) < 0.01          # +y of the robot is -x of the world

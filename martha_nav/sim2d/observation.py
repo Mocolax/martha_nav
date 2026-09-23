@@ -6,8 +6,14 @@ LIDAR_MAX = 8.0     # m, RPLIDAR A2M8 (clip range; encoding in encode_lidar)
 WAYPOINT_MAX = 3.0  # m
 V_MAX = 0.35        # m/s forward
 V_REVERSE = 0.15    # m/s backward
+V_LATERAL = 0.25    # m/s sideways, only with the holonomic action space
 W_MAX = 0.8         # rad/s
-OBS_DIM = N_SECTORS + 6
+OBS_DIM = N_SECTORS + 6          # the default (vx, w) action space
+
+
+def obs_dim(action_dim=2):
+    """90 LiDAR sectors, the waypoint, the measured velocity and the previous action."""
+    return N_SECTORS + 2 + 2 * action_dim
 
 
 def reduce_scan(ranges, angles):
@@ -50,13 +56,21 @@ def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar
     lidar = encode_lidar(reduce_scan(ranges, angles), lidar_encoding)
     dx, dy = waypoint_rel
     wp = [min(np.hypot(dx, dy), WAYPOINT_MAX) / WAYPOINT_MAX, np.arctan2(dy, dx) / np.pi]
-    vel = [velocity[0] / V_MAX, velocity[1] / W_MAX]
+    vel = ([velocity[0] / V_MAX, velocity[1] / V_LATERAL, velocity[2] / W_MAX]
+           if len(velocity) == 3 else [velocity[0] / V_MAX, velocity[1] / W_MAX])
     obs = np.concatenate([lidar, wp, vel, np.asarray(prev_action, dtype=float)])
     return np.clip(obs, -1.0, 1.0).astype(np.float32)
 
 
 def action_to_cmd(action):
-    """[-1, 1]^2 -> (v, w); reverse is capped lower than forward on purpose."""
-    a_v, a_w = np.clip(action, -1.0, 1.0)
-    v = a_v * (V_MAX if a_v >= 0 else V_REVERSE)
-    return float(v), float(a_w * W_MAX)
+    """[-1, 1]^n -> velocities: (v, w), or (vx, vy, w) with the holonomic space.
+
+    Reverse is capped lower than forward on purpose, and sideways lower than both:
+    the mecanum wheels are least efficient moving laterally.
+    """
+    values = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+    a_v = values[0]
+    v = float(a_v * (V_MAX if a_v >= 0 else V_REVERSE))
+    if len(values) == 2:
+        return v, float(values[1] * W_MAX)
+    return v, float(values[1] * V_LATERAL), float(values[2] * W_MAX)

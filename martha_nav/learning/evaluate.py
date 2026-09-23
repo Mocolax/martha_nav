@@ -74,14 +74,16 @@ def write_csv(rows, path):
         writer.writerows(rows)
 
 
-def _trained_lidar_encoding(model_path):
-    """The observation must match training: read it from the run's config.yaml if present."""
+def _trained_env(model_path):
+    """The env must match training: read its settings from the run's config.yaml."""
     config = Path(model_path).with_name('config.yaml')
     if not config.exists():
-        return EnvConfig().lidar_encoding
+        return {}
     import yaml
-    # Runs trained before the option existed used the linear encoding.
-    return yaml.safe_load(config.read_text())['env'].get('lidar_encoding', 'linear')
+    saved = yaml.safe_load(config.read_text())['env']
+    # Runs trained before these options existed used the linear encoding and (v, w).
+    return {'lidar_encoding': saved.get('lidar_encoding', 'linear'),
+            'action_dim': saved.get('action_dim', 2)}
 
 
 def main(argv=None):
@@ -101,7 +103,7 @@ def main(argv=None):
     ap.add_argument('--out', default=None, help='CSV path (default: next to the model)')
     args = ap.parse_args(argv)
 
-    cfg = EnvConfig(lidar_encoding=_trained_lidar_encoding(args.model))
+    cfg = EnvConfig(**_trained_env(args.model))
     scenario = replace(cfg.scenario, sources=tuple(args.sources),
                        obstacle_mode=CONDITIONS[args.condition])
     if args.points:
