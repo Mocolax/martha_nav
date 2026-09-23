@@ -15,12 +15,11 @@ from dataclasses import replace
 from pathlib import Path
 
 import rclpy
-from gazebo_msgs.msg import ContactsState
+from gazebo_msgs.msg import ContactsState, ModelStates
 from gazebo_msgs.srv import DeleteEntity, SetEntityState, SpawnEntity
 from geometry_msgs.msg import PoseStamped
-from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import String
 
 from martha_nav.learning.evaluate import eval_seeds
@@ -78,7 +77,9 @@ class GazeboEval(Node):
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', LATCHED)
         self.create_subscription(String, '/nav_status', self.on_status, LATCHED)
         self.create_subscription(ContactsState, '/bumper_states', self.on_contact, 10)
-        self.create_subscription(Odometry, '/odom', self.on_odom, qos_profile_sensor_data)
+        # Position from Gazebo itself: the odometry topic depends on the drive, and a
+        # missing subscription would silently disable the stall rule.
+        self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
         self.position = None
         self.spawn = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete = self.create_client(DeleteEntity, '/delete_entity')
@@ -94,8 +95,10 @@ class GazeboEval(Node):
         if msg.states:
             self.contact = True
 
-    def on_odom(self, msg):
-        self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
+    def on_states(self, msg):
+        if 'martha' in msg.name:
+            pose = msg.pose[msg.name.index('martha')].position
+            self.position = (pose.x, pose.y)
 
     # ---- gazebo helpers ----
     def call(self, client, request):

@@ -41,3 +41,13 @@ def test_goal_marker_has_no_collision():
     assert model.get('name') == 'goal_marker'
     assert model.find('link/collision') is None
     assert len(model.findall('link/visual')) == 2
+
+
+def test_position_comes_from_gazebo_not_from_odometry():
+    """The odometry topic depends on the drive; model_states always exists."""
+    import inspect
+
+    from martha_nav.ros import gazebo_eval
+    source = inspect.getsource(gazebo_eval.GazeboEval)
+    assert '/gazebo/model_states' in source
+    assert "'/odom'" not in source
