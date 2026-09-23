@@ -124,3 +124,37 @@ base 0.37 → C 0.71 → **C + `target_kl` 0.87**. En `lab`: 0.39 → 0.59 → *
 - El modelo final es algo más agresivo en `lab` (colisión 0.125 frente a 0.025): la selección del modelo
   por evaluación importa. **Modelo candidato para Gazebo: `runs/long_c_kl_s0/best_model.zip`.**
 - El fallo restante dominante es el **estancamiento** (~0.1), no el choque.
+
+## E2: brecha 2D → Gazebo en `lab.world`
+
+Modelo `runs/long_c_kl_s0/best_model.zip`, tracción **mecanum** con ruedas y rodillos
+simulados, física a 1 ms y tiempo real 1×. Los episodios son **los mismos en los dos
+simuladores**: la semilla fija el mapa, el inicio, la meta y los obstáculos, así que la
+comparación es pareada. Figura: `docs/figures/e2_2d_vs_gazebo.png`.
+
+| condición | simulador | éxito [IC95] | colisión | estancado o timeout |
+|---|---|---|---|---|
+| semillas generadas (100) | 2D | 0.880 [0.802, 0.930] | 0.020 | 0.100 |
+| semillas generadas (100) | **Gazebo** | **0.760 [0.668, 0.833]** | 0.000 | 0.220 |
+| puntos fijos del paquete anterior (90) | 2D | 0.722 [0.622, 0.804] | 0.056 | 0.222 |
+| puntos fijos del paquete anterior (90) | **Gazebo** | **0.678 [0.576, 0.765]** | 0.011 | 0.300 |
+
+**Brecha pareada:** −12.0 puntos con las semillas generadas y −4.4 con los puntos fijos.
+En las semillas, 71 episodios salen bien en ambos, 17 solo en 2D y 5 solo en Gazebo.
+
+**La política no choca más en Gazebo; se queda quieta.** Las colisiones bajan (2.0% → 0.0% y
+5.6% → 1.1%) y los bloqueos suben en la misma proporción (10% → 22% y 22% → 30%). La dinámica
+real de las ruedas hace que empujar contra un obstáculo no termine en contacto reportado, sino
+en un robot parado. Los episodios perdidos son además los de **ruta más larga** (6.9 m de media
+frente a 6.2 m del total; 8.0 m frente a 6.7 m en los puntos fijos).
+
+**Tiempos:** 25 s por episodio con éxito y 121 s los que agotan el tiempo límite.
+
+**Salvedad metodológica:** el entorno 2D trunca un episodio tras 15 s sin progreso, y
+`gazebo_eval` no tiene ese detector, así que espera hasta el timeout de 120 s. Por eso las dos
+columnas de "estancado o timeout" no son exactamente la misma medida, aunque describen el mismo
+fallo.
+
+> **Conclusión citable:** la política entrenada en el simulador 2D **transfiere a Gazebo con una
+> pérdida de 4 a 12 puntos** de éxito, sin aumentar las colisiones. El fallo dominante en ambos
+> simuladores es quedarse bloqueado, no chocar.
