@@ -1,16 +1,15 @@
-"""Learning and PPO reports, in the exact format of the previous package.
+"""Per-run report: the panels of the old ppo_plot, drawn for print.
 
-python3 tools/plot_report.py runs/armH_holonomic_s0        # one run
-python3 tools/plot_report.py --all                          # every run with episodes.csv
+python3 tools/plot_report.py runs/e1_cnn_s0
+python3 tools/plot_report.py --all
 
-Replicates martha/martha/PPO/analytics.py: same ggplot style, same figure sizes,
-same panel order, same titles and the same smoothing (rolling mean over 50
-episodes, with the raw series behind it where the original drew it).
+Writes <run>/learning_report.png (3x2: reward, outcomes, episode length, SPL,
+reward terms, deterministic evaluation) and <run>/ppo_diagnostics.png (2x2:
+losses, exploration, update size, critic).
 
-Where this package logs something different from the old one, the panel says so
-instead of inventing a value:
-  - "Cerca de obstáculo" does not exist here; the reward has no proximity term on.
-  - ReLU inactivity is not logged by Stable-Baselines3.
+The x axis is the episode, with a second axis in millions of steps on top. Rates
+are lines, one per outcome; spread is a percentile band, never a raw cloud.
+For the exact look of the previous package, use tools/plot_report_legacy.py.
 """
 import argparse
 import glob
@@ -23,189 +22,175 @@ import pandas as pd
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 
-REPORT_WINDOW = 50          # same default as the old package
-
-OUTCOMES = (('success', 'Éxito'), ('collision', 'Colisión'), ('timeout', 'Truncado'),
-            ('stalled', 'Estancado'))
-REWARD_COMPONENTS = (('r_step', 'Costo temporal'), ('r_progress', 'Progreso'),
-                     ('r_goal', 'Meta'), ('r_collision', 'Colisión'),
-                     ('r_proximity', 'Proximidad'), ('r_turn', 'Giro'),
-                     ('r_stalled', 'Estancamiento'))
-EVALUATIONS = (('success', 'Éxito eval'), ('collision', 'Colisión eval'), ('spl', 'SPL eval'))
-LOSSES = (('train/policy_gradient_loss', 'Actor loss'), ('train/value_loss', 'Critic loss'),
-          ('train/loss', 'Loss total'))
-EXPLORATION = (('train/entropy', 'Entropía'), ('train/std', 'Policy std'))
-UPDATES = (('train/approx_kl', 'Approx KL'), ('train/clip_fraction', 'Clip fraction'))
-CRITIC = (('train/explained_variance', 'Explained variance'),)
+WINDOW = 50             # episodes in the rolling mean, like REPORT_WINDOW in the old package
+OUTCOMES = ('success', 'collision', 'stalled', 'timeout')
+COLORS = {'success': '#2a78d6', 'collision': '#eb6834', 'stalled': '#1baf7a', 'timeout': '#eda100'}
+LABELS = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado', 'timeout': 'timeout'}
+SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7']
+INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
 
 
-def rolling(values, window):
-    series = pd.Series(np.asarray(values, dtype=float))
-    return series.rolling(window, min_periods=1).mean().to_numpy()
+def style(ax, title, ylabel=None, percent=False, steps_axis=None, xlabel='episodio'):
+    """steps_axis: (episodes, timesteps) to add a second x axis in millions of steps."""
+    ax.set_facecolor(SURFACE)
+    ax.set_title(title, loc='left', color=INK, fontsize=11, fontweight='bold')
+    ax.grid(axis='y', color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for side in ('top', 'right', 'left'):
+        ax.spines[side].set_visible(False)
+    ax.spines['bottom'].set_color(MUTED)
+    ax.tick_params(colors=MUTED, labelsize=9, length=0)
+    ax.set_xlabel(xlabel, color=MUTED, fontsize=9)
+    if ylabel:
+        ax.set_ylabel(ylabel, color=MUTED, fontsize=9)
+    if percent:
+        ax.set_ylim(0, 1)
+        ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
+    if steps_axis is not None:
+        episodes, timesteps = steps_axis
+        top = ax.secondary_xaxis(
+            'top',
+            functions=(lambda e: np.interp(e, episodes, timesteps / 1e6),
+                       lambda m: np.interp(m, timesteps / 1e6, episodes)))
+        top.set_xlabel('millones de pasos', color=MUTED, fontsize=8)
+        top.tick_params(colors=MUTED, labelsize=8, length=0)
 
 
-def plot_smoothed(axis, x, values, label, window, raw=False, band=False):
-    """Smoothed line; `raw` draws the per-episode series behind it, as the old
-    package did, and `band` replaces that cloud with the 10th-90th percentile of
-    each window, which is what shows the spread actually shrinking."""
-    values = np.asarray(values, dtype=float)
-    if not np.isfinite(values).any():
-        return False
-    if band:
-        series = pd.Series(values)
-        window_view = series.rolling(window, min_periods=max(3, window // 5))
-        axis.fill_between(x, window_view.quantile(0.1), window_view.quantile(0.9),
-                          alpha=0.18, linewidth=0)
-    elif raw:
-        axis.plot(x, values, alpha=0.16, linewidth=0.7)
-    axis.plot(x, rolling(values, window), linewidth=2.0, label=label)
-    return True
+def trace(ax, x, series, color, label=None, window=WINDOW):
+    """Rolling mean, over a light band with the 10th to 90th percentile of the window.
+
+    With tens of thousands of episodes the raw per-episode line is an unreadable
+    blur in print, so the spread is shown as a band instead.
+    """
+    # Band: 10th to 90th percentile inside bins, so it stays smooth with 20k episodes.
+    bins = max(1, len(series) // max(window, len(series) // 300))
+    group = pd.Series(series.to_numpy()).groupby(np.minimum(np.arange(len(series)) // bins,
+                                                            len(series) // bins))
+    centre = group.apply(lambda g: g.index.to_numpy().mean() + 1)
+    ax.fill_between(centre, group.quantile(0.1), group.quantile(0.9), color=color, alpha=0.16,
+                    linewidth=0)
+    ax.plot(x, series.rolling(window, min_periods=max(3, window // 5)).mean(), color=color,
+            linewidth=1.8, label=label)
 
 
-def missing(axis, text):
-    axis.text(0.5, 0.5, text, ha='center', va='center', transform=axis.transAxes)
-
-
-def load_episodes(run):
+def load(run):
     episodes = pd.read_csv(run / 'episodes.csv')
-    episodes['episode'] = np.arange(1, len(episodes) + 1)
+    episodes['x'] = np.arange(1, len(episodes) + 1)
     terms = [c for c in episodes.columns if c.startswith('r_')]
     episodes['reward'] = episodes[terms].sum(axis=1)
-    return episodes
+    evals = pd.read_csv(run / 'evals.csv') if (run / 'evals.csv').exists() else None
+    return episodes, terms, evals
 
 
-def load_evaluations(run, episodes):
-    """Periodic evaluations, placed on the episode axis through their timesteps."""
-    path = run / 'evals.csv'
-    if not path.exists():
-        return None
-    evals = pd.read_csv(path)
-    evals['episode'] = np.interp(evals.timesteps, episodes.timesteps, episodes.episode)
-    return evals
-
-
-def load_scalars(run, episodes):
-    """TensorBoard scalars, also placed on the episode axis."""
+def scalars(run):
+    """TensorBoard scalars as {tag: (steps, values)}; empty when there is no log."""
     logs = glob.glob(str(run / 'tb' / '*'))
     if not logs:
         return {}
     from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-    accumulator = EventAccumulator(logs[0])
-    accumulator.Reload()
+    ea = EventAccumulator(logs[0])
+    ea.Reload()
     out = {}
-    for tag in accumulator.Tags()['scalars']:
-        events = accumulator.Scalars(tag)
-        steps = np.array([e.step for e in events], dtype=float)
-        out[tag] = (np.interp(steps, episodes.timesteps, episodes.episode),
-                    np.array([e.value for e in events], dtype=float))
-    if 'train/entropy_loss' in out:            # SB3 logs the loss, which is minus the entropy
-        x, y = out['train/entropy_loss']
-        out['train/entropy'] = (x, -y)
+    for tag in ea.Tags()['scalars']:
+        events = ea.Scalars(tag)
+        out[tag] = (np.array([e.step for e in events]) / 1e6, np.array([e.value for e in events]))
     return out
 
 
-def learning_report(run, episodes, evals, window, band=False):
-    plt.style.use('ggplot')
-    figure, axes = plt.subplots(3, 2, figsize=(15, 13), constrained_layout=True)
-    spread = 'percentil 10-90' if band else 'valores por episodio al fondo'
-    figure.suptitle(f'Aprendizaje PPO Martha — media móvil de {window} episodios ({spread})',
-                    fontsize=16)
-    x = episodes.episode
+def rolling(series, window=WINDOW):
+    return series.rolling(window, min_periods=max(5, window // 10)).mean()
 
-    plot_smoothed(axes[0, 0], x, episodes.reward, 'Recompensa', window, raw=True, band=band)
-    axes[0, 0].set_title('Recompensa de entrenamiento')
-    axes[0, 0].set_ylabel('Recompensa original')
 
-    for name, label in OUTCOMES:
-        plot_smoothed(axes[0, 1], x, (episodes.outcome == name).astype(float), label, window)
-    axes[0, 1].set_title('Resultados por episodio')
-    axes[0, 1].set_ylabel('Tasa')
-    axes[0, 1].set_ylim(-0.03, 1.03)
+def learning_report(run, episodes, terms, evals, out):
+    fig, ax = plt.subplots(3, 2, figsize=(15, 13), facecolor=SURFACE, constrained_layout=True)
+    steps_axis = (episodes.x.to_numpy(), episodes.timesteps.to_numpy())
 
-    plot_smoothed(axes[1, 0], x, episodes.steps, 'Steps', window, raw=True, band=band)
-    axes[1, 0].set_title('Duración de los episodios')
-    axes[1, 0].set_ylabel('Steps')
+    trace(ax[0, 0], episodes.x, episodes.reward, SLOTS[0])
+    style(ax[0, 0], f'Recompensa por episodio (media móvil de {WINDOW})',
+          'recompensa', steps_axis=steps_axis)
 
-    plot_smoothed(axes[1, 1], x, episodes.spl, 'SPL', window)
-    axes[1, 1].set_title('Eficiencia de ruta (SPL)')
-    axes[1, 1].set_ylabel('SPL')
-    axes[1, 1].set_ylim(-0.03, 1.03)
+    # One line per outcome, no shading: a stacked area hides the small rates.
+    for outcome in OUTCOMES:
+        ax[0, 1].plot(episodes.x, rolling((episodes.outcome == outcome).astype(float)),
+                      color=COLORS[outcome], linewidth=1.8, label=LABELS[outcome])
+    ax[0, 1].legend(loc='center right', frameon=False, fontsize=9, ncol=2)
+    style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', 'tasa', percent=True,
+          steps_axis=steps_axis)
 
-    drawn = False
-    for name, label in REWARD_COMPONENTS:
-        if name in episodes and episodes[name].abs().sum() > 0:
-            drawn |= plot_smoothed(axes[2, 0], x, episodes[name], label, window)
-    axes[2, 0].set_title('Contribución de cada término de recompensa')
-    axes[2, 0].set_ylabel('Suma por episodio')
-    if not drawn:
-        missing(axes[2, 0], 'Este run no registró componentes')
+    trace(ax[1, 0], episodes.x, episodes.steps, SLOTS[0])
+    style(ax[1, 0], 'Duración de los episodios', 'pasos', steps_axis=steps_axis)
+
+    # SPL is 0 on every failure, so averaging it over all episodes hides the shape.
+    spl = episodes.spl.where(episodes.outcome == 'success')
+    trace(ax[1, 1], episodes.x, spl, SLOTS[2])
+    style(ax[1, 1], 'Eficiencia de ruta (SPL entre los éxitos)', percent=True,
+          steps_axis=steps_axis)
+
+    for term, color in zip(terms, SLOTS):
+        ax[2, 0].plot(episodes.x, rolling(episodes[term]), color=color, linewidth=2,
+                      label=term.replace('r_', ''))
+    ax[2, 0].legend(loc='upper left', frameon=False, fontsize=9, ncol=3)
+    ax[2, 0].axhline(0, color=MUTED, linewidth=0.8)
+    style(ax[2, 0], 'Contribución de cada término de recompensa', 'por episodio',
+          steps_axis=steps_axis)
 
     if evals is not None:
-        for name, label in EVALUATIONS:
-            axes[2, 1].plot(evals.episode, evals[name], marker='o', label=label)
-    axes[2, 1].set_title('Evaluación determinista')
-    axes[2, 1].set_ylabel('Tasa / SPL')
-    axes[2, 1].set_ylim(-0.03, 1.03)
-    if evals is None:
-        missing(axes[2, 1], 'Aún no hay evaluaciones periódicas')
+        at_episode = np.interp(evals.timesteps, episodes.timesteps, episodes.x)
+        for key in ('success', 'collision'):
+            ax[2, 1].plot(at_episode, evals[key], color=COLORS[key], marker='o',
+                          markersize=4, linewidth=2, label=LABELS[key])
+        best = evals.success.idxmax()
+        ax[2, 1].plot(at_episode[best], evals.success[best], 'o', markersize=9,
+                      markerfacecolor='none', markeredgecolor=INK, markeredgewidth=1.5)
+        ax[2, 1].legend(loc='center right', frameon=False, fontsize=9)
+    style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True,
+          steps_axis=steps_axis)
 
-    for axis in axes.flat:
-        axis.set_xlabel('Episodio')
-        if axis.get_legend_handles_labels()[0]:
-            axis.legend(loc='best')
-    path = run / 'learning_report.png'
-    figure.savefig(path, dpi=150)
-    plt.close(figure)
-    return path
+    fig.suptitle(f'Run {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
 
 
-def diagnostics_report(run, scalars, window):
-    plt.style.use('ggplot')
-    figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
-    figure.suptitle('Diagnóstico interno de PPO', fontsize=16)
-    panels = (((0, 0), 'Pérdidas', LOSSES), ((0, 1), 'Exploración', EXPLORATION),
-              ((1, 0), 'Magnitud de las actualizaciones', UPDATES),
-              ((1, 1), 'Crítico y activaciones', CRITIC))
-    for (row, col), title, series in panels:
-        axis = axes[row, col]
-        for tag, label in series:
-            if tag in scalars:
-                x, values = scalars[tag]
-                plot_smoothed(axis, x, values, label, window)
-        axis.set_title(title)
-    axes[1, 1].text(0.5, 0.08, 'Stable-Baselines3 no registra ReLU inactivas',
-                    ha='center', va='center', transform=axes[1, 1].transAxes, fontsize=9)
-    for axis in axes.flat:
-        axis.set_xlabel('Episodio')
-        if axis.get_legend_handles_labels()[0]:
-            axis.legend(loc='best')
-    path = run / 'ppo_diagnostics.png'
-    figure.savefig(path, dpi=150)
-    plt.close(figure)
-    return path
-
-
-def report(run, window=REPORT_WINDOW, band=False):
-    episodes = load_episodes(run)
-    evals = load_evaluations(run, episodes)
-    scalars = load_scalars(run, episodes)
-    return (learning_report(run, episodes, evals, window, band),
-            diagnostics_report(run, scalars, window))
+def diagnostics_report(run, tb, out):
+    fig, ax = plt.subplots(2, 2, figsize=(14, 9), facecolor=SURFACE, constrained_layout=True)
+    groups = [
+        ((0, 0), 'Pérdidas', [('train/policy_gradient_loss', 'actor'), ('train/value_loss', 'crítico'),
+                              ('train/entropy_loss', 'entropía')], None),
+        ((0, 1), 'Exploración', [('train/std', 'std de la política')], None),
+        ((1, 0), 'Magnitud de las actualizaciones', [('train/approx_kl', 'approx_kl'),
+                                                     ('train/clip_fraction', 'clip_fraction')], 0.02),
+        ((1, 1), 'Crítico', [('train/explained_variance', 'explained_variance')], None),
+    ]
+    for (row, col), title, tags, reference in groups:
+        axis = ax[row, col]
+        for (tag, label), color in zip(tags, SLOTS):
+            if tag not in tb:
+                continue
+            steps, values = tb[tag]
+            axis.plot(steps, values, color=color, linewidth=2, label=label)
+        if reference is not None:
+            axis.axhline(reference, color=MUTED, linewidth=1, linestyle='--')
+            axis.annotate(f'objetivo {reference}', (steps[-1], reference), xytext=(-70, 4),
+                          textcoords='offset points', color=MUTED, fontsize=8)
+        axis.legend(loc='best', frameon=False, fontsize=9)
+        style(axis, title, xlabel='millones de pasos')
+    fig.suptitle(f'PPO · {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
 
 
 def main():
     ap = argparse.ArgumentParser(description='Learning and PPO reports for a run.')
-    ap.add_argument('run', nargs='?', help='run directory')
+    ap.add_argument('run', nargs='?')
     ap.add_argument('--all', action='store_true', help='every run under runs/')
-    ap.add_argument('--window', type=int, default=REPORT_WINDOW)
-    ap.add_argument('--band', action='store_true',
-                    help='show the 10-90 percentile band instead of the raw episode cloud')
     args = ap.parse_args()
     runs = ([p.parent for p in sorted(Path('runs').glob('*/episodes.csv'))] if args.all
             else [Path(args.run)])
     for run in runs:
-        for path in report(run, args.window, args.band):
-            print(path)
+        episodes, terms, evals = load(run)
+        learning_report(run, episodes, terms, evals, run / 'learning_report.png')
+        diagnostics_report(run, scalars(run), run / 'ppo_diagnostics.png')
+        print(run / 'learning_report.png')
 
 
 if __name__ == '__main__':
