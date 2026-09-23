@@ -14,6 +14,8 @@
 
 Cambios respecto a lo planeado, ya aplicados:
 - El URDF **se reutilizó** del paquete anterior en vez de escribirse de cero (decisión del usuario). El robot usa `base_link` como raíz, sin `base_footprint`.
+- **Tracción seleccionable `drive:=mecanum|planar`, con mecanum por defecto** (decisión del usuario: más realista para la demo y para E2). Trae las ruedas con sus 12 rodillos cada una y sus parámetros de contacto (`kp=100000`, `kd=1`, `minDepth=0.001`, `maxVel=0.1`), `ros2_control`, `config/controllers.yaml` y el puente `cmd_vel_bridge`. `planar` conserva `gazebo_ros_planar_move` para pruebas rápidas.
+- Revisión del repo anterior: allí **no se simplificaron los rodillos, se eliminaban** con `training_kinematic:=true`, que era justo `planar_move`. Lo que sí aceleraba, y se porta a la tarea 6, es el paso de física de 2 ms, el `sim_speed_factor` de `create_scaled_world` (reescribe `real_time_update_rate`, tope 20×) y bajar el LiDAR a 180 rayos.
 - Las ruedas se movieron a `x = 0.20` para que queden dentro de la coraza de contacto: si sobresalen, una pared toca primero la rueda, que no reporta contacto, y el episodio parece un atasco en vez de un choque.
 - La prueba *golden* compara con tolerancia 1e-6, no bit a bit: `LaserScan` guarda los rangos en float32 y eso introduce 6e-8 de diferencia.
 
@@ -40,7 +42,9 @@ Datos que sí se verificaron en el contenedor antes de escribir el plan:
 | archivo | responsabilidad |
 |---|---|
 | `tools/ct_ros` | ejecutar un comando en el contenedor **con ROS cargado** |
-| `urdf/martha.urdf.xacro` | robot reutilizado de `martha/urdf/learning.xacro`, sin namespaces, IMU, ruedas mecanum ni `ros2_control` |
+| `urdf/martha.urdf.xacro` | robot reutilizado de `martha/urdf/learning.xacro`, con `drive:=mecanum|planar`; sin namespaces ni IMU |
+| `config/controllers.yaml` | `mecanum_drive_controller` y `joint_state_broadcaster` |
+| `martha_nav/ros/cmd_vel_bridge.py` | `/cmd_vel` (Twist) → `/mecanum_drive_controller/reference` (TwistStamped) |
 | `martha_nav/ros/occupancy.py` | `Grid` ↔ `nav_msgs/OccupancyGrid` |
 | `martha_nav/ros/scan_adapter.py` | `sensor_msgs/LaserScan` → `(ranges, angles)` en el marco del robot |
 | `martha_nav/ros/planner_core.py` | lógica pura del planificador: cuándo replanificar, ruta, estado |
@@ -879,7 +883,10 @@ git commit -m "Add the local-planner logic with the footprint safety stop" -m "C
 - Modify: `setup.py` (entry points y `data_files` de `launch/` y `urdf/`)
 
 **Interfaces:**
-- Produces los ejecutables `map_publisher`, `planner_node`, `policy_node` y `ground_truth_tf`, y el launch `sim.launch.py` con los argumentos `world`, `gui`, `checkpoint` y `rviz`.
+- Produces los ejecutables `map_publisher`, `planner_node`, `policy_node`, `ground_truth_tf` y `cmd_vel_bridge`, y el launch `sim.launch.py` con los argumentos `world`, `gui`, `checkpoint`, `rviz`, `drive` (por defecto `mecanum`), `physics_step_size` (0.002), `sim_speed_factor` (1.0) y `lidar_samples` (360).
+- Con `drive:=mecanum` el launch añade, **en este orden**: spawn del robot, `spawner joint_state_broadcaster`, `spawner mecanum_drive_controller` y `cmd_vel_bridge`. Los spawners deben encadenarse con `RegisterEventHandler(OnProcessExit(...))`, como hacía `martha/launch/simulation.launch.py`, o el controller_manager no está listo.
+- El mundo se copia a un temporal con `create_scaled_world` (portar de `martha/martha/simulation_speed.py`) para aplicar `physics_step_size` y `sim_speed_factor`.
+- **Medición obligatoria en la tarea 6:** anotar el factor de tiempo real que consigue Gazebo con `mecanum` frente a `planar`. E2 se mide primero a 1× con 1 ms; solo se sube la velocidad si el resultado no cambia.
 - Tópicos: `planner_node` publica `/plan` (`nav_msgs/Path`) y `/nav_status` (`std_msgs/String`); `policy_node` publica `/cmd_vel` y `/carrot` (`geometry_msgs/PointStamped`, para RViz).
 
 - [ ] **Step 1: Escribir `planner_node.py`**

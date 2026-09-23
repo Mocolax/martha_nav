@@ -7,8 +7,12 @@ from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
 URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'martha.urdf.xacro'
 
 
-def robot():
-    return xacro.process_file(str(URDF)).toprettyxml()
+CONTROLLERS = Path(__file__).resolve().parents[1] / 'config' / 'controllers.yaml'
+
+
+def robot(drive='mecanum'):
+    mappings = {'drive': drive, 'controllers_file': str(CONTROLLERS)}
+    return xacro.process_file(str(URDF), mappings=mappings).toprettyxml()
 
 
 def joint_origin(doc, joint_name):
@@ -33,21 +37,37 @@ def test_lidar_sits_where_the_observation_expects_it():
     assert abs(joint_origin(robot(), 'base_lidar')[0] - LIDAR_OFFSET_X) < 1e-9
 
 
-def test_required_plugins_and_remappings():
+def test_sensors_are_the_same_in_both_drives():
+    for drive in ('mecanum', 'planar'):
+        doc = robot(drive)
+        for needle in ('libgazebo_ros_ray_sensor.so', 'libgazebo_ros_bumper.so', '~/out:=/scan',
+                       'bumper_states:=/bumper_states',
+                       'base_link_fixed_joint_lump__contact_shell_collision_collision'):
+            assert needle in doc, (drive, needle)
+        assert doc.count('<sensor ') == 2             # ray + contact, nothing else
+
+
+def test_mecanum_drive_is_the_default():
     doc = robot()
-    for needle in ('libgazebo_ros_planar_move.so', 'libgazebo_ros_ray_sensor.so',
-                   'libgazebo_ros_bumper.so', '~/out:=/scan', 'cmd_vel:=/cmd_vel',
-                   'bumper_states:=/bumper_states',
-                   'base_link_fixed_joint_lump__contact_shell_collision_collision'):
-        assert needle in doc, needle
-    assert doc.count('<sensor ') == 2                 # ray + contact, nothing else
+    assert '<ros2_control' in doc and 'libgazebo_ros2_control.so' in doc
+    assert 'controllers.yaml' in doc
+    assert doc.count('_roller_') > 0
+    assert doc.count('type="continuous"') == 52       # 4 wheels + 48 rollers
+    assert 'libgazebo_ros_planar_move.so' not in doc
+
+
+def test_planar_drive_swaps_the_wheels_for_the_plugin():
+    doc = robot('planar')
+    assert 'libgazebo_ros_planar_move.so' in doc and 'cmd_vel:=/cmd_vel' in doc
+    assert '<ros2_control' not in doc
+    assert '_roller_' not in doc
+    assert doc.count('type="continuous"') == 0
 
 
 def test_dropped_parts_of_the_old_urdf_are_gone():
     # Tags and link names, not words: the header comment mentions what was dropped.
     doc = robot()
-    for absent in ('<ros2_control', 'imu_link', 'imu_sensor', '_roller_',
-                   'gazebo_ros2_control', '${robot_namespace}', '${frame_prefix}'):
+    for absent in ('imu_link', 'imu_sensor', '${robot_namespace}', '${frame_prefix}'):
         assert absent not in doc, absent
 
 
@@ -61,7 +81,7 @@ def test_lidar_scans_the_full_circle_at_8_m():
 
 def test_wheels_stay_inside_the_contact_shell():
     """A wall must touch the shell (which the bumper watches) before a wheel."""
-    doc = robot()
-    radius = float(doc.split('name="front_left_wheel"', 1)[1].split('radius="', 1)[1].split('"', 1)[0])
-    x = joint_origin(doc, 'base_front_left_wheel_joint')[0]
-    assert x + radius < ROBOT_LENGTH / 2
+    for drive in ('mecanum', 'planar'):
+        doc = robot(drive)
+        x = joint_origin(doc, 'base_front_left_wheel_joint')[0]
+        assert x + 0.075 < ROBOT_LENGTH / 2, drive     # 0.075 m is the wheel envelope
