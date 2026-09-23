@@ -94,6 +94,9 @@ def scalars(run):
     for tag in ea.Tags()['scalars']:
         events = ea.Scalars(tag)
         out[tag] = (np.array([e.step for e in events]) / 1e6, np.array([e.value for e in events]))
+    if 'train/entropy_loss' in out:      # SB3 logs the loss, which is minus the entropy
+        steps, values = out['train/entropy_loss']
+        out['train/entropy'] = (steps, -values)
     return out
 
 
@@ -155,7 +158,7 @@ def diagnostics_report(run, tb, out):
     fig, ax = plt.subplots(2, 2, figsize=(14, 9), facecolor=SURFACE, constrained_layout=True)
     groups = [
         ((0, 0), 'Pérdidas', [('train/policy_gradient_loss', 'actor'), ('train/value_loss', 'crítico'),
-                              ('train/entropy_loss', 'entropía')], None),
+                              ('train/entropy', 'entropía')], None),
         ((0, 1), 'Exploración', [('train/std', 'std de la política')], None),
         ((1, 0), 'Magnitud de las actualizaciones', [('train/approx_kl', 'approx_kl'),
                                                      ('train/clip_fraction', 'clip_fraction')], 0.02),
