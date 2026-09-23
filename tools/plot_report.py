@@ -44,11 +44,19 @@ def rolling(values, window):
     return series.rolling(window, min_periods=1).mean().to_numpy()
 
 
-def plot_smoothed(axis, x, values, label, window, raw=False):
+def plot_smoothed(axis, x, values, label, window, raw=False, band=False):
+    """Smoothed line; `raw` draws the per-episode series behind it, as the old
+    package did, and `band` replaces that cloud with the 10th-90th percentile of
+    each window, which is what shows the spread actually shrinking."""
     values = np.asarray(values, dtype=float)
     if not np.isfinite(values).any():
         return False
-    if raw:
+    if band:
+        series = pd.Series(values)
+        window_view = series.rolling(window, min_periods=max(3, window // 5))
+        axis.fill_between(x, window_view.quantile(0.1), window_view.quantile(0.9),
+                          alpha=0.18, linewidth=0)
+    elif raw:
         axis.plot(x, values, alpha=0.16, linewidth=0.7)
     axis.plot(x, rolling(values, window), linewidth=2.0, label=label)
     return True
@@ -96,13 +104,15 @@ def load_scalars(run, episodes):
     return out
 
 
-def learning_report(run, episodes, evals, window):
+def learning_report(run, episodes, evals, window, band=False):
     plt.style.use('ggplot')
     figure, axes = plt.subplots(3, 2, figsize=(15, 13), constrained_layout=True)
-    figure.suptitle(f'Aprendizaje PPO Martha — media móvil de {window} episodios', fontsize=16)
+    spread = 'percentil 10-90' if band else 'valores por episodio al fondo'
+    figure.suptitle(f'Aprendizaje PPO Martha — media móvil de {window} episodios ({spread})',
+                    fontsize=16)
     x = episodes.episode
 
-    plot_smoothed(axes[0, 0], x, episodes.reward, 'Recompensa', window, raw=True)
+    plot_smoothed(axes[0, 0], x, episodes.reward, 'Recompensa', window, raw=True, band=band)
     axes[0, 0].set_title('Recompensa de entrenamiento')
     axes[0, 0].set_ylabel('Recompensa original')
 
@@ -112,7 +122,7 @@ def learning_report(run, episodes, evals, window):
     axes[0, 1].set_ylabel('Tasa')
     axes[0, 1].set_ylim(-0.03, 1.03)
 
-    plot_smoothed(axes[1, 0], x, episodes.steps, 'Steps', window, raw=True)
+    plot_smoothed(axes[1, 0], x, episodes.steps, 'Steps', window, raw=True, band=band)
     axes[1, 0].set_title('Duración de los episodios')
     axes[1, 0].set_ylabel('Steps')
 
@@ -175,11 +185,11 @@ def diagnostics_report(run, scalars, window):
     return path
 
 
-def report(run, window=REPORT_WINDOW):
+def report(run, window=REPORT_WINDOW, band=False):
     episodes = load_episodes(run)
     evals = load_evaluations(run, episodes)
     scalars = load_scalars(run, episodes)
-    return (learning_report(run, episodes, evals, window),
+    return (learning_report(run, episodes, evals, window, band),
             diagnostics_report(run, scalars, window))
 
 
@@ -188,11 +198,13 @@ def main():
     ap.add_argument('run', nargs='?', help='run directory')
     ap.add_argument('--all', action='store_true', help='every run under runs/')
     ap.add_argument('--window', type=int, default=REPORT_WINDOW)
+    ap.add_argument('--band', action='store_true',
+                    help='show the 10-90 percentile band instead of the raw episode cloud')
     args = ap.parse_args()
     runs = ([p.parent for p in sorted(Path('runs').glob('*/episodes.csv'))] if args.all
             else [Path(args.run)])
     for run in runs:
-        for path in report(run, args.window):
+        for path in report(run, args.window, args.band):
             print(path)
 
 
