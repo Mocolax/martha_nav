@@ -40,11 +40,19 @@ def test_lidar_sits_where_the_observation_expects_it():
 def test_sensors_are_the_same_in_both_drives():
     for drive in ('mecanum', 'planar'):
         doc = robot(drive)
-        for needle in ('libgazebo_ros_ray_sensor.so', 'libgazebo_ros_bumper.so', '~/out:=/scan',
-                       'bumper_states:=/bumper_states',
+        for needle in ('libgazebo_ros_ray_sensor.so', 'libgazebo_ros_bumper.so',
                        'base_link_fixed_joint_lump__contact_shell_collision_collision'):
             assert needle in doc, (drive, needle)
         assert doc.count('<sensor ') == 2             # ray + contact, nothing else
+
+
+def test_mecanum_urdf_parses_as_a_parameter_override_rule():
+    """gazebo_ros2_control hands the whole URDF to rcl as "robot_description:=<urdf>",
+    and that value is parsed as YAML: a colon plus a space, or a remapping rule,
+    anywhere inside it (comments included) stops the controller_manager from starting."""
+    doc = robot('mecanum')
+    assert ': ' not in doc
+    assert ':=' not in doc
 
 
 def test_mecanum_drive_is_the_default():

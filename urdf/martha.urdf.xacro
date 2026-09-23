@@ -1,12 +1,18 @@
 <?xml version="1.0"?>
 <!-- Martha for martha_nav. Derived from martha/urdf/learning.xacro, keeping its
-     geometry and dropping what this package does not use: namespaces and frame
-     prefixes (one robot), the IMU, the mecanum wheels with their rollers and the
-     ros2_control stack. The policy drives /cmd_vel through planar_move, so the
+     geometry and dropping what this package does not use, namely namespaces and
+     frame prefixes (one robot), the IMU, the mecanum wheels with their rollers and
+     the ros2_control stack. The policy drives /cmd_vel through planar_move, so the
      wheels are decoration that also holds the chassis off the floor.
 
-     Geometry must match martha_nav/sim2d/geometry.py: footprint 0.56 x 0.41 m and
-     the LiDAR 0.2325 m ahead of base_link.
+     Geometry must match martha_nav/sim2d/geometry.py, with a footprint of
+     0.56 x 0.41 m and the LiDAR 0.2325 m ahead of base_link.
+
+     IMPORTANT. Do not write a colon followed by a space anywhere in this file, not
+     even inside a comment. gazebo_ros2_control passes the whole expanded URDF as a
+     ROS parameter override rule, whose value is parsed as YAML, and a colon plus a
+     space there makes that parse fail, so the controller_manager never starts.
+     test_urdf.py checks this.
 
      xacro urdf/martha.urdf.xacro -o /tmp/martha.urdf
 -->
@@ -74,7 +80,7 @@
             <material name="grey"/>
         </visual>
 
-        <!-- One collision only: the contact shell. It is the same rectangle the
+        <!-- One collision only, the contact shell. It is the same rectangle the
              2D simulator checks, so a contact here means a collision there. -->
         <collision name="contact_shell_collision">
             <origin xyz="0 0 ${contact_shell_center_z}"/>
@@ -268,10 +274,10 @@
                      `gz sdf -p /tmp/martha.urdf | grep "<collision name"`. -->
                 <collision>base_link_fixed_joint_lump__contact_shell_collision_collision</collision>
             </contact>
+            <!-- No remapping here on purpose. The launch file does it instead, because
+                 a remapping rule inside the URDF would also reach the parameter override
+                 rule described at the top of this file. -->
             <plugin name="gazebo_ros_bumper" filename="libgazebo_ros_bumper.so">
-                <ros>
-                    <remapping>bumper_states:=/bumper_states</remapping>
-                </ros>
                 <frame_name>base_link</frame_name>
             </plugin>
         </sensor>
@@ -303,10 +309,9 @@
                     <stddev>0.01</stddev>
                 </noise>
             </ray>
+            <!-- Publishes on /gazebo_ros_lidar/out; the launch file remaps it to /scan
+                 (see the bumper comment above for why there is no remapping here). -->
             <plugin name="gazebo_ros_lidar" filename="libgazebo_ros_ray_sensor.so">
-                <ros>
-                    <remapping>~/out:=/scan</remapping>
-                </ros>
                 <output_type>sensor_msgs/LaserScan</output_type>
                 <frame_name>lidar</frame_name>
             </plugin>

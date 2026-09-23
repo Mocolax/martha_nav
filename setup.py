@@ -12,6 +12,9 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/worlds', glob('worlds/*.world')),
+        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
+        ('share/' + package_name + '/urdf', glob('urdf/*.xacro')),
+        ('share/' + package_name + '/config', glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,5 +23,13 @@ setup(
     description='PPO local planner for the Martha robot (thesis).',
     license='MIT',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={
+        'console_scripts': [
+            'map_publisher = martha_nav.ros.map_publisher:main',
+            'ground_truth_tf = martha_nav.ros.ground_truth_tf:main',
+            'planner_node = martha_nav.ros.planner_node:main',
+            'policy_node = martha_nav.ros.policy_node:main',
+            'cmd_vel_bridge = martha_nav.ros.cmd_vel_bridge:main',
+        ],
+    },
 )
