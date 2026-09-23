@@ -56,21 +56,44 @@ def test_previous_action_is_fed_back_and_cleared_on_reset():
     assert np.allclose(model.last_obs[94:], [0.0, 0.0])
 
 
-def test_an_obstacle_inside_the_footprint_stops_the_robot():
-    core = PolicyCore(FakeModel())
+def test_an_obstacle_ahead_blocks_forward_motion_but_allows_turning():
+    """The guard must leave a way out: freezing the robot turns a near-collision
+    into an episode that never ends."""
+    core = PolicyCore(FakeModel((1.0, 0.6)))      # wants to drive forward and turn
     ranges, angles = clear_scan()
     ranges[180] = 0.04                            # right in front of the LiDAR
     v, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
-    assert (v, w) == (0.0, 0.0) and info['blocked']
+    assert v == 0.0 and w != 0.0
+    assert info['blocked'] == 'front'
 
 
-def test_footprint_check_uses_the_lidar_offset():
+def test_an_obstacle_ahead_still_allows_reversing():
+    core = PolicyCore(FakeModel((-1.0, 0.0)))
+    ranges, angles = clear_scan()
+    ranges[180] = 0.04
+    v, _, _ = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert v < 0.0
+
+
+def test_an_obstacle_behind_blocks_only_reverse():
+    core = PolicyCore(FakeModel((-1.0, 0.0)))
+    ranges, angles = clear_scan()
+    ranges[0] = 0.30                              # beam 0 points backwards
+    v, _, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert v == 0.0 and info['blocked'] == 'rear'
+    forward = PolicyCore(FakeModel((1.0, 0.0)))
+    v, _, _ = forward.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert v > 0.0
+
+
+def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     angles = np.array([0.0, np.pi])
     # Forward the footprint ends 0.28 - 0.2325 = 0.0475 m ahead of the LiDAR.
-    assert footprint_blocked(np.array([0.04, 8.0]), angles)
-    assert not footprint_blocked(np.array([0.5, 8.0]), angles)
+    assert footprint_blocked(np.array([0.04, 8.0]), angles) == 'front'
+    assert footprint_blocked(np.array([0.5, 8.0]), angles) is None
     # Backwards it reaches 0.28 + 0.2325 = 0.5125 m behind it.
-    assert footprint_blocked(np.array([8.0, 0.40]), angles)
+    assert footprint_blocked(np.array([8.0, 0.40]), angles) == 'rear'
+    assert footprint_blocked(np.array([0.04, 0.40]), angles) == 'both'
 
 
 def test_the_carrot_skips_a_scanned_obstacle():

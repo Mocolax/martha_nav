@@ -7,10 +7,12 @@ from martha_nav.sim2d.planner import carrot
 
 
 def footprint_blocked(ranges, angles, margin=0.05):
-    """True when a scan point falls inside the robot rectangle plus a margin.
+    """Which side of the footprint a scan point has entered.
 
-    Ranges are measured from the LiDAR, which sits LIDAR_OFFSET_X ahead of the
-    footprint centre, so the rectangle is shifted by that amount.
+    Returns 'front', 'rear', 'both' or None. Ranges are measured from the LiDAR,
+    which sits LIDAR_OFFSET_X ahead of the footprint centre, so the rectangle is
+    shifted by that amount. The side matters because a guard that blocks every
+    motion leaves the robot frozen against the obstacle forever.
     """
     ranges = np.asarray(ranges, dtype=float)
     angles = np.asarray(angles, dtype=float)
@@ -18,7 +20,10 @@ def footprint_blocked(ranges, angles, margin=0.05):
     x = ranges[valid] * np.cos(angles[valid]) + LIDAR_OFFSET_X
     y = ranges[valid] * np.sin(angles[valid])
     inside = (np.abs(x) <= ROBOT_LENGTH / 2 + margin) & (np.abs(y) <= ROBOT_WIDTH / 2 + margin)
-    return bool(inside.any())
+    front, rear = bool((inside & (x >= 0)).any()), bool((inside & (x < 0)).any())
+    if front and rear:
+        return 'both'
+    return 'front' if front else ('rear' if rear else None)
 
 
 class PolicyCore:
@@ -38,10 +43,7 @@ class PolicyCore:
     def compute(self, path, pose, ranges, angles, velocity):
         """pose is (x, y, yaw) in the map frame. Returns (v, w, info)."""
         x, y, yaw = pose
-        if footprint_blocked(ranges, angles):
-            self.prev_action = np.zeros(2)
-            return 0.0, 0.0, {'blocked': True, 's': self.s, 'carrot': None}
-
+        blocked = footprint_blocked(ranges, angles)
         self.s = path.project(x, y, s_hint=self.s)
         points = self._scan_points(ranges, angles, pose)
         point, _ = carrot(path, self.s, self.lookahead, points, self.carrot_clearance)
@@ -53,7 +55,12 @@ class PolicyCore:
         action = np.clip(np.asarray(action, dtype=float).reshape(2), -1.0, 1.0)
         self.prev_action = action
         v, w = action_to_cmd(action)
-        return v, w, {'blocked': False, 's': self.s, 'carrot': point}
+        # Directional guard: stop the motion that would hit, keep the one that escapes.
+        if blocked in ('front', 'both') and v > 0:
+            v = 0.0
+        if blocked in ('rear', 'both') and v < 0:
+            v = 0.0
+        return v, w, {'blocked': blocked, 's': self.s, 'carrot': point}
 
     def _scan_points(self, ranges, angles, pose):
         """Scan hits in map coordinates, for the carrot's obstacle skipping."""

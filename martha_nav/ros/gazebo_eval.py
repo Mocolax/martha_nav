@@ -18,8 +18,9 @@ import rclpy
 from gazebo_msgs.msg import ContactsState
 from gazebo_msgs.srv import DeleteEntity, SetEntityState, SpawnEntity
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from std_msgs.msg import String
 
 from martha_nav.learning.evaluate import eval_seeds
@@ -32,6 +33,16 @@ BOX_SDF = """<?xml version="1.0"?>
 <sdf version="1.6"><model name="{name}"><static>true</static><link name="link">
 <collision name="c"><geometry><box><size>{sx} {sy} 0.6</size></box></geometry></collision>
 <visual name="v"><geometry><box><size>{sx} {sy} 0.6</size></box></geometry></visual>
+</link></model></sdf>"""
+
+# Visual only, no collision: the LiDAR must not see the marker.
+GOAL_SDF = """<?xml version="1.0"?>
+<sdf version="1.6"><model name="goal_marker"><static>true</static><link name="link">
+<visual name="v"><geometry><cylinder><radius>0.15</radius><length>0.02</length></cylinder></geometry>
+<material><ambient>0.1 0.8 0.2 1</ambient><diffuse>0.1 0.8 0.2 1</diffuse></material></visual>
+<visual name="pole"><pose>0 0 0.5 0 0 0</pose>
+<geometry><cylinder><radius>0.02</radius><length>1.0</length></cylinder></geometry>
+<material><ambient>0.1 0.8 0.2 1</ambient><diffuse>0.1 0.8 0.2 1</diffuse></material></visual>
 </link></model></sdf>"""
 
 CYLINDER_SDF = """<?xml version="1.0"?>
@@ -52,6 +63,9 @@ class GazeboEval(Node):
         self.out = self.declare_parameter('out', '/tmp/eval_gazebo.csv').value
         self.timeout = self.declare_parameter('episode_timeout', 120.0).value
         self.settle = self.declare_parameter('settle_seconds', 1.5).value
+        # Same rule as the 2D environment, so the two columns measure the same failure.
+        self.no_progress = self.declare_parameter('no_progress_seconds', 15.0).value
+        self.progress_epsilon = self.declare_parameter('progress_epsilon', 0.10).value
 
         obstacles = {'obstacles': 'always', 'clean': 'none', 'mixed': 'mixed'}[self.condition]
         self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=obstacles)
@@ -64,6 +78,8 @@ class GazeboEval(Node):
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', LATCHED)
         self.create_subscription(String, '/nav_status', self.on_status, LATCHED)
         self.create_subscription(ContactsState, '/bumper_states', self.on_contact, 10)
+        self.create_subscription(Odometry, '/odom', self.on_odom, qos_profile_sensor_data)
+        self.position = None
         self.spawn = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete = self.create_client(DeleteEntity, '/delete_entity')
         self.set_state = self.create_client(SetEntityState, '/gazebo/set_entity_state')
@@ -77,6 +93,9 @@ class GazeboEval(Node):
     def on_contact(self, msg):
         if msg.states:
             self.contact = True
+
+    def on_odom(self, msg):
+        self.position = (msg.pose.pose.position.x, msg.pose.pose.position.y)
 
     # ---- gazebo helpers ----
     def call(self, client, request):
@@ -94,6 +113,16 @@ class GazeboEval(Node):
         request.state.pose.orientation.w = math.cos(yaw / 2)
         request.state.reference_frame = 'world'
         self.call(self.set_state, request)
+
+    def spawn_goal_marker(self, goal):
+        """A green post at the goal, so the demo is readable in gzclient."""
+        request = SpawnEntity.Request()
+        request.name, request.xml = 'goal_marker', GOAL_SDF
+        request.initial_pose.position.x = float(goal[0])
+        request.initial_pose.position.y = float(goal[1])
+        request.initial_pose.position.z = 0.01
+        self.call(self.spawn, request)
+        return ['goal_marker']
 
     def spawn_obstacles(self, obstacles):
         names = []
@@ -137,13 +166,14 @@ class GazeboEval(Node):
     def run_episode(self, seed):
         scenario = generate(seed, self.cfg)
         self.teleport(*scenario.start)
-        names = self.spawn_obstacles(scenario.obstacles)
+        names = self.spawn_obstacles(scenario.obstacles) + self.spawn_goal_marker(scenario.goal)
         self.status, self.contact = 'idle', False
         self.spin(self.settle)
         self.contact = False                    # ignore contacts caused by the teleport
         self.send_goal(scenario.goal)
         start = time.time()
         outcome = 'timeout'
+        anchor, anchor_time = self.position, time.time()
         while time.time() - start < self.timeout:
             rclpy.spin_once(self, timeout_sec=0.05)
             if self.contact:
@@ -155,6 +185,13 @@ class GazeboEval(Node):
             if self.status == 'failed':
                 outcome = 'failed'
                 break
+            if self.position is not None:
+                moved = anchor is None or math.dist(self.position, anchor) > self.progress_epsilon
+                if moved:
+                    anchor, anchor_time = self.position, time.time()
+                elif time.time() - anchor_time > self.no_progress:
+                    outcome = 'stalled'
+                    break
         self.clear_obstacles(names)
         return {'episode_seed': seed, 'outcome': outcome, 'source': scenario.source,
                 'mode': self.mode, 'n_obstacles': len(scenario.obstacles),

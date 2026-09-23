@@ -100,7 +100,8 @@ class PolicyNode(Node):
         ranges, angles = self.scan
         v, w, info = self.core.compute(self.path, pose, ranges, angles, self.velocity)
         if info['blocked']:
-            return self.stop('obstacle inside the footprint')
+            self.get_logger().warning(f"obstacle inside the footprint ({info['blocked']}), "
+                                      'blocking that direction', throttle_duration_sec=2.0)
         cmd = Twist()
         cmd.linear.x, cmd.angular.z = float(v), float(w)
         self.cmd_pub.publish(cmd)

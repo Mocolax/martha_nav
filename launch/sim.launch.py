@@ -86,6 +86,7 @@ def launch_setup(context, *args, **kwargs):
              parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'use_sim_time': True}]),
         Node(package='rviz2', executable='rviz2', output='screen',
              condition=IfCondition(LaunchConfiguration('rviz')),
+             arguments=['-d', str(share / 'rviz' / 'nav.rviz')],
              parameters=[{'use_sim_time': True}]),
         RegisterEventHandler(OnShutdown(on_shutdown=lambda *_, **__: Path(world).unlink(
             missing_ok=True))),

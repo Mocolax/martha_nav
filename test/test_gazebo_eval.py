@@ -18,3 +18,26 @@ def test_cylinder_sdf_is_well_formed_and_uses_the_radius():
     radius = ET.fromstring(xml).find('model/link/collision/geometry/cylinder/radius').text
     assert float(radius) == 0.17
     assert ET.fromstring(xml).find('model').get('name') == 'obstacle_1'
+
+
+def test_the_stall_rule_matches_the_2d_environment():
+    """gazebo_eval must cut a stuck episode like NavEnv does, not wait for the timeout."""
+    import inspect
+
+    from martha_nav.ros import gazebo_eval
+    from martha_nav.sim2d.env import EnvConfig
+    source = inspect.getsource(gazebo_eval.GazeboEval.__init__)
+    assert "'no_progress_seconds', 15.0" in source
+    assert EnvConfig().no_progress_time == 15.0
+    assert "outcome = 'stalled'" in inspect.getsource(gazebo_eval.GazeboEval.run_episode)
+
+
+def test_goal_marker_has_no_collision():
+    """The marker is decoration: a collision would show up in the LiDAR."""
+    import xml.etree.ElementTree as ET
+
+    from martha_nav.ros.gazebo_eval import GOAL_SDF
+    model = ET.fromstring(GOAL_SDF).find('model')
+    assert model.get('name') == 'goal_marker'
+    assert model.find('link/collision') is None
+    assert len(model.findall('link/visual')) == 2
