@@ -33,3 +33,21 @@ def test_ppo_updates_are_kl_limited():
     # Without it the policy std collapsed and approx_kl reached 1-2 (docs/resultados.md).
     from martha_nav.learning.train import PPO_PARAMS
     assert PPO_PARAMS['target_kl'] == 0.02
+
+
+def test_recurrent_flag_selects_recurrent_ppo(tmp_path):
+    """Arm L: an LSTM policy, trained with RecurrentPPO from sb3-contrib."""
+    from sb3_contrib import RecurrentPPO
+
+    from martha_nav.learning.train import build_model
+    import martha_nav.learning.train as train_module
+    env_cfg = train_module.build_config('gate')
+    venv = train_module.make_vec_env(env_cfg, n_envs=2, seed=0)
+    try:
+        model = build_model(venv, arch='cnn', recurrent=True, seed=0, device='cpu',
+                            tensorboard_log=str(tmp_path))
+        assert isinstance(model, RecurrentPPO)
+        assert hasattr(model.policy, 'lstm_actor')          # an actual LSTM, not just the class
+        assert model.policy.lstm_actor.hidden_size > 0
+    finally:
+        venv.close()

@@ -54,3 +54,27 @@ def test_point_mode_builds_one_episode_per_pair():
     rows = run_episodes(Pursuit(), cfg, seeds, n_envs=2)
     assert len(rows) == len(pairs)
     assert {r['source'] for r in rows} == {'lab'}
+
+
+def test_recurrent_models_keep_their_hidden_state():
+    """A recurrent policy is called with its state and the episode-start flags."""
+    import numpy as np
+
+    from martha_nav.learning.evaluate import run_episodes
+
+    class Recurrent:
+        is_recurrent = True
+
+        def __init__(self):
+            self.saw_state, self.saw_starts = False, False
+
+        def predict(self, obs, state=None, episode_start=None, deterministic=True):
+            self.saw_state = self.saw_state or state is not None
+            self.saw_starts = self.saw_starts or episode_start is not None
+            ang = obs[:, 91]
+            action = np.stack([np.where(np.abs(ang) < 0.25, 1.0, 0.0), np.clip(4 * ang, -1, 1)], 1)
+            return action, ('state',)
+
+    model = Recurrent()
+    rows = run_episodes(model, OPEN, eval_seeds(4), n_envs=2)
+    assert len(rows) == 4 and model.saw_state and model.saw_starts

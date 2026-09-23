@@ -11,11 +11,11 @@ from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
-from stable_baselines3 import PPO
+
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
 
-from martha_nav.learning.evaluate import _trained_env
+from martha_nav.learning.evaluate import _trained_env, load_model
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
 from martha_nav.sim2d.planner import Path
@@ -32,7 +32,7 @@ class PolicyNode(Node):
         if not checkpoint:
             raise RuntimeError('parameter "checkpoint" is required')
         torch.set_num_threads(1)
-        model = PPO.load(checkpoint, device='cpu')
+        model = load_model(checkpoint)
         trained = _trained_env(checkpoint)      # LiDAR encoding and action space of the run
         self.core = PolicyCore(
             model,

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import torch
 import yaml
+from sb3_contrib import RecurrentPPO
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
@@ -97,6 +98,25 @@ class PeriodicEval(BaseCallback):
         return True
 
 
+def make_vec_env(env_cfg, n_envs, seed):
+    """Parallel environments, monitored and with normalised reward."""
+    venv = SubprocVecEnv([lambda: NavEnv(env_cfg) for _ in range(n_envs)])
+    venv.seed(seed)
+    return VecNormalize(VecMonitor(venv), norm_obs=False, norm_reward=True,
+                        gamma=PPO_PARAMS['gamma'])
+
+
+def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
+    """PPO, or RecurrentPPO with an LSTM head when recurrent is asked for."""
+    kwargs = dict(policy_kwargs=policy_kwargs(arch), seed=seed, device=device,
+                  tensorboard_log=tensorboard_log, verbose=0,
+                  learning_rate=lambda f: LEARNING_RATE * f, **PPO_PARAMS)
+    if not recurrent:
+        return PPO('MlpPolicy', venv, **kwargs)
+    # RecurrentPPO needs the batch to be a whole number of environments.
+    return RecurrentPPO('MlpLstmPolicy', venv, **kwargs)
+
+
 def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse', action_dim=2):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
@@ -129,6 +149,8 @@ def main(argv=None):
     ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='inverse')
     ap.add_argument('--action-dim', type=int, choices=[2, 3], default=2,
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
+    ap.add_argument('--recurrent', action='store_true',
+                    help='train with an LSTM policy (RecurrentPPO); slower per step')
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']
@@ -137,20 +159,17 @@ def main(argv=None):
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
                            args.lidar_encoding, args.action_dim)
-    config = {'preset': args.preset, 'arch': args.arch, 'seed': args.seed, 'steps': steps,
+    config = {'preset': args.preset, 'arch': args.arch, 'recurrent': args.recurrent,
+              'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,
               'env': json.loads(json.dumps(asdict(env_cfg)))}
     (run_dir / 'config.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
 
     torch.set_num_threads(4)
-    venv = SubprocVecEnv([lambda: NavEnv(env_cfg) for _ in range(args.n_envs)])
-    venv.seed(args.seed)
-    venv = VecNormalize(VecMonitor(venv), norm_obs=False, norm_reward=True,
-                        gamma=PPO_PARAMS['gamma'])
-    model = PPO('MlpPolicy', venv, learning_rate=lambda f: LEARNING_RATE * f,
-                policy_kwargs=policy_kwargs(args.arch), seed=args.seed, device=args.device,
-                tensorboard_log=str(run_dir / 'tb'), verbose=0, **PPO_PARAMS)
+    venv = make_vec_env(env_cfg, args.n_envs, args.seed)
+    model = build_model(venv, args.arch, args.recurrent, args.seed, args.device,
+                        str(run_dir / 'tb'))
     callbacks = [EpisodeLogger(run_dir / 'episodes.csv'),
                  PeriodicEval(env_cfg, run_dir, args.eval_every, args.eval_episodes)]
     start = time.time()

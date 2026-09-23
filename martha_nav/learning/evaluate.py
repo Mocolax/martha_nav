@@ -23,6 +23,10 @@ def make_vec_env(cfgs):
     return DummyVecEnv(fns) if len(fns) == 1 else SubprocVecEnv(fns)
 
 
+def _is_recurrent(model):
+    return getattr(model, 'is_recurrent', False) or 'Recurrent' in type(model).__name__
+
+
 def run_episodes(model, env_cfg, seeds, n_envs=8, deterministic=True):
     """Play every seed exactly once; returns one info dict per episode, in seed order."""
     n_envs = max(1, min(n_envs, len(seeds)))
@@ -31,9 +35,16 @@ def run_episodes(model, env_cfg, seeds, n_envs=8, deterministic=True):
     done_count = [0] * n_envs
     rows = []
     obs = venv.reset()
+    recurrent = _is_recurrent(model)
+    state, episode_starts = None, np.ones(n_envs, dtype=bool)
     while any(done_count[i] < len(chunks[i]) for i in range(n_envs)):
-        actions, _ = model.predict(obs, deterministic=deterministic)
+        if recurrent:
+            actions, state = model.predict(obs, state=state, episode_start=episode_starts,
+                                           deterministic=deterministic)
+        else:
+            actions, _ = model.predict(obs, deterministic=deterministic)
         obs, _, dones, infos = venv.step(actions)
+        episode_starts = np.asarray(dones, dtype=bool)
         for i, done in enumerate(dones):
             if done and done_count[i] < len(chunks[i]):
                 done_count[i] += 1
@@ -86,9 +97,22 @@ def _trained_env(model_path):
             'action_dim': saved.get('action_dim', 2)}
 
 
+def load_model(path):
+    """PPO, or RecurrentPPO when the run's config says it was trained with an LSTM."""
+    config = Path(path).with_name('config.yaml')
+    recurrent = False
+    if config.exists():
+        import yaml
+        recurrent = bool(yaml.safe_load(config.read_text()).get('recurrent', False))
+    if recurrent:
+        from sb3_contrib import RecurrentPPO
+        return RecurrentPPO.load(path, device='cpu')
+    from stable_baselines3 import PPO
+    return PPO.load(path, device='cpu')
+
+
 def main(argv=None):
     import torch
-    from stable_baselines3 import PPO
 
     torch.set_num_threads(4)   # default (all cores) starves the env workers
 
@@ -111,7 +135,7 @@ def main(argv=None):
         scenario = replace(scenario, sources=(args.points,), point_pairs=pairs)
         args.episodes = args.episodes if args.episodes != 500 else len(pairs)
     cfg = replace(cfg, scenario=scenario)
-    model = PPO.load(args.model, device='cpu')
+    model = load_model(args.model)
     rows = run_episodes(model, cfg, eval_seeds(args.episodes), args.n_envs)
     name = args.points + '-points' if args.points else (
         '-'.join(args.sources) if len(args.sources) < 3 else 'train')
