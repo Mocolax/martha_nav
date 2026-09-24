@@ -38,7 +38,8 @@ class PolicyNode(Node):
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
             lidar_encoding=trained.get('lidar_encoding', 'inverse'),
-            action_dim=trained.get('action_dim', 2))
+            action_dim=trained.get('action_dim', 2),
+            stuck_signal=trained.get('stuck_signal', False))
         self.action_dim = self.core.action_dim
         self.get_logger().info(f'action space: {self.action_dim}D, '
                                f"lidar {trained.get('lidar_encoding', 'inverse')}")

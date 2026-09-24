@@ -94,7 +94,8 @@ def _trained_env(model_path):
     saved = yaml.safe_load(config.read_text())['env']
     # Runs trained before these options existed used the linear encoding and (v, w).
     return {'lidar_encoding': saved.get('lidar_encoding', 'linear'),
-            'action_dim': saved.get('action_dim', 2)}
+            'action_dim': saved.get('action_dim', 2),
+            'stuck_signal': saved.get('stuck_signal', False)}
 
 
 def load_model(path):

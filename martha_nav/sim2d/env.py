@@ -33,6 +33,9 @@ class EnvConfig:
     lidar_encoding: str = 'inverse'  # see observation.encode_lidar; 'linear' in full_cnn_s0
     # 2 -> (v, w); 3 -> (vx, vy, w), which uses Martha's mecanum wheels sideways.
     action_dim: int = 2
+    # Adds the time without advancing to the observation, so a memoryless policy can
+    # tell that it is blocked instead of rediscovering the same dead end every step.
+    stuck_signal: bool = False
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
 
 
@@ -41,7 +44,8 @@ class NavEnv(gym.Env):
 
     def __init__(self, cfg=None):
         self.cfg = cfg or EnvConfig()
-        self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
+        self.observation_space = spaces.Box(
+            -1.0, 1.0, (obs_dim(self.cfg.action_dim, self.cfg.stuck_signal),), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
         self._seed_index = 0
@@ -126,8 +130,10 @@ class NavEnv(gym.Env):
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
         vel = ((self.dyn.v * noise[0], self.dyn.vy * noise[1], self.dyn.w * noise[2])
                if self.cfg.action_dim == 3 else (self.dyn.v * noise[0], self.dyn.w * noise[2]))
+        stuck = (min(self.since_progress * DT / self.cfg.no_progress_time, 1.0)
+                 if self.cfg.stuck_signal else None)
         return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
-                                 self.cfg.lidar_encoding)
+                                 self.cfg.lidar_encoding, stuck)
 
     def _summary(self, outcome):
         success = outcome == 'success'

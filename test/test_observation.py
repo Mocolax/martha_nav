@@ -86,3 +86,15 @@ def test_holonomic_observation_carries_three_velocities_and_actions():
     assert obs.shape == (obs_dim(3),)
     assert np.allclose(obs[92:95], [1.0, 1.0, -1.0])                 # vx, vy, w normalised
     assert np.allclose(obs[95:], [0.1, 0.2, 0.3])
+
+
+def test_stuck_signal_adds_one_value_at_the_end():
+    from martha_nav.sim2d.observation import obs_dim
+    ranges = np.full(180, 4.0)
+    angles = np.linspace(-np.pi, np.pi, 180, endpoint=False)
+    plain = build_observation(ranges, angles, (0.1, 0.0), (1.0, 0.0), np.zeros(2))
+    with_stuck = build_observation(ranges, angles, (0.1, 0.0), (1.0, 0.0), np.zeros(2), stuck=0.4)
+    assert plain.shape == (obs_dim(2),)
+    assert with_stuck.shape == (obs_dim(2, stuck_signal=True),)
+    assert np.allclose(with_stuck[:-1], plain)
+    assert abs(with_stuck[-1] - 0.4) < 1e-6

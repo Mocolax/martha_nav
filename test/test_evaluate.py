@@ -37,10 +37,11 @@ def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
     assert _trained_env(tmp_path / 'best_model.zip') == {}                     # no config: defaults
     (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
     old = _trained_env(tmp_path / 'best_model.zip')                            # before the options
-    assert old == {'lidar_encoding': 'linear', 'action_dim': 2}
-    (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n  action_dim: 3\n')
+    assert old == {'lidar_encoding': 'linear', 'action_dim': 2, 'stuck_signal': False}
+    (tmp_path / 'config.yaml').write_text(
+        'env:\n  lidar_encoding: inverse\n  action_dim: 3\n  stuck_signal: true\n')
     assert _trained_env(tmp_path / 'best_model.zip') == {'lidar_encoding': 'inverse',
-                                                         'action_dim': 3}
+                                                         'action_dim': 3, 'stuck_signal': True}
 
 
 def test_point_mode_builds_one_episode_per_pair():
