@@ -21,9 +21,12 @@ CONDITION=${CONDITION:-obstacles}
 WORLDS=${WORLDS:-"room hall four_rooms multi tube roblab lab"}
 OUT=${OUT:-runs/demo_worlds}
 
-mkdir -p "$OUT"
 say () { echo "[$(date +%H:%M:%S)] $*"; }
 [ -f "$MODEL" ] || { say "no existe $MODEL"; exit 1; }
+mkdir -p "$OUT"
+# Absolutas, para aceptar tanto rutas relativas al repo como completas.
+MODEL=$(realpath "$MODEL")
+OUT=$(realpath "$OUT")
 
 stop_sim () {
   [ -n "${LAUNCH_PID:-}" ] && kill -INT -- "-$LAUNCH_PID" 2>/dev/null
@@ -44,11 +47,13 @@ print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
 
   say "$world: arrancando Gazebo en ($xy)"
   setsid ros2 launch martha_nav sim.launch.py world:="$world" gui:="$GUI" rviz:="$RVIZ" \
-    sim_speed_factor:="$SPEED" checkpoint:="$PWD/$MODEL" x:="${xy% *}" y:="${xy#* }" \
+    sim_speed_factor:="$SPEED" checkpoint:="$MODEL" x:="${xy% *}" y:="${xy#* }" \
     > "$log" 2>&1 &
   LAUNCH_PID=$!
 
   until grep -q 'policy loaded' "$log" 2>/dev/null; do
+    grep -q 'policy_node.*process has died' "$log" 2>/dev/null &&
+      { say "$world: la política no cargó, ver $log"; stop_sim; return 1; }
     sleep 2
     waited=$((waited + 2))
     [ "$waited" -lt 120 ] || { say "$world: no quedó lista, ver $log"; stop_sim; return 1; }
@@ -57,7 +62,7 @@ print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
 
   say "$world: $EPISODES episodios"
   ros2 run martha_nav gazebo_eval --ros-args -p world:="$world" -p mode:=seeds \
-    -p condition:="$CONDITION" -p episodes:="$EPISODES" -p out:="$PWD/$OUT/demo_$world.csv" \
+    -p condition:="$CONDITION" -p episodes:="$EPISODES" -p out:="$OUT/demo_$world.csv" \
     2>&1 | grep -E 'seed |done:'
   stop_sim
 }
