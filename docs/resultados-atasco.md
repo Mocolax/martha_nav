@@ -37,3 +37,37 @@ estancamiento (un tercio de los episodios en `lab`): sin la ruta no sabe rodear 
 separa de la meta y se queda frente a ella. La colisión no sube. Es el argumento experimental
 para mantener la arquitectura jerárquica: el A* aporta la topología del lugar, que el LiDAR solo
 no ve más allá del primer obstáculo.
+
+## Brazo GL: solo la meta, holonómico, con LSTM (`armGL_s0`)
+
+Igual que el brazo G más una política recurrente (RecurrentPPO), sin señal de atasco. La
+hipótesis: sin la ruta, la memoria podría recordar por dónde ya intentó pasar y rodear la pared.
+
+| condición | G éxito | GL éxito | McNemar | G estancado | GL estancado | G colisión | GL colisión |
+|---|---|---|---|---|---|---|---|
+| limpio (500) | **0.880** | 0.812 | p < 0.001 | 0.080 | 0.086 | 0.040 | 0.102 |
+| obstáculos (500) | **0.820** | 0.630 | p < 0.0001 | 0.118 | 0.120 | 0.062 | 0.250 |
+| `lab` semillas (200) | **0.560** | 0.410 | p < 0.001 | 0.330 | 0.310 | 0.110 | 0.280 |
+| `lab` puntos fijos (90) | **0.644** | 0.344 | p < 0.0001 | 0.289 | 0.344 | 0.067 | 0.311 |
+
+**Lectura:** la hipótesis no se cumple. La memoria **no reduce el estancamiento** (0.31 contra
+0.33 en `lab`) y más que duplica las colisiones. Esta vez ni siquiera cambia bloqueos por choques:
+solo añade choques. La evaluación periódica seguía subiendo al final (máximo 0.69 a 4.75M), así que
+el modelo podría estar algo corto de entrenamiento, pero la distancia a G (0.82 en esas mismas
+evaluaciones desde los 2M pasos) es demasiado grande para cerrarla así.
+
+## Resumen de todos los brazos en `lab` (nunca visto, 200 episodios con obstáculos)
+
+| brazo | acción | objetivo | LSTM | señal | éxito | colisión | estancado |
+|---|---|---|---|---|---|---|---|
+| `long_c_kl_s0` (línea base) | `(v, w)` | zanahoria | — | — | **0.865** | **0.025** | 0.100 |
+| `armH_holonomic_s0` (**presentación**) | `(vx, vy, w)` | zanahoria | — | — | 0.815 | 0.130 | **0.050** |
+| `armS_stuck_s0` | `(v, w)` | zanahoria | — | sí | 0.765 | 0.080 | 0.155 |
+| `armL_lstm_s0` | `(v, w)` | zanahoria | sí | — | 0.670 | 0.270 | 0.060 |
+| `armSL_s0` | `(v, w)` | zanahoria | sí | sí | 0.635 | 0.290 | 0.075 |
+| `armG_goal_s0` | `(vx, vy, w)` | meta | — | — | 0.560 | 0.110 | 0.330 |
+| `armGL_s0` | `(vx, vy, w)` | meta | sí | — | 0.410 | 0.280 | 0.310 |
+
+Tres conclusiones para la tesis: la zanahoria del A* es la pieza que más aporta (quitarla cuesta
+25 puntos); la memoria recurrente empeora en todas las combinaciones probadas; y lo que reduce
+el estancamiento casi siempre lo paga en colisiones.
