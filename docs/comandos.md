@@ -182,12 +182,15 @@ O el guion que encadena las dos:
 ## 6.1. Demostración en todos los mundos
 
 `tools/run_demo_worlds.sh` recorre los mundos uno por uno: levanta `sim.launch.py`,
-espera a que el controlador y la política estén listos, corre unos cuantos episodios
-con `gazebo_eval`, cierra Gazebo y pasa al siguiente. Deja un CSV por mundo y una
-tabla en `runs/demo_worlds/resumen.md`.
+espera a que la política esté cargada, corre unos cuantos episodios con `gazebo_eval`,
+cierra Gazebo y pasa al siguiente. Deja un CSV por mundo y una tabla en
+`runs/demo_worlds/resumen.md`.
+
+A diferencia del resto, **este guion se ejecuta dentro del contenedor**, desde la raíz
+del repo, porque necesita la ventana de Gazebo:
 
 ```bash
-./tools/run_demo_worlds.sh
+docker exec -it ros2_humble bash -lc 'cd /home/ros/ros2_ws/src/martha_nav && ./tools/run_demo_worlds.sh'
 ```
 
 Se controla por variables de entorno:
@@ -199,6 +202,7 @@ Se controla por variables de entorno:
 | `WORLDS` | los siete mundos | lista separada por espacios |
 | `GUI` | `false` | `true` abre Gazebo y RViz para verlo |
 | `SPEED` | `1.0` | factor de tiempo real (súbelo si solo quieres los números) |
+| `RVIZ` | igual que `GUI` | RViz con el mapa, el LiDAR, el plan y la zanahoria |
 | `CONDITION` | `obstacles` | `obstacles`, `clean` o `mixed` |
 | `OUT` | `runs/demo_worlds` | carpeta de salida |
 
