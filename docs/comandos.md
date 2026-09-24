@@ -179,6 +179,41 @@ O el guion que encadena las dos:
 ./tools/run_e2.sh
 ```
 
+## 6.1. Demostración en todos los mundos
+
+`tools/run_demo_worlds.sh` recorre los mundos uno por uno: levanta `sim.launch.py`,
+espera a que el controlador y la política estén listos, corre unos cuantos episodios
+con `gazebo_eval`, cierra Gazebo y pasa al siguiente. Deja un CSV por mundo y una
+tabla en `runs/demo_worlds/resumen.md`.
+
+```bash
+./tools/run_demo_worlds.sh
+```
+
+Se controla por variables de entorno:
+
+| variable | por defecto | para qué |
+|---|---|---|
+| `MODEL` | `runs/long_c_kl_s0/best_model.zip` | política a demostrar (ruta relativa al repo) |
+| `EPISODES` | `10` | episodios por mundo |
+| `WORLDS` | los siete mundos | lista separada por espacios |
+| `GUI` | `false` | `true` abre Gazebo y RViz para verlo |
+| `SPEED` | `1.0` | factor de tiempo real (súbelo si solo quieres los números) |
+| `CONDITION` | `obstacles` | `obstacles`, `clean` o `mixed` |
+| `OUT` | `runs/demo_worlds` | carpeta de salida |
+
+Para verlo en vivo en pocos mundos:
+
+```bash
+EPISODES=5 GUI=true WORLDS="lab room tube" ./tools/run_demo_worlds.sh
+```
+
+Y para una demo larga en el laboratorio, que es el mundo de la sustentación:
+
+```bash
+EPISODES=30 GUI=true WORLDS=lab ./tools/run_demo_worlds.sh
+```
+
 ## 7. Guiones de experimentos ya preparados
 
 ```bash
