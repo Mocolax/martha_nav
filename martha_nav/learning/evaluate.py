@@ -95,7 +95,8 @@ def _trained_env(model_path):
     # Runs trained before these options existed used the linear encoding and (v, w).
     return {'lidar_encoding': saved.get('lidar_encoding', 'linear'),
             'action_dim': saved.get('action_dim', 2),
-            'stuck_signal': saved.get('stuck_signal', False)}
+            'stuck_signal': saved.get('stuck_signal', False),
+            'target': saved.get('target', 'carrot')}
 
 
 def load_model(path):

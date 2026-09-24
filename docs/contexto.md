@@ -7,7 +7,10 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 
 ## Decisiones fijas
 
-- Acción continua `(v, w)`; `--action-dim 3` añade `vy` (mecanum) como brazo alternativo.
+- Acción continua. **Para la presentación se usa el holonómico `(vx, vy, w)`**
+  (`armH_holonomic_s0`, decisión del 2026-09-24): es difícil justificar un modelo diferencial
+  sobre una plataforma mecanum. `(v, w)` (`long_c_kl_s0`) queda como línea base: choca
+  3 a 5 veces menos, y el holonómico cambia estancamientos por choques.
 - LiDAR: 360 rayos a 8 m (A2M8), codificados **`d/(d+1)`** (`inverse`). Esta es la
   decisión que hizo converger el modelo; con `d/8` (`linear`) se estanca en ~37%.
 - Ángulo a la zanahoria **directo, no `sin/cos`** (provoca trayectorias circulares).

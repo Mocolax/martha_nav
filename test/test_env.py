@@ -135,3 +135,16 @@ def test_stuck_signal_grows_while_the_robot_does_not_advance():
         if term or trunc:
             break
     assert signals == sorted(signals) and signals[-1] > 0.0
+
+
+def test_goal_target_points_the_observation_at_the_goal_not_the_carrot():
+    from martha_nav.sim2d.observation import GOAL_MAX, N_SECTORS
+    cfg = EnvConfig(target='goal', episode_seeds=(1000005,),
+                    scenario=ScenarioConfig(sources=('lab',), obstacle_mode='always'))
+    env = NavEnv(cfg)
+    obs, _ = env.reset()
+    x, y, th = env.dyn.pose
+    dx, dy = env.sc.goal[0] - x, env.sc.goal[1] - y
+    rel = (np.cos(th) * dx + np.sin(th) * dy, -np.sin(th) * dx + np.cos(th) * dy)
+    assert abs(obs[N_SECTORS] - min(np.hypot(dx, dy), GOAL_MAX) / GOAL_MAX) < 1e-5
+    assert abs(obs[N_SECTORS + 1] - np.arctan2(rel[1], rel[0]) / np.pi) < 1e-5

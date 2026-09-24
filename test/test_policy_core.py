@@ -118,3 +118,18 @@ def test_holonomic_core_returns_three_velocities_and_guards_the_sides():
     ranges[315] = 0.30                                 # beam 315 points back-left, beside the robot
     vx, vy, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0, 0.0))
     assert vy == 0.0 and 'left' in info['blocked']
+
+
+def test_goal_target_steers_to_the_end_of_the_route():
+    seen = {}
+
+    class Spy:
+        def predict(self, obs, deterministic=True):
+            seen['obs'] = obs
+            return np.zeros(2), None
+
+    core = PolicyCore(Spy(), target='goal')
+    path = Path(np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 6.0]]))
+    angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
+    *_, info = core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
+    assert np.allclose(info['carrot'], [1.0, 6.0])

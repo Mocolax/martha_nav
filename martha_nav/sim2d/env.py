@@ -8,8 +8,8 @@ from gymnasium import spaces
 
 from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_params
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, footprint_collides, raycast
-from martha_nav.sim2d.observation import (LIDAR_MAX, V_MAX, action_to_cmd, build_observation,
-                                          obs_dim)
+from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, V_MAX, WAYPOINT_MAX, action_to_cmd,
+                                          build_observation, obs_dim)
 from martha_nav.sim2d.planner import carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
@@ -36,6 +36,9 @@ class EnvConfig:
     # Adds the time without advancing to the observation, so a memoryless policy can
     # tell that it is blocked instead of rediscovering the same dead end every step.
     stuck_signal: bool = False
+    # 'carrot': a point on the A* route ahead of the robot. 'goal': the goal itself, so the
+    # deployed policy needs no global planner. The route still shapes the reward in training.
+    target: str = 'carrot'
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
 
 
@@ -123,8 +126,12 @@ class NavEnv(gym.Env):
 
     def _obs(self):
         x, y, th = self.dyn.pose
-        point, _ = carrot(self.sc.path, self.s, self.lookahead, self.scan_points,
-                          self.cfg.carrot_clearance)
+        if self.cfg.target == 'goal':
+            point, scale = self.sc.goal, GOAL_MAX
+        else:
+            point, _ = carrot(self.sc.path, self.s, self.lookahead, self.scan_points,
+                              self.cfg.carrot_clearance)
+            scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(th) * dx + np.sin(th) * dy, -np.sin(th) * dx + np.cos(th) * dy)
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
@@ -133,7 +140,7 @@ class NavEnv(gym.Env):
         stuck = (min(self.since_progress * DT / self.cfg.no_progress_time, 1.0)
                  if self.cfg.stuck_signal else None)
         return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
-                                 self.cfg.lidar_encoding, stuck)
+                                 self.cfg.lidar_encoding, stuck, scale)
 
     def _summary(self, outcome):
         success = outcome == 'success'

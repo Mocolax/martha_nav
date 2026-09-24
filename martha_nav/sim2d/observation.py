@@ -3,7 +3,8 @@ import numpy as np
 
 N_SECTORS = 90
 LIDAR_MAX = 8.0     # m, RPLIDAR A2M8 (clip range; encoding in encode_lidar)
-WAYPOINT_MAX = 3.0  # m
+WAYPOINT_MAX = 3.0  # m, carrot distance scale
+GOAL_MAX = 12.0     # m, goal distance scale when the policy sees the goal instead (longest route)
 V_MAX = 0.35        # m/s forward
 V_REVERSE = 0.15    # m/s backward
 V_LATERAL = 0.25    # m/s sideways, only with the holonomic action space
@@ -50,7 +51,7 @@ def encode_lidar(sectors, encoding='inverse'):
 
 
 def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='inverse',
-                      stuck=None):
+                      stuck=None, waypoint_max=WAYPOINT_MAX):
     """96-value observation in [-1, 1], 97 with the stuck signal.
 
     ranges/angles: raw scan, angles relative to the robot's forward axis.
@@ -58,10 +59,11 @@ def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar
     prev_action: last action sent, already in [-1, 1].
     stuck: time without advancing along the route, as a fraction of the stall limit.
     A policy without memory cannot tell "blocked" from "just started" on its own.
+    waypoint_max: distance scale, WAYPOINT_MAX for the carrot or GOAL_MAX for the goal.
     """
     lidar = encode_lidar(reduce_scan(ranges, angles), lidar_encoding)
     dx, dy = waypoint_rel
-    wp = [min(np.hypot(dx, dy), WAYPOINT_MAX) / WAYPOINT_MAX, np.arctan2(dy, dx) / np.pi]
+    wp = [min(np.hypot(dx, dy), waypoint_max) / waypoint_max, np.arctan2(dy, dx) / np.pi]
     vel = ([velocity[0] / V_MAX, velocity[1] / V_LATERAL, velocity[2] / W_MAX]
            if len(velocity) == 3 else [velocity[0] / V_MAX, velocity[1] / W_MAX])
     parts = [lidar, wp, vel, np.asarray(prev_action, dtype=float)]

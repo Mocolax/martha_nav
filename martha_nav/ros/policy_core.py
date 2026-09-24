@@ -3,7 +3,8 @@ import numpy as np
 
 from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
-from martha_nav.sim2d.observation import LIDAR_MAX, action_to_cmd, build_observation
+from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, WAYPOINT_MAX, action_to_cmd,
+                                          build_observation)
 from martha_nav.sim2d.planner import carrot
 
 
@@ -38,7 +39,7 @@ class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
     def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, no_progress_time=15.0):
+                 action_dim=2, stuck_signal=False, no_progress_time=15.0, target='carrot'):
         self.model = model
         self.lookahead = lookahead
         self.carrot_clearance = carrot_clearance
@@ -46,6 +47,7 @@ class PolicyCore:
         self.action_dim = action_dim
         self.stuck_signal = stuck_signal
         self.no_progress_time = no_progress_time
+        self.target = target
         self.reset()
 
     def reset(self):
@@ -65,14 +67,18 @@ class PolicyCore:
         gain = max(0.0, self.s - self.s_best)
         self.s_best = max(self.s_best, self.s)
         self.since_progress = 0 if gain > 1e-3 else self.since_progress + 1
-        points = self._scan_points(ranges, angles, pose)
-        point, _ = carrot(path, self.s, self.lookahead, points, self.carrot_clearance)
+        if self.target == 'goal':
+            point, scale = path.points[-1], GOAL_MAX
+        else:
+            points = self._scan_points(ranges, angles, pose)
+            point, _ = carrot(path, self.s, self.lookahead, points, self.carrot_clearance)
+            scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(yaw) * dx + np.sin(yaw) * dy, -np.sin(yaw) * dx + np.cos(yaw) * dy)
         stuck = (min(self.since_progress * DT / self.no_progress_time, 1.0)
                  if self.stuck_signal else None)
         obs = build_observation(ranges, angles, velocity, rel, self.prev_action,
-                                self.lidar_encoding, stuck)
+                                self.lidar_encoding, stuck, scale)
         action, _ = self.model.predict(obs, deterministic=True)
         action = np.clip(np.asarray(action, dtype=float).reshape(-1), -1.0, 1.0)
         self.prev_action = action

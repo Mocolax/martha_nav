@@ -118,7 +118,7 @@ def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False):
+                 action_dim=2, stuck_signal=False, target='carrot'):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
@@ -128,7 +128,7 @@ def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
     if stalled is not None:
         reward = replace(reward, stalled=stalled)
     return replace(cfg, reward=reward, lidar_encoding=lidar_encoding, action_dim=action_dim,
-                   stuck_signal=stuck_signal,
+                   stuck_signal=stuck_signal, target=target,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
                                     obstacle_mode=p['obstacle_mode']))
 
@@ -151,6 +151,8 @@ def main(argv=None):
     ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='inverse')
     ap.add_argument('--action-dim', type=int, choices=[2, 3], default=2,
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
+    ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
+                    help="what the policy steers to: the route's carrot, or the goal alone")
     ap.add_argument('--stuck-signal', action='store_true',
                     help='add the time without advancing to the observation')
     ap.add_argument('--recurrent', action='store_true',
@@ -162,7 +164,8 @@ def main(argv=None):
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
-                           args.lidar_encoding, args.action_dim, args.stuck_signal)
+                           args.lidar_encoding, args.action_dim, args.stuck_signal,
+                           args.target)
     config = {'preset': args.preset, 'arch': args.arch, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
