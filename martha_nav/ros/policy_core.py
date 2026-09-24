@@ -48,12 +48,15 @@ class PolicyCore:
         self.stuck_signal = stuck_signal
         self.no_progress_time = no_progress_time
         self.target = target
+        # An LSTM policy needs its hidden state carried from one tick to the next.
+        self.recurrent = hasattr(getattr(model, 'policy', None), 'lstm_actor')
         self.reset()
 
     def reset(self):
         self.prev_action = np.zeros(self.action_dim)
         self.s = self.s_best = 0.0
         self.since_progress = 0
+        self.lstm_state, self.episode_start = None, True
 
     def compute(self, path, pose, ranges, angles, velocity):
         """pose is (x, y, yaw) in the map frame.
@@ -79,7 +82,13 @@ class PolicyCore:
                  if self.stuck_signal else None)
         obs = build_observation(ranges, angles, velocity, rel, self.prev_action,
                                 self.lidar_encoding, stuck, scale)
-        action, _ = self.model.predict(obs, deterministic=True)
+        if self.recurrent:
+            action, self.lstm_state = self.model.predict(
+                obs, state=self.lstm_state, episode_start=np.array([self.episode_start]),
+                deterministic=True)
+            self.episode_start = False
+        else:
+            action, _ = self.model.predict(obs, deterministic=True)
         action = np.clip(np.asarray(action, dtype=float).reshape(-1), -1.0, 1.0)
         self.prev_action = action
         commands = list(action_to_cmd(action))

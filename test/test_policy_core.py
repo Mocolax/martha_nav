@@ -133,3 +133,23 @@ def test_goal_target_steers_to_the_end_of_the_route():
     angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
     *_, info = core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
     assert np.allclose(info['carrot'], [1.0, 6.0])
+
+
+def test_recurrent_policy_keeps_its_state_between_ticks_and_resets_on_a_new_route():
+    calls = []
+
+    class Lstm:
+        policy = type('P', (), {'lstm_actor': object()})()
+
+        def predict(self, obs, state=None, episode_start=None, deterministic=True):
+            calls.append((state, bool(episode_start[0])))
+            return np.zeros(2), len(calls)          # the "state" is just a counter
+
+    core = PolicyCore(Lstm())
+    path = Path(np.array([[0.0, 0.0], [5.0, 0.0]]))
+    angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
+    for _ in range(3):
+        core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
+    core.reset()                                    # policy_node calls this on every new /plan
+    core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
+    assert calls == [(None, True), (1, False), (2, False), (None, True)]
