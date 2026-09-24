@@ -118,7 +118,7 @@ def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, target='carrot'):
+                 action_dim=2, stuck_signal=False, target='carrot', progress_mode='route'):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
@@ -127,6 +127,7 @@ def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
         reward = replace(reward, collision=collision)
     if stalled is not None:
         reward = replace(reward, stalled=stalled)
+    reward = replace(reward, progress_mode=progress_mode)
     return replace(cfg, reward=reward, lidar_encoding=lidar_encoding, action_dim=action_dim,
                    stuck_signal=stuck_signal, target=target,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
@@ -153,6 +154,8 @@ def main(argv=None):
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
     ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
                     help="what the policy steers to: the route's carrot, or the goal alone")
+    ap.add_argument('--reward-progress', choices=['route', 'geodesic'], default='route',
+                    help='progress along the A* route, or drop in geodesic distance to the goal')
     ap.add_argument('--stuck-signal', action='store_true',
                     help='add the time without advancing to the observation')
     ap.add_argument('--recurrent', action='store_true',
@@ -165,7 +168,7 @@ def main(argv=None):
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
                            args.lidar_encoding, args.action_dim, args.stuck_signal,
-                           args.target)
+                           args.target, args.reward_progress)
     config = {'preset': args.preset, 'arch': args.arch, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,

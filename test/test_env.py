@@ -148,3 +148,18 @@ def test_goal_target_points_the_observation_at_the_goal_not_the_carrot():
     rel = (np.cos(th) * dx + np.sin(th) * dy, -np.sin(th) * dx + np.cos(th) * dy)
     assert abs(obs[N_SECTORS] - min(np.hypot(dx, dy), GOAL_MAX) / GOAL_MAX) < 1e-5
     assert abs(obs[N_SECTORS + 1] - np.arctan2(rel[1], rel[0]) / np.pi) < 1e-5
+
+
+def test_geodesic_progress_telescopes_to_the_distance_covered():
+    from dataclasses import replace
+    reward = replace(EnvConfig().reward, progress_mode='geodesic')
+    env = NavEnv(EnvConfig(reward=reward, episode_seeds=(1000005,),
+                           scenario=ScenarioConfig(sources=('lab',), obstacle_mode='always')))
+    obs, _ = env.reset()
+    start = env.geo
+    for _ in range(40):
+        obs, _, term, trunc, _ = env.step(pursue(obs))
+        if term or trunc:
+            break
+    # Potential-based: the sum of the per-step terms is the net drop in distance.
+    assert abs(env.terms['progress'] - (start - env.geo)) < 1e-6

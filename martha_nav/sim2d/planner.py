@@ -5,6 +5,7 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components, dijkstra
 
 INFLATION = 0.40   # m; a path in the inflated grid implies a free gap >= 0.8 m
+FIELD_INFLATION = 0.25  # m; just over the robot's half width: covers every centre it can occupy
 
 
 class Path:
@@ -125,3 +126,24 @@ class PlanningGrid:
         if len(pts) == 1:
             pts.append(pts[0].copy())
         return Path(np.array(pts))
+
+
+class DistanceField:
+    """Geodesic distance to the goal from any free cell (one Dijkstra, from the goal).
+
+    Unlike a single route, it scores every way around an obstacle, and unlike the
+    straight-line distance it has no dead ends: going round a wall lowers it.
+    """
+
+    def __init__(self, grid, goal, inflation=FIELD_INFLATION):
+        self.pg = PlanningGrid(grid, inflation)
+        node = self.pg.node_at(*goal)
+        self.dist = (dijkstra(self.pg.graph, directed=False, indices=node) if node >= 0
+                     else np.full(len(self.pg.rc), np.inf))
+
+    def __call__(self, x, y):
+        """Metres to the goal, or None off the field (too close to an obstacle, or cut off)."""
+        node = self.pg.node_at(x, y)
+        if node < 0 or not np.isfinite(self.dist[node]):
+            return None
+        return float(self.dist[node])

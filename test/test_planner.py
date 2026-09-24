@@ -61,3 +61,14 @@ def test_carrot_skips_points_near_scan_hits():
     pt, s = carrot(p, 2.0, 1.5, scan_points=scan, clearance=0.4)
     assert s >= 4.2 - 1e-9
     assert np.min(np.hypot(*(scan - pt).T)) >= 0.4
+
+
+def test_distance_field_goes_round_a_wall():
+    from martha_nav.sim2d.planner import DistanceField
+    grid = empty_grid(6.0, 6.0)
+    draw_box(grid, 3.0, 2.5, 0.2, 5.0, 0.0)        # wall from the floor up to y = 5, gap above
+    field = DistanceField(grid, (5.0, 1.0))
+    assert abs(field(5.0, 1.5) - 0.5) < 0.1                     # open space: close to straight line
+    around = field(1.0, 1.0)
+    assert around > 9.0                  # straight line is 4 m; round the wall end it is ~10 m
+    assert field(3.0, 2.5) is None                              # inside the wall

@@ -35,3 +35,10 @@ def test_stall_penalty_is_off_by_default_and_paid_only_on_stall():
     assert t['stalled'] == -5.0
     _, t = compute_reward(0.0, False, False, 2.0, 0.0, cfg)
     assert t['stalled'] == 0.0
+
+
+def test_geodesic_progress_can_be_negative_and_route_progress_cannot():
+    from dataclasses import replace
+    geo = replace(RewardConfig(), progress_mode='geodesic')
+    assert compute_reward(-0.3, False, False, 5.0, 0.0, geo)[1]['progress'] == -0.3
+    assert compute_reward(-0.3, False, False, 5.0, 0.0, RewardConfig())[1]['progress'] == 0.0

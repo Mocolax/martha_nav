@@ -10,7 +10,7 @@ from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_param
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, footprint_collides, raycast
 from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, V_MAX, WAYPOINT_MAX, action_to_cmd,
                                           build_observation, obs_dim)
-from martha_nav.sim2d.planner import carrot
+from martha_nav.sim2d.planner import DistanceField, carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
 
@@ -75,6 +75,14 @@ class NavEnv(gym.Env):
         self.prev_action = np.zeros(self.cfg.action_dim)
         self.travelled = 0.0
         self.terms = defaultdict(float)
+        if self.cfg.reward.progress_mode == 'geodesic':
+            # Cropped around the route: the whole world costs up to 50 ms per reset.
+            lo = self.sc.path.points.min(axis=0) - 2.0
+            hi = self.sc.path.points.max(axis=0) + 2.0
+            self.field = DistanceField(self.sc.full.crop(lo[0], lo[1], hi[0], hi[1]), self.sc.goal)
+            self.geo = self.field(*self.sc.start[:2])
+            if self.geo is None:
+                self.geo = self.sc.shortest
         self._scan()
         return self._obs(), {}
 
@@ -95,7 +103,8 @@ class NavEnv(gym.Env):
         reached = not collided and to_goal < self.cfg.goal_tolerance
         stalled = not (collided or reached) and self.since_progress * DT >= self.cfg.no_progress_time
         self._scan()
-        reward, terms = compute_reward(gain, reached, collided, float(self.ranges.min()),
+        reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
+                                       float(self.ranges.min()),
                                        action[-1] - self.prev_action[-1], self.cfg.reward, stalled)
         for k, v in terms.items():
             self.terms[k] += v
@@ -110,6 +119,16 @@ class NavEnv(gym.Env):
                        else 'stalled' if stalled else 'timeout')
             info = self._summary(outcome)
         return self._obs(), float(reward), terminated, truncated, info
+
+    def _reward_progress(self, route_gain, x, y):
+        """Metres of progress for the reward. The stall rule keeps using the route."""
+        if self.cfg.reward.progress_mode != 'geodesic':
+            return route_gain
+        d = self.field(x, y)
+        if d is None:            # off the field for a step: no credit, keep the last value
+            return 0.0
+        gain, self.geo = self.geo - d, d
+        return gain
 
     # ---- sensing ---------------------------------------------------------
     def _scan(self):
