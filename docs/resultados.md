@@ -214,3 +214,40 @@ repeticiones, del orden de la brecha que queremos medir.
 
 Queda un 7–18% de episodios que agotan el tiempo sin ser estancamiento: el robot se mueve, pero
 avanza demasiado poco para llegar. Es el mismo fallo que en 2D, visto con otro reloj.
+
+## Qué pasa cuando el robot se queda quieto contra una pared
+
+Demostración de 10 episodios en `lab` con el brazo H (`runs/demo_worlds/demo_lab.csv`): 8 éxitos y
+los episodios 8 y 9 (semillas 1000007 y 1000008) etiquetados `stalled`, con el robot inmóvil. El
+registro del `policy_node` muestra la parada de seguridad disparándose **de forma continua** durante
+los dos bloqueos, y solo una vez en los ocho episodios que sí terminaron:
+
+| episodio | semilla | resultado | avisos de la parada de seguridad |
+|---|---|---|---|
+| 1–7, 10 | 1000000–1000006, 1000009 | éxito | 1 aviso aislado en total |
+| 8 | 1000007 | estancado a los 15.7 s | `['front','left']`, luego `['rear','right']` sin interrupción 12 s |
+| 9 | 1000008 | estancado a los 37.8 s | `['front','left']` sin interrupción 17 s |
+
+**La parada no es la causa.** Las mismas dos semillas, jugadas en el simulador 2D, donde no existe
+ninguna parada de seguridad, terminan en **colisión**. Las otras ocho terminan igual que en Gazebo.
+
+| semilla | 2D, referencia | 2D, brazo H | 2D, brazo L | Gazebo, brazo H |
+|---|---|---|---|---|
+| 1000007 | colisión | colisión | colisión | estancado |
+| 1000008 | estancado | colisión | éxito | estancado |
+
+El mecanismo es este: la política manda avanzar contra la pared, el guardia anula la componente
+lineal que chocaría y deja libre la angular, así que **el robot gira sobre su eje sin desplazarse**.
+Como la regla de estancamiento mide desplazamiento (menos de 10 cm en 15 s), eso se registra como
+`stalled`. En 2D ese mismo comando se ejecuta entero y el episodio se registra como colisión. La
+parada convierte un choque en un bloqueo; no inventa un fallo nuevo.
+
+La semilla 1000007 además es difícil por construcción: el arranque tiene **0.44 m de holgura** y el
+radio circunscrito del robot es **0.347 m**, es decir, nueve centímetros de margen para girar. Los
+tres modelos fallan en ella. Es un caso raro: sobre 200 semillas de evaluación en `lab`, solo el 1%
+arranca con menos de 0.45 m de holgura y ninguna por debajo del inflado de 0.40 m del planificador.
+
+> **Lectura:** el fallo que queda no es de percepción ni del guardia, sino de memoria. La
+> observación sí contiene la evidencia del bloqueo (ordenó avanzar y la velocidad medida es cero),
+> pero una política sin estado no puede encadenar esa evidencia entre pasos. Es el argumento para el
+> brazo S, que añade la señal de atasco explícita a la observación.
