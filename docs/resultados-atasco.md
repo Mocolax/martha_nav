@@ -95,3 +95,19 @@ caída de la distancia geodésica a la meta (Dijkstra desde la meta sobre el map
 
 **Lectura:** la recompensa por ruta era un obstáculo específico para la LSTM, que ya no lo es. Pero
 ni la memoria ni la recompensa reemplazan al A*: sin él, el mejor resultado en `lab` es 0.585.
+
+### GL geodésico con 10M pasos (`armGLgeo10M_s0`)
+
+El de 5M seguía mejorando al final (`std` 0.39, éxito en entrenamiento 0.62 → 0.76), así que se
+reentrenó desde cero con el doble de pasos (la tasa de aprendizaje llega a cero al final, no se
+puede continuar). Corrido en otra máquina con `tools/train_gl_geo_10m.sh`.
+
+| | limpio | obstáculos | `lab` | `lab` puntos | colisión `lab` | estancado `lab` |
+|---|---|---|---|---|---|---|
+| GL geodésico, 5M | **0.842** | **0.692** | 0.550 | **0.467** | 0.310 | **0.140** |
+| GL geodésico, 10M | 0.812 | 0.636 | 0.530 | 0.378 | **0.270** | 0.200 |
+
+**Lectura:** el doble de entrenamiento no mejora (en `lab`, p = 0.60). La evaluación periódica se
+aplana en torno a 0.70 desde los 7M pasos, el mismo nivel que alcanzó el de 5M. La `std` sigue
+alta (0.36), pero el rendimiento ya no sube: la conclusión anterior se mantiene, ahora a
+convergencia. Sin A* el techo en `lab` es de 0.53 a 0.59 con o sin memoria.
