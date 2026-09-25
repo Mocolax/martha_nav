@@ -71,3 +71,27 @@ evaluaciones desde los 2M pasos) es demasiado grande para cerrarla así.
 Tres conclusiones para la tesis: la zanahoria del A* es la pieza que más aporta (quitarla cuesta
 25 puntos); la memoria recurrente empeora en todas las combinaciones probadas; y lo que reduce
 el estancamiento casi siempre lo paga en colisiones.
+
+## Progreso geodésico como recompensa (`armGgeo_s0`, `armGLgeo_s0`)
+
+Iguales a G y GL salvo el término de progreso: en vez del avance a lo largo de la ruta A*, la
+caída de la distancia geodésica a la meta (Dijkstra desde la meta sobre el mapa con obstáculos,
+*potential-based shaping*). Opción `--reward-progress geodesic`; el valor por defecto no cambia.
+
+| brazo | limpio | obstáculos | `lab` | `lab` puntos | colisión `lab` | estancado `lab` |
+|---|---|---|---|---|---|---|
+| G | 0.880 | **0.820** | 0.560 | **0.644** | **0.110** | 0.330 |
+| G geodésico | **0.904** | 0.758 | **0.585** | 0.533 | 0.185 | 0.230 |
+| GL | 0.812 | 0.630 | 0.410 | 0.344 | 0.280 | 0.310 |
+| GL geodésico | 0.842 | 0.692 | 0.550 | 0.467 | 0.310 | **0.140** |
+
+- **Para la LSTM ayuda de verdad:** `lab` sube de 0.410 a 0.550 (McNemar p < 0.0001) y los
+  estancamientos bajan de 0.31 a 0.14. Es la mayor mejora que ha tenido un brazo recurrente.
+- **Para G casi no cambia el éxito** (0.560 → 0.585, dentro del ruido) y cambia estancamientos
+  por choques.
+- **Con la recompensa geodésica, GL alcanza a G** en `lab` (0.550 contra 0.585, p = 0.35), pero
+  no lo supera, y choca más (0.31 contra 0.185).
+- Todos quedan muy por debajo del brazo H con zanahoria (0.815 en `lab`, p < 0.0001).
+
+**Lectura:** la recompensa por ruta era un obstáculo específico para la LSTM, que ya no lo es. Pero
+ni la memoria ni la recompensa reemplazan al A*: sin él, el mejor resultado en `lab` es 0.585.
