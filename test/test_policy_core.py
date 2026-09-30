@@ -150,6 +150,67 @@ def test_recurrent_policy_keeps_its_state_between_ticks_and_resets_on_a_new_rout
     angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
     for _ in range(3):
         core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
-    core.reset()                                    # policy_node calls this on every new /plan
+    core.reset()                                    # policy_node calls this when the episode ends
     core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
     assert calls == [(None, True), (1, False), (2, False), (None, True)]
+
+
+class Lstm:
+    """Recurrent stand-in: the returned "state" counts the calls since the last reset."""
+
+    policy = type('P', (), {'lstm_actor': object()})()
+
+    def __init__(self):
+        self.calls = []
+
+    def predict(self, obs, state=None, episode_start=None, deterministic=True):
+        self.calls.append((state, bool(episode_start[0])))
+        return np.zeros(2), len(self.calls)
+
+
+def test_a_replan_to_the_same_goal_keeps_the_lstm_state():
+    """The planner replans when the robot strays 1 m, typically while avoiding an
+    obstacle: that is when the policy needs its memory most."""
+    model = Lstm()
+    core = PolicyCore(model)
+    ranges, angles = clear_scan()
+    first = Path([[0.0, 0.0], [5.0, 0.0]])
+    replanned = Path([[0.0, 1.0], [2.0, 1.0], [5.0, 0.0]])
+    core.compute(first, (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    core.compute(first, (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    core.compute(replanned, (0.0, 1.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert model.calls == [(None, True), (1, False), (2, False)]
+
+
+def test_a_new_goal_starts_a_new_episode():
+    model = Lstm()
+    core = PolicyCore(model)
+    ranges, angles = clear_scan()
+    core.compute(Path([[0.0, 0.0], [5.0, 0.0]]), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    core.compute(Path([[0.0, 0.0], [0.0, 5.0]]), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert model.calls == [(None, True), (None, True)]
+
+
+def test_progress_along_a_replanned_route_counts():
+    """After a replan the arc length restarts on the new route; progress on it is progress."""
+    core = PolicyCore(FakeModel(), stuck_signal=True)
+    ranges, angles = clear_scan()
+    first = Path([[0.0, 0.0], [10.0, 0.0]])
+    for x in (0.0, 1.0, 2.0):
+        core.compute(first, (x, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    detour = Path([[2.0, 0.0], [2.0, 2.0], [10.0, 2.0], [10.0, 0.0]])
+    core.compute(detour, (2.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    *_, info = core.compute(detour, (2.0, 0.5, 0.0), ranges, angles, (0.0, 0.0))
+    assert info['stuck'] == 0.0
+
+
+def test_stuck_time_survives_a_replan_to_the_same_goal():
+    core = PolicyCore(FakeModel(), stuck_signal=True)
+    ranges, angles = clear_scan()
+    first = Path([[0.0, 0.0], [10.0, 0.0]])
+    for _ in range(5):
+        core.compute(first, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    *_, before = core.compute(first, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    replanned = Path([[1.0, 0.0], [10.0, 0.0]])
+    *_, after = core.compute(replanned, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert after['stuck'] > before['stuck'] > 0.0

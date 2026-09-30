@@ -6,11 +6,11 @@ ros2 run martha_nav gazebo_eval --ros-args -p mode:=points -p out:=/tmp/eval_poi
 mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 "points" plays the hand-placed start/goal pairs of the previous package. Both build
 the episode with scenarios.generate, so the same seed is the same episode as in the
-2D simulator and the comparison is paired.
+2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
+in simulated time (the "seconds" column too).
 """
 import csv
 import math
-import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -19,10 +19,14 @@ from gazebo_msgs.msg import ContactsState, ModelStates
 from gazebo_msgs.srv import DeleteEntity, SetEntityState, SpawnEntity
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import String
+from std_msgs.msg import Empty, String
 
 from martha_nav.learning.evaluate import eval_seeds
+from martha_nav.sim2d.dynamics import DT
+from martha_nav.sim2d.env import EnvConfig, episode_steps
+from martha_nav.sim2d.planner import RouteProgress
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate, point_pairs
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -52,19 +56,33 @@ CYLINDER_SDF = """<?xml version="1.0"?>
 </geometry></visual></link></model></sdf>"""
 
 
+def episode_outcome(contact, status, progress, elapsed, time_limit, no_progress_time):
+    """NavEnv's end rules in its order, or None while the episode goes on."""
+    if contact:
+        return 'collision'
+    if status == 'succeeded':
+        return 'success'
+    if status == 'failed':
+        return 'failed'
+    if progress.seconds_without_progress >= no_progress_time:
+        return 'stalled'
+    if elapsed >= time_limit:
+        return 'timeout'
+    return None
+
+
 class GazeboEval(Node):
     def __init__(self):
-        super().__init__('gazebo_eval')
+        super().__init__('gazebo_eval',
+                         parameter_overrides=[Parameter('use_sim_time', value=True)])
         self.world = self.declare_parameter('world', 'lab').value
         self.mode = self.declare_parameter('mode', 'seeds').value
         self.condition = self.declare_parameter('condition', 'obstacles').value
         episodes = self.declare_parameter('episodes', 100).value
         self.out = self.declare_parameter('out', '/tmp/eval_gazebo.csv').value
-        self.timeout = self.declare_parameter('episode_timeout', 120.0).value
         self.settle = self.declare_parameter('settle_seconds', 1.5).value
-        # Same rule as the 2D environment, so the two columns measure the same failure.
-        self.no_progress = self.declare_parameter('no_progress_seconds', 15.0).value
-        self.progress_epsilon = self.declare_parameter('progress_epsilon', 0.10).value
+        self.no_progress = self.declare_parameter('no_progress_seconds',
+                                                  EnvConfig().no_progress_time).value
 
         obstacles = {'obstacles': 'always', 'clean': 'none', 'mixed': 'mixed'}[self.condition]
         self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=obstacles)
@@ -75,6 +93,7 @@ class GazeboEval(Node):
         self.seeds = eval_seeds(episodes)
 
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', LATCHED)
+        self.cancel_pub = self.create_publisher(Empty, '/cancel_goal', 10)
         self.create_subscription(String, '/nav_status', self.on_status, LATCHED)
         self.create_subscription(ContactsState, '/bumper_states', self.on_contact, 10)
         # Position from Gazebo itself: the odometry topic depends on the drive, and a
@@ -84,7 +103,7 @@ class GazeboEval(Node):
         self.spawn = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete = self.create_client(DeleteEntity, '/delete_entity')
         self.set_state = self.create_client(SetEntityState, '/gazebo/set_entity_state')
-        self.status = 'idle'
+        self.status = None
         self.contact = False
 
     # ---- callbacks ----
@@ -160,47 +179,52 @@ class GazeboEval(Node):
             self.goal_pub.publish(msg)
             self.spin(0.2)
 
+    def cancel_goal(self):
+        """Make the planner drop its goal and wait until it says so: the policy then stops."""
+        self.status = None
+        while self.status != 'idle':
+            self.get_logger().info('waiting for the planner to cancel the goal', once=True)
+            self.cancel_pub.publish(Empty())
+            self.spin(0.2)
+        self.spin(0.3)                          # the policy's zero command reaches the wheels
+
+    def now(self):
+        """Simulated seconds."""
+        return self.get_clock().now().nanoseconds * 1e-9
+
     def spin(self, seconds):
-        end = time.time() + seconds
-        while time.time() < end:
+        end = self.now() + seconds
+        while self.now() < end:
             rclpy.spin_once(self, timeout_sec=0.05)
 
     # ---- episodes ----
     def run_episode(self, seed):
         scenario = generate(seed, self.cfg)
+        self.cancel_goal()                      # or the robot drives the last goal from here
         self.teleport(*scenario.start)
         names = self.spawn_obstacles(scenario.obstacles) + self.spawn_goal_marker(scenario.goal)
-        self.status, self.contact = 'idle', False
         self.spin(self.settle)
         self.contact = False                    # ignore contacts caused by the teleport
         self.send_goal(scenario.goal)
-        start = time.time()
-        outcome = 'timeout'
-        anchor, anchor_time = self.position, time.time()
-        while time.time() - start < self.timeout:
+        # As NavEnv: progress on the static route sampled every DT, timeout by its length.
+        progress = RouteProgress(scenario.path)
+        time_limit = episode_steps(scenario.path.length) * DT
+        start = sample = now = self.now()
+        outcome = None
+        while outcome is None:
             rclpy.spin_once(self, timeout_sec=0.05)
-            if self.contact:
-                outcome = 'collision'
-                break
-            if self.status == 'succeeded':
-                outcome = 'success'
-                break
-            if self.status == 'failed':
-                outcome = 'failed'
-                break
-            if self.position is not None:
-                moved = anchor is None or math.dist(self.position, anchor) > self.progress_epsilon
-                if moved:
-                    anchor, anchor_time = self.position, time.time()
-                elif time.time() - anchor_time > self.no_progress:
-                    outcome = 'stalled'
-                    break
+            now = self.now()
+            while self.position is not None and sample + DT <= now:
+                sample += DT
+                progress.update(*self.position)
+            outcome = episode_outcome(self.contact, self.status, progress, now - start,
+                                      time_limit, self.no_progress)
         self.clear_obstacles(names)
         return {'episode_seed': seed, 'outcome': outcome, 'source': scenario.source,
                 'mode': self.mode, 'n_obstacles': len(scenario.obstacles),
                 'route_length': round(scenario.path.length, 3),
                 'shortest': round(scenario.shortest, 3),
-                'seconds': round(time.time() - start, 2)}
+                'seconds': round(now - start, 2)}
 
     def run(self):
         rows = []
@@ -212,6 +236,7 @@ class GazeboEval(Node):
             self.get_logger().info(
                 f'{done}/{len(self.seeds)} seed {seed}: {row["outcome"]} (éxito {share:.2%})')
             self.write(rows)
+        self.cancel_goal()
         counts = {o: sum(r['outcome'] == o for r in rows) / len(rows)
                   for o in sorted({r['outcome'] for r in rows})}
         self.get_logger().info(f'done: {counts} -> {self.out}')

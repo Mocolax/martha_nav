@@ -152,6 +152,12 @@ Mandarle una meta a mano (o con la herramienta *2D Goal Pose* de RViz):
 ./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic echo /nav_status'
 ```
 
+Cancelar la meta (el estado pasa a `idle` y el robot se detiene):
+
+```bash
+./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic pub --once /cancel_goal std_msgs/msg/Empty {}'
+```
+
 RViz por separado, contra una simulación ya levantada:
 
 ```bash

@@ -10,11 +10,16 @@ from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_param
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, footprint_collides, raycast
 from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, V_MAX, WAYPOINT_MAX, action_to_cmd,
                                           build_observation, obs_dim)
-from martha_nav.sim2d.planner import DistanceField, carrot
+from martha_nav.sim2d.planner import DistanceField, RouteProgress, carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
 
 TRAIN_SEED_LIMIT = 1_000_000   # training episode seeds are < this; evaluation seeds are >=
+
+
+def episode_steps(route_length):
+    """Control steps before a timeout: three times the route at full speed, plus 10 s."""
+    return int(np.ceil((3 * route_length / V_MAX + 10) / DT))
 
 
 @dataclass
@@ -69,9 +74,9 @@ class NavEnv(gym.Env):
         self.dyn.reset(self.sc.start)
         self.lookahead = self.rng.uniform(*self.cfg.carrot_range)
         self.lidar_sigma = self.rng.uniform(*self.cfg.lidar_noise)
-        self.s = self.s_best = 0.0
-        self.steps = self.since_progress = 0
-        self.max_steps = int(np.ceil((3 * self.sc.path.length / V_MAX + 10) / DT))
+        self.progress = RouteProgress(self.sc.path)
+        self.steps = 0
+        self.max_steps = episode_steps(self.sc.path.length)
         self.prev_action = np.zeros(self.cfg.action_dim)
         self.travelled = 0.0
         self.terms = defaultdict(float)
@@ -95,13 +100,11 @@ class NavEnv(gym.Env):
         x, y, _ = self.dyn.pose
         self.travelled += float(np.hypot(*(self.dyn.pose[:2] - before)))
         self.steps += 1
-        self.s = self.sc.path.project(x, y, s_hint=self.s)
-        gain = max(0.0, self.s - self.s_best)
-        self.s_best = max(self.s_best, self.s)
-        self.since_progress = 0 if gain > 1e-3 else self.since_progress + 1
+        gain = self.progress.update(x, y)
         to_goal = np.hypot(x - self.sc.goal[0], y - self.sc.goal[1])
         reached = not collided and to_goal < self.cfg.goal_tolerance
-        stalled = not (collided or reached) and self.since_progress * DT >= self.cfg.no_progress_time
+        stalled = (not (collided or reached)
+                   and self.progress.seconds_without_progress >= self.cfg.no_progress_time)
         self._scan()
         reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
                                        float(self.ranges.min()),
@@ -148,7 +151,7 @@ class NavEnv(gym.Env):
         if self.cfg.target == 'goal':
             point, scale = self.sc.goal, GOAL_MAX
         else:
-            point, _ = carrot(self.sc.path, self.s, self.lookahead, self.scan_points,
+            point, _ = carrot(self.sc.path, self.progress.s, self.lookahead, self.scan_points,
                               self.cfg.carrot_clearance)
             scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
@@ -156,7 +159,7 @@ class NavEnv(gym.Env):
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
         vel = ((self.dyn.v * noise[0], self.dyn.vy * noise[1], self.dyn.w * noise[2])
                if self.cfg.action_dim == 3 else (self.dyn.v * noise[0], self.dyn.w * noise[2]))
-        stuck = (min(self.since_progress * DT / self.cfg.no_progress_time, 1.0)
+        stuck = (min(self.progress.seconds_without_progress / self.cfg.no_progress_time, 1.0)
                  if self.cfg.stuck_signal else None)
         return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
                                  self.cfg.lidar_encoding, stuck, scale)

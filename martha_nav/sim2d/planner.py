@@ -4,6 +4,8 @@ from scipy import ndimage
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components, dijkstra
 
+from martha_nav.sim2d.dynamics import DT
+
 INFLATION = 0.40   # m; a path in the inflated grid implies a free gap >= 0.8 m
 FIELD_INFLATION = 0.25  # m; just over the robot's half width: covers every centre it can occupy
 
@@ -40,6 +42,37 @@ class Path:
             if window.any():
                 d2 = np.where(window, d2, np.inf)
         return float(s_proj[int(np.argmin(d2))])
+
+
+class RouteProgress:
+    """New-record progress along a route and the time since the last record.
+
+    One rule for the 2D environment's stall, the policy's stuck signal and the end
+    of a Gazebo episode, so the three measure the same thing. update() is called
+    once per control period (DT).
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self.s = self.s_best = 0.0
+        self.steps_without_progress = 0
+
+    def reroute(self, path):
+        """Follow a replanned route to the same goal; the time without progress carries over."""
+        self.path = path
+        self.s = self.s_best = 0.0
+
+    def update(self, x, y):
+        """Project the robot on the route; returns the metres beyond the previous best."""
+        self.s = self.path.project(x, y, s_hint=self.s)
+        gain = max(0.0, self.s - self.s_best)
+        self.s_best = max(self.s_best, self.s)
+        self.steps_without_progress = 0 if gain > 1e-3 else self.steps_without_progress + 1
+        return gain
+
+    @property
+    def seconds_without_progress(self):
+        return self.steps_without_progress * DT
 
 
 def carrot(path, s, lookahead, scan_points=None, clearance=0.4, step=0.1):

@@ -1,11 +1,10 @@
 """Local-planner logic, without ROS: carrot, observation, action and safety stop."""
 import numpy as np
 
-from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
 from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, WAYPOINT_MAX, action_to_cmd,
                                           build_observation)
-from martha_nav.sim2d.planner import carrot
+from martha_nav.sim2d.planner import RouteProgress, carrot
 
 
 def footprint_blocked(ranges, angles, margin=0.05):
@@ -53,10 +52,20 @@ class PolicyCore:
         self.reset()
 
     def reset(self):
+        """Start a new episode: forget the route, the previous action and the LSTM state."""
         self.prev_action = np.zeros(self.action_dim)
-        self.s = self.s_best = 0.0
-        self.since_progress = 0
+        self.progress = None
         self.lstm_state, self.episode_start = None, True
+
+    def _follow(self, path):
+        """A new goal starts a new episode; a replan to the same goal only swaps the route."""
+        if self.progress is not None and not np.allclose(path.points[-1],
+                                                         self.progress.path.points[-1]):
+            self.reset()
+        if self.progress is None:
+            self.progress = RouteProgress(path)
+        elif path is not self.progress.path:
+            self.progress.reroute(path)
 
     def compute(self, path, pose, ranges, angles, velocity):
         """pose is (x, y, yaw) in the map frame.
@@ -65,20 +74,18 @@ class PolicyCore:
         """
         x, y, yaw = pose
         blocked = footprint_blocked(ranges, angles)
-        self.s = path.project(x, y, s_hint=self.s)
-        # Same counter as the 2D environment, so the stuck signal means the same thing.
-        gain = max(0.0, self.s - self.s_best)
-        self.s_best = max(self.s_best, self.s)
-        self.since_progress = 0 if gain > 1e-3 else self.since_progress + 1
+        self._follow(path)
+        # Same rule as the 2D environment, so the stuck signal means the same thing.
+        self.progress.update(x, y)
         if self.target == 'goal':
             point, scale = path.points[-1], GOAL_MAX
         else:
             points = self._scan_points(ranges, angles, pose)
-            point, _ = carrot(path, self.s, self.lookahead, points, self.carrot_clearance)
+            point, _ = carrot(path, self.progress.s, self.lookahead, points, self.carrot_clearance)
             scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(yaw) * dx + np.sin(yaw) * dy, -np.sin(yaw) * dx + np.cos(yaw) * dy)
-        stuck = (min(self.since_progress * DT / self.no_progress_time, 1.0)
+        stuck = (min(self.progress.seconds_without_progress / self.no_progress_time, 1.0)
                  if self.stuck_signal else None)
         obs = build_observation(ranges, angles, velocity, rel, self.prev_action,
                                 self.lidar_encoding, stuck, scale)
@@ -102,7 +109,7 @@ class PolicyCore:
                 commands[1] = min(commands[1], 0.0)
             if 'right' in blocked:
                 commands[1] = max(commands[1], 0.0)
-        return (*commands, {'blocked': sorted(blocked), 's': self.s, 'carrot': point,
+        return (*commands, {'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point,
                             'stuck': stuck})
 
     def _scan_points(self, ranges, angles, pose):

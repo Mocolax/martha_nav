@@ -72,3 +72,30 @@ def test_distance_field_goes_round_a_wall():
     around = field(1.0, 1.0)
     assert around > 9.0                  # straight line is 4 m; round the wall end it is ~10 m
     assert field(3.0, 2.5) is None                              # inside the wall
+
+
+def test_route_progress_counts_only_new_records():
+    """Pacing back and forth is not progress: only beating the best arc length is."""
+    from martha_nav.sim2d.planner import RouteProgress
+    progress = RouteProgress(Path([[0.0, 0.0], [10.0, 0.0]]))
+    assert progress.update(1.0, 0.0) > 0.99
+    assert progress.seconds_without_progress == 0.0
+    for x in (0.5, 1.0, 0.5, 1.0):                  # back and forth, never past 1 m
+        assert progress.update(x, 0.0) == 0.0
+    assert np.isclose(progress.seconds_without_progress, 0.4)      # 4 control steps of 0.1 s
+    progress.update(1.5, 0.0)
+    assert progress.seconds_without_progress == 0.0
+
+
+def test_route_progress_keeps_the_stuck_time_across_a_reroute():
+    """A replan to the same goal restarts the arc length, not the time without progress."""
+    from martha_nav.sim2d.planner import RouteProgress
+    progress = RouteProgress(Path([[0.0, 0.0], [10.0, 0.0]]))
+    progress.update(2.0, 0.0)
+    for _ in range(5):
+        progress.update(2.0, 0.0)
+    progress.reroute(Path([[2.0, 0.0], [2.0, 5.0], [10.0, 5.0]]))
+    assert progress.s == 0.0
+    assert progress.update(2.0, 0.0) == 0.0
+    assert np.isclose(progress.seconds_without_progress, 0.6)
+    assert progress.update(2.0, 1.0) > 0.99

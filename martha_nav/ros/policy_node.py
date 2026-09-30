@@ -73,12 +73,16 @@ class PolicyNode(Node):
         self.odom_time = self.get_clock().now()
 
     def on_plan(self, msg):
+        # No reset here: the core tells a replan (same goal, memory kept) from a new goal.
         points = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
         self.path = Path(np.array(points)) if len(points) >= 2 else None
-        self.core.reset()
 
     def on_status(self, msg):
         self.status = msg.data
+        if self.status != 'active':
+            # The episode is over: the next goal must not start on this route or memory.
+            self.path = None
+            self.core.reset()
 
     def pose(self):
         try:
