@@ -62,12 +62,17 @@ def test_episode_time_is_simulated_time(evaluate_gazebo_node):
 def test_the_goal_is_cancelled_before_the_teleport(evaluate_gazebo_node):
     """Otherwise the planner resumes the previous goal and the robot leaves the start."""
     node, calls = evaluate_gazebo_node, []
-    for name in ('cancel_goal', 'teleport', 'spawn_obstacles', 'spawn_goal_marker',
-                 'clear_obstacles', 'spin'):
+    for name in ('cancel_goal', 'teleport', 'set_initial_pose', 'spawn_obstacles',
+                 'spawn_goal_marker', 'clear_obstacles', 'spin'):
         setattr(node, name, lambda *a, name=name: calls.append(name) or [])
     node.send_goal = lambda goal: setattr(node, 'status', 'failed')
-    assert node.run_episode(node.seeds[0])['outcome'] == 'failed'
+    row = node.run_episode(node.seeds[0])
+    assert row['outcome'] == 'failed'
     assert calls.index('cancel_goal') < calls.index('teleport')
+    # A teleport is a kidnapping for a localizer: tell it where the robot is, as an
+    # operator does in RViz before the demo.
+    assert calls.index('teleport') < calls.index('set_initial_pose')
+    assert {'loc_err_mean', 'loc_err_max', 'yaw_err_max_deg'} <= set(row)
 
 
 def test_goal_marker_has_no_collision():
@@ -115,3 +120,12 @@ def test_a_failed_gazebo_call_stops_the_evaluation(evaluate_gazebo_node):
         evaluate_gazebo_node.call(FakeClient(success=False), None)
     with pytest.raises(RuntimeError, match='not available'):
         evaluate_gazebo_node.call(FakeClient(available=False), None)
+
+
+def test_localization_error_is_distance_and_wrapped_yaw():
+    import math
+
+    from martha_nav.ros.evaluate_gazebo import localization_error
+    distance, yaw = localization_error((0.0, 0.0, 3.1), (0.3, 0.4, -3.1))
+    assert math.isclose(distance, 0.5)
+    assert math.isclose(yaw, 2 * math.pi - 6.2)

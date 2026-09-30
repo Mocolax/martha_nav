@@ -21,8 +21,10 @@ class GazeboGroundTruthTf(Node):
         self.model = self.declare_parameter('model_name', 'martha').value
         self.truth = None                      # (x, y, yaw) of base_link in map
         self.broadcaster = TransformBroadcaster(self)
-        self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
-        self.create_subscription(Odometry, '/odom', self.on_odom, qos_profile_sensor_data)
+        # Off when slam_toolbox localizes: then it owns map -> odom.
+        if self.declare_parameter('publish_map_odom', True).value:
+            self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
+            self.create_subscription(Odometry, '/odom', self.on_odom, qos_profile_sensor_data)
         # The mecanum controller publishes odom -> base_link on its own topic instead
         # of /tf, and it lives inside gzserver, so it cannot be remapped from the launch.
         relay = self.declare_parameter('odom_tf_topic', '').value

@@ -25,6 +25,7 @@
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>mecanum_drive_controller</exec_depend>
   <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

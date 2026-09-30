@@ -233,6 +233,42 @@ Y para una demo larga en el laboratorio, que es el mundo de la sustentación:
 EPISODES=30 GUI=true WORLDS=lab ./tools/run_demo_worlds.sh
 ```
 
+## 6.2. Prueba de localización con slam_toolbox
+
+¿Se pierde slam_toolbox con cajas que no están en su mapa? Por defecto la simulación usa la
+pose verdadera de Gazebo; con `slam:=localization` la pose sale de slam_toolbox, y
+`evaluate_gazebo` compara las dos en cada episodio (columnas `loc_err_mean`, `loc_err_max`
+en metros y `yaw_err_max_deg`).
+
+1. Mapear, con el robot en el origen para que el mapa de SLAM quede en el marco de Gazebo:
+
+```bash
+./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.0 y:=0.0 slam:=mapping checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/best_model.zip
+```
+
+En otra terminal, el recorrido por los puntos fijos del mundo, que al final guarda el mapa:
+
+```bash
+./tools/ct_ros python3 tools/map_world.py --world lab --out /home/ros/ros2_ws/src/martha_nav/maps/lab
+```
+
+2. Cerrar la simulación y relanzarla localizando con ese mapa:
+
+```bash
+./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.95 y:=1.35 slam:=localization slam_map:=/home/ros/ros2_ws/src/martha_nav/maps/lab checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/best_model.zip
+```
+
+3. Evaluar sin obstáculos y con ellos (1 a 4 cajas o cilindros cerca de la ruta, que el mapa
+   no tiene). Cada teleport manda la pose inicial a `/initialpose`, como el operador en RViz:
+
+```bash
+./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p condition:=clean -p out:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/eval_gazebo_lab_slam_clean.csv
+```
+
+```bash
+./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/eval_gazebo_lab_slam.csv
+```
+
 ## 7. Guiones de experimentos ya hechos
 
 `tools/experiments/` guarda las colas que produjeron los resultados de `docs/resultados*.md`,

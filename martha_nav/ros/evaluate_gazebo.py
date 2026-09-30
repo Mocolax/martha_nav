@@ -8,6 +8,9 @@ mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 the episode with scenarios.generate, so the same seed is the same episode as in the
 2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
 in simulated time (the "seconds" column too).
+
+The loc_err_* columns compare the localization (TF map -> base_link) with Gazebo's
+true pose: zero with sim.launch.py's default, the test with slam:=localization.
 """
 import csv
 import math
@@ -17,12 +20,13 @@ from pathlib import Path
 import rclpy
 from gazebo_msgs.msg import ContactsState, ModelStates
 from gazebo_msgs.srv import DeleteEntity, SetEntityState, SpawnEntity
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from std_msgs.msg import Empty, String
+from tf2_ros import Buffer, TransformListener
 
-from martha_nav.ros.common import LATCHED, run_node
+from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.env import EnvConfig, episode_steps, eval_seeds
 from martha_nav.sim2d.planner import RouteProgress
@@ -67,6 +71,12 @@ def episode_outcome(contact, status, progress, elapsed, time_limit, no_progress_
     return None
 
 
+def localization_error(estimate, truth):
+    """(metres, radians) between two (x, y, yaw) poses."""
+    yaw = (estimate[2] - truth[2] + math.pi) % (2 * math.pi) - math.pi
+    return math.dist(estimate[:2], truth[:2]), abs(yaw)
+
+
 class EvaluateGazebo(Node):
     def __init__(self):
         super().__init__('evaluate_gazebo',
@@ -89,12 +99,15 @@ class EvaluateGazebo(Node):
 
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', LATCHED)
         self.cancel_pub = self.create_publisher(Empty, '/cancel_goal', 10)
+        self.initial_pose_pub = self.create_publisher(PoseWithCovarianceStamped, '/initialpose', 10)
+        self.tf = Buffer()
+        self.tf_listener = TransformListener(self.tf, self)
         self.create_subscription(String, '/nav_status', self.on_status, LATCHED)
         self.create_subscription(ContactsState, '/bumper_states', self.on_contact, 10)
         # Position from Gazebo itself: the odometry topic depends on the drive, and a
         # missing subscription would silently disable the stall rule.
         self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
-        self.position = None
+        self.position = self.yaw = None
         self.spawn = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete = self.create_client(DeleteEntity, '/delete_entity')
         self.set_state = self.create_client(SetEntityState, '/gazebo/set_entity_state')
@@ -111,8 +124,18 @@ class EvaluateGazebo(Node):
 
     def on_states(self, msg):
         if 'martha' in msg.name:
-            pose = msg.pose[msg.name.index('martha')].position
-            self.position = (pose.x, pose.y)
+            pose = msg.pose[msg.name.index('martha')]
+            self.position = (pose.position.x, pose.position.y)
+            self.yaw = yaw_of(pose.orientation)
+
+    def estimated_pose(self):
+        """Where the localization thinks the robot is, or None before it knows."""
+        try:
+            tf = self.tf.lookup_transform('map', 'base_link', rclpy.time.Time())
+        except Exception:                      # noqa: BLE001 - no TF yet
+            return None
+        t = tf.transform
+        return t.translation.x, t.translation.y, yaw_of(t.rotation)
 
     # ---- gazebo helpers ----
     def call(self, client, request):
@@ -135,6 +158,16 @@ class EvaluateGazebo(Node):
         request.state.pose.orientation.w = math.cos(yaw / 2)
         request.state.reference_frame = 'world'
         self.call(self.set_state, request)
+
+    def set_initial_pose(self, x, y, yaw):
+        """As the operator does in RViz: a teleport is a kidnapping for a localizer."""
+        msg = PoseWithCovarianceStamped()
+        msg.header.frame_id = 'map'
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.pose.position.x, msg.pose.pose.position.y = float(x), float(y)
+        msg.pose.pose.orientation.z = math.sin(yaw / 2)
+        msg.pose.pose.orientation.w = math.cos(yaw / 2)
+        self.initial_pose_pub.publish(msg)
 
     def spawn_goal_marker(self, goal):
         """A green post at the goal, so the demo is readable in gzclient."""
@@ -202,6 +235,7 @@ class EvaluateGazebo(Node):
         scenario = generate(seed, self.cfg)
         self.cancel_goal()                      # or the robot drives the last goal from here
         self.teleport(*scenario.start)
+        self.set_initial_pose(*scenario.start)
         names = self.spawn_obstacles(scenario.obstacles) + self.spawn_goal_marker(scenario.goal)
         self.spin(self.settle)
         self.contact = False                    # ignore contacts caused by the teleport
@@ -210,13 +244,16 @@ class EvaluateGazebo(Node):
         progress = RouteProgress(scenario.path)
         time_limit = episode_steps(scenario.path.length) * DT
         start = sample = now = self.now()
-        outcome = None
+        outcome, errors = None, []
         while outcome is None:
             rclpy.spin_once(self, timeout_sec=0.05)
             now = self.now()
             while self.position is not None and sample + DT <= now:
                 sample += DT
                 progress.update(*self.position)
+                estimate = self.estimated_pose()
+                if estimate is not None:
+                    errors.append(localization_error(estimate, (*self.position, self.yaw)))
             outcome = episode_outcome(self.contact, self.status, progress, now - start,
                                       time_limit, self.no_progress)
         self.clear_obstacles(names)
@@ -224,7 +261,10 @@ class EvaluateGazebo(Node):
                 'mode': self.mode, 'n_obstacles': len(scenario.obstacles),
                 'route_length': round(scenario.path.length, 3),
                 'shortest': round(scenario.shortest, 3),
-                'seconds': round(now - start, 2)}
+                'seconds': round(now - start, 2),
+                'loc_err_mean': round(sum(e for e, _ in errors) / len(errors), 3) if errors else None,
+                'loc_err_max': round(max(e for e, _ in errors), 3) if errors else None,
+                'yaw_err_max_deg': round(math.degrees(max(y for _, y in errors)), 1) if errors else None}
 
     def run(self):
         rows = []
