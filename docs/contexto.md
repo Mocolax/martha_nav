@@ -31,9 +31,11 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 |---|---|
 | `martha_nav/sim2d/` | `geometry.py` (rejilla, raycast), `planner.py` (Dijkstra, zanahoria, inflado 0.40 m), `worlds.py` (rasteriza SDF), `scenarios.py` (plantillas y `generate`), `dynamics.py`, `observation.py`, `reward.py`, `env.py` |
 | `martha_nav/learning/` | `policy.py` (CNN 1D sobre el LiDAR), `train.py`, `evaluate.py` |
-| `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `world_map_publisher.py`, `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py` |
+| `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `world_map_publisher.py` (`.world` o mapa guardado), `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py`, `esp32_bridge.py` y `slam.py` (robot real) |
+| `firmware/` | ESP32 del robot real: `firmware.ino`, `control.h` (PI, cinemática), `sensors.h` (encoders, gyro) |
 | `urdf/martha.urdf.xacro` | reusado del paquete anterior; `drive:=mecanum\|planar` |
 | `launch/sim.launch.py` | Gazebo + controladores + nodos + RViz opcional |
+| `launch/real.launch.py` | robot real: sin `map:=` mapea con slam_toolbox, con `map:=` navega |
 | `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `run_e2.sh`, gráficas; `experiments/` guarda las colas ya corridas |
 | `docs/resultados.md` | bitácora citable (puerta, A/B/C, `target_kl`, E1, E2) |
 | `docs/resultados-noche.md` | brazos H (holonómico) y L (LSTM) |
@@ -83,4 +85,4 @@ nada medible**; el fallo que queda es bloqueo/atasco, no choque.
   "intento, no quepo, retrocedo, vuelvo por el mismo lado" que se vio en evaluación).
 - Brazo **H2**: `(vx, vy, w)` con choque −40, para bajar las colisiones del brazo H.
 - Vídeo de la demo en `lab.world` con `gui:=true`.
-- Integración con el robot real cuando el hardware esté arreglado.
+- Robot real: código listo (`docs/robot-real-design.md`, `docs/robot-real-plan.md`); falta el hardware y la puesta en marcha de `comandos.md` §9.

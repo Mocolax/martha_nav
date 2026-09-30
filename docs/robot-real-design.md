@@ -1,6 +1,6 @@
 # Diseño: Martha en el robot real (firmware, bridge, fusión, mapeo y demo)
 
-Fecha: 2026-09-29. Estado: aprobado en brainstorming, pendiente de plan de implementación.
+Fecha: 2026-09-29. Estado: implementado (`docs/robot-real-plan.md`); falta la puesta en marcha con el hardware.
 
 ## 1. Objetivo y alcance
 

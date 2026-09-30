@@ -289,3 +289,101 @@ docker exec ros2_humble pkill -f '[g]zserver'; docker exec ros2_humble pkill -f 
 ```bash
 docker restart ros2_humble
 ```
+
+## 9. Robot real
+
+Diseño: [robot-real-design.md](robot-real-design.md). Todo lo de ROS corre en el PC
+montado sobre el robot; la ESP32 solo hace motores, encoders, gyro y protecciones.
+
+### 9.1 Puertos
+
+La ESP32 y el RPLIDAR usan el mismo chip USB (CP2102) y `ttyUSB0/1` pueden
+intercambiarse entre arranques: usa siempre las rutas estables.
+
+```bash
+ls -l /dev/serial/by-id/
+```
+
+### 9.2 Firmware (en el anfitrión)
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --warnings all firmware
+arduino-cli upload -p /dev/serial/by-id/<esp32> --fqbn esp32:esp32:esp32doit-devkit-v1 firmware
+arduino-cli monitor -p /dev/serial/by-id/<esp32> -c baudrate=115200
+```
+
+En el monitor se escriben los comandos a mano: `cmd_vel,0.1,0,0` o `reset`.
+
+### 9.3 Antes de flashear (hardware, una vez)
+
+1. Divisor en los cables amarillo (A) y blanco (B) de cada encoder, del lado de la
+   ESP32: señal → 4.7 kΩ → GPIO, y 10 kΩ del GPIO a GND. Con la rueda quieta en
+   alto el pin debe leer entre 2.5 y 3.6 V.
+2. Desoldar R4 (el firmware usa el pull-up interno).
+3. RV1 con los encoders conectados y los drivers despiertos: VD ≈ 0.7 V (~3.5 A por
+   motor). Anotar R2/R3.
+4. Opcional e irreversible: `espefuse.py --port /dev/serial/by-id/<esp32> set_flash_voltage 3.3V`.
+
+### 9.4 Puesta en marcha (en orden)
+
+1. Ruedas al aire, monitor serial: aparece `ready`; `battery,V` coincide con el
+   multímetro (si no, ajustar `BATTERY_GAIN`).
+2. `cmd_vel,0.1,0,0`: las 4 ruedas hacia adelante y `odom` con vx > 0. Si una rueda
+   gira al revés, su entrada de `MOTOR_SIGN`; si cuenta al revés, la de `ENCODER_SIGN`.
+   Repetir con `cmd_vel,0,0.1,0` (vy > 0, hacia la izquierda) y `cmd_vel,0,0,0.5` (wz > 0).
+3. La velocidad medida sigue a la ordenada; si no, ajustar `KP` y `KI`.
+4. Giro antihorario a mano: el último campo de `odom` (gz) > 0; quieto, ≈ 0.
+5. Un solo `cmd_vel,0.1,0,0`: las ruedas giran ~0.5 s y aparece `cmd_vel_timeout`.
+   Puente de D23 a GND: `motor_overcurrent`; quitarlo y `reset` → `ready`.
+   Fuente de laboratorio < 11 V: `battery_too_low`.
+6. ROS en modo mapeo (9.5) con RViz: árbol `map → odom → base_link → lidar`; el scan
+   alineado con el frente del robot (si sale girado 180°, `flip_x_axis: true` en
+   `config/rplidar.yaml`); empujarlo 1 m → `/odom` ~1 m; girarlo 360° → ~2π.
+
+### 9.5 Mapear un lugar
+
+Pon el robot sobre una marca de cinta en el piso: es donde arrancará la demo.
+
+```bash
+./tools/ct_ros ros2 launch martha_nav real.launch.py rviz:=true \
+    esp32_port:=/dev/serial/by-id/<esp32> lidar_port:=/dev/serial/by-id/<rplidar>
+```
+
+En otra terminal (el teleop necesita una terminal interactiva, por eso `-it`; con
+Shift se mueve lateral):
+
+```bash
+docker exec -it ros2_humble bash -lc 'source /opt/ros/humble/setup.bash && ros2 run teleop_twist_keyboard teleop_twist_keyboard'
+```
+
+En RViz agrega un display Map sobre `/slam_map` para ver el mapa crecer. Al terminar:
+
+```bash
+./tools/ct_ros tools/save_map.sh /home/ros/ros2_ws/src/martha_nav/maps/<lugar>_real
+```
+
+Deja `<lugar>_real.pgm/.yaml` (el mapa del A*; se puede limpiar en GIMP) y
+`<lugar>_real.posegraph/.data` (para localizarse).
+
+### 9.6 Demo
+
+Robot sobre la marca de cinta (o "2D Pose Estimate" en RViz), sin las cajas en el mapa:
+
+```bash
+./tools/ct_ros ros2 launch martha_nav real.launch.py rviz:=true \
+    map:=/home/ros/ros2_ws/src/martha_nav/maps/<lugar>_real \
+    checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/armH_holonomic_s0/best_model.zip \
+    esp32_port:=/dev/serial/by-id/<esp32> lidar_port:=/dev/serial/by-id/<rplidar>
+```
+
+La meta se da con "2D Goal Pose" en RViz.
+
+### 9.7 Tras un latch (`motor_overcurrent` o `battery_too_low`)
+
+Revisa la causa, cancela la meta para que el PPO no arranque al rearmar, y resetea;
+la respuesta (`ready` o `reset_blocked`) sale en el log de `esp32_bridge`:
+
+```bash
+./tools/ct_ros ros2 topic pub --once /cancel_goal std_msgs/msg/Empty
+./tools/ct_ros ros2 service call /esp32_bridge/reset std_srvs/srv/Trigger
+```
