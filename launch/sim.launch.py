@@ -22,6 +22,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
+from martha_nav.ros.slam import slam_toolbox
 from martha_nav.ros.world_speed import create_scaled_world
 
 # The sensor plugins keep their default topics so the URDF has no ":=" in it
@@ -104,7 +105,11 @@ def launch_setup(context, *args, **kwargs):
     ]
 
     if slam != 'off':
-        actions.append(slam_toolbox(context, slam))
+        actions.append(slam_toolbox(
+            slam, SCAN_TOPIC, use_sim_time=True, publish_tf=False,
+            map_file=LaunchConfiguration('slam_map').perform(context),
+            start_pose=(float(LaunchConfiguration('x').perform(context)),
+                        float(LaunchConfiguration('y').perform(context)), 0.0)))
     if drive == 'mecanum':
         # The controller manager only exists once the robot is in Gazebo, and the
         # controllers must be spawned one after the other.
@@ -119,26 +124,6 @@ def launch_setup(context, *args, **kwargs):
                  parameters=[{'use_sim_time': True}]),
         ]
     return actions
-
-
-def slam_toolbox(context, mode):
-    """slam_toolbox with its own tuned parameters, adapted to Martha. When mapping it
-    publishes no TF (the robot drives on the true pose); its map goes to /slam_map so it
-    does not replace the world's /map, which the planner uses."""
-    config = Path(FindPackageShare('slam_toolbox').perform(context)) / 'config'
-    params = {'use_sim_time': True, 'mode': mode, 'base_frame': 'base_link',
-              'scan_topic': SCAN_TOPIC, 'max_laser_range': 8.0}
-    if mode == 'mapping':
-        executable, defaults = 'sync_slam_toolbox_node', 'mapper_params_online_sync.yaml'
-        params['transform_publish_period'] = 0.0
-    else:
-        executable, defaults = 'localization_slam_toolbox_node', 'mapper_params_localization.yaml'
-        params['map_file_name'] = LaunchConfiguration('slam_map').perform(context)
-        params['map_start_pose'] = [float(LaunchConfiguration('x').perform(context)),
-                                    float(LaunchConfiguration('y').perform(context)), 0.0]
-    return Node(package='slam_toolbox', executable=executable, name='slam_toolbox',
-                output='screen', parameters=[str(config / defaults), params],
-                remappings=[('/map', '/slam_map'), ('/map_metadata', '/slam_map_metadata')])
 
 
 def generate_launch_description():
