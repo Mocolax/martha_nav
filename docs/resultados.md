@@ -215,6 +215,40 @@ repeticiones, del orden de la brecha que queremos medir.
 Queda un 7–18% de episodios que agotan el tiempo sin ser estancamiento: el robot se mueve, pero
 avanza demasiado poco para llegar. Es el mismo fallo que en 2D, visto con otro reloj.
 
+### E2 v4 (2026-09-29): las mismas reglas que el 2D y sin arrastre de la meta anterior
+
+La revisión de código del 29/09 encontró tres diferencias entre las dos columnas de E2, ya
+corregidas (commit `5bcf412`):
+
+1. `gazebo_eval` no cancelaba la meta al terminar un episodio: tras el teleport, el planificador
+   volvía a planificar hacia la meta **anterior** y el robot salía del punto de inicio antes de
+   recibir la nueva.
+2. El estancamiento se medía distinto: en Gazebo bastaba moverse 0.1 m para reiniciar el contador,
+   en 2D hace falta batir el récord de avance sobre la ruta. Un robot que oscila o da vueltas
+   estaba estancado en 2D pero no en Gazebo, y agotaba un timeout fijo de 120 s.
+3. Los tiempos eran de reloj de pared, no simulados.
+
+Ahora Gazebo usa las reglas de `NavEnv` (misma clase `RouteProgress`, mismo timeout según el largo
+de la ruta) en tiempo simulado. Mismos episodios, pareados contra el 2D (`*_v4.csv`):
+
+| condición | simulador | éxito [IC95] | colisión | estancado | timeout | sin ruta |
+|---|---|---|---|---|---|---|
+| semillas generadas (100) | 2D | 0.88 [0.80, 0.93] | 0.02 | 0.09 | 0.01 | 0.00 |
+| semillas generadas (100) | Gazebo v4 | 0.79 [0.70, 0.86] | 0.01 | 0.17 | 0.03 | 0.00 |
+| puntos fijos (90) | 2D | 0.72 [0.62, 0.80] | 0.06 | 0.22 | 0.00 | 0.00 |
+| puntos fijos (90) | Gazebo v4 | 0.68 [0.58, 0.77] | 0.00 | 0.28 | 0.02 | 0.02 |
+
+Comparación episodio a episodio (McNemar): con las semillas, 13 episodios salen bien solo en 2D y
+4 solo en Gazebo (p = 0.049); con los puntos fijos, 11 contra 7 (p = 0.48). De los 13, 9 son
+estancamientos, 3 timeouts y 1 colisión.
+
+> **Conclusión revisada de E2:** medida con las mismas reglas, la transferencia 2D → Gazebo pierde
+> **unos 9 puntos con las semillas generadas** (en el límite de la significancia) y 4 con los puntos
+> fijos (no significativo). La pérdida es casi toda **estancamiento**, no choques: en Gazebo el robot
+> se bloquea más a menudo, y las colisiones siguen siendo iguales o menores que en 2D. La conclusión
+> anterior, "sin pérdida distinguible del ruido", venía en parte de la regla de estancamiento más
+> laxa de Gazebo.
+
 ## Qué pasa cuando el robot se queda quieto contra una pared
 
 Demostración de 10 episodios en `lab` con el brazo H (`runs/demo_worlds/demo_lab.csv`): 8 éxitos y

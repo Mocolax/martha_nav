@@ -1,6 +1,8 @@
 """E2 figure: the same episodes in the 2D simulator and in Gazebo.
 
-python3 tools/plot_e2.py --run runs/long_c_kl_s0 --out docs/figures/e2_2d_vs_gazebo.png
+python3 tools/plot_e2.py --run runs/long_c_kl_s0 --tag v4 --out docs/figures/e2_2d_vs_gazebo.png
+
+--tag picks the Gazebo evaluation: eval_gazebo_lab_<tag>.csv and eval_gazebo_lab_points_<tag>.csv.
 """
 import argparse
 from pathlib import Path
@@ -14,9 +16,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 OUTCOMES = [('success', 'éxito', '#2a78d6'), ('collision', 'colisión', '#eb6834'),
             ('stuck', 'estancado / timeout', '#1baf7a'), ('failed', 'sin ruta', '#eda100')]
 INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
-CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab_v3.csv'),
+CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab_{tag}.csv'),
               ('puntos fijos del\npaquete anterior', 'eval_obstacles_lab-points.csv',
-               'eval_gazebo_lab_points_v3.csv')]
+               'eval_gazebo_lab_points_{tag}.csv')]
 
 
 def shares(path, seeds=None):
@@ -30,13 +32,15 @@ def shares(path, seeds=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--run', default='runs/long_c_kl_s0')
+    ap.add_argument('--tag', default='v4')
     ap.add_argument('--out', required=True)
     args = ap.parse_args()
     run = Path(args.run)
 
     fig, ax = plt.subplots(figsize=(10, 5.6), facecolor=SURFACE)
-    labels, positions = [], []
+    labels, positions, legend = [], [], set()
     for i, (name, f2d, fgz) in enumerate(CONDITIONS):
+        fgz = fgz.format(tag=args.tag)
         _, s2d = shares(run / f2d)
         _, sgz = shares(run / fgz)
         common = s2d & sgz
@@ -49,7 +53,8 @@ def main():
                 if value <= 0:
                     continue
                 ax.bar(x, value, width=0.7, bottom=bottom, color=color, edgecolor=SURFACE,
-                       linewidth=1.5, label=label if (i == 0 and j == 0) else None)
+                       linewidth=1.5, label=None if key in legend else label)
+                legend.add(key)
                 if value > 0.05:
                     ax.annotate(f'{value:.0%}', (x, bottom + value / 2), ha='center', va='center',
                                 color='white', fontsize=10, fontweight='bold')
