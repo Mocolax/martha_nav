@@ -22,6 +22,9 @@ def run_node(node_class, body=rclpy.spin):
         body(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception:
+        if rclpy.ok():      # else Ctrl-C shut ROS down under the executor (an RCLError)
+            raise
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
