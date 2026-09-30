@@ -56,7 +56,8 @@ exige que la carpeta se llame igual que el `.ino`.
 
 Se reutilizan sin cambios: `urdf/martha.urdf.xacro` con `drive:=planar` (ruedas
 fijas, no hace falta `/joint_states`), `global_planner`, `ppo_local_planner` y
-`observation.py` (`action_to_cmd`, `scan_to_arrays` con `lidar_yaw`).
+`observation.py` (`action_to_cmd`). Si el LiDAR quedó montado al revés, se corrige con
+`flip_x_axis` de `rplidar_ros` (`ppo_local_planner` no expone `lidar_yaw`).
 
 ### 3.1 Flujo en navegación
 
@@ -262,7 +263,7 @@ La placa impresa es `martha/pcb/martha_circuits/gerbers/` (2026-09-21); el
 6. Protecciones: puente D23–GND → latch → `~/reset`; matar el bridge → ruedas
    paradas en ≤ 0.5 s; fuente de laboratorio < 11 V → latch de batería.
 7. ROS en modo mapeo: árbol `map → odom → base_link → lidar` en RViz; scan alineado
-   con el frente (si no, `lidar_yaw`); empujar 1 m → `/odom` ~1 m; girar 360° → ~2π.
+   con el frente (si no, `flip_x_axis: true`); empujar 1 m → `/odom` ~1 m; girar 360° → ~2π.
 8. Mapear, guardar y hacer la demo con el checkpoint.
 
 ## 9. Pruebas de código
