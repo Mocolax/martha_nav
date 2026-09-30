@@ -214,3 +214,15 @@ def test_stuck_time_survives_a_replan_to_the_same_goal():
     replanned = Path([[1.0, 0.0], [10.0, 0.0]])
     *_, after = core.compute(replanned, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     assert after['stuck'] > before['stuck'] > 0.0
+
+
+def test_action_delay_holds_each_command_that_many_ticks():
+    """Gazebo's mecanum obeys at once; one tick of delay gives back the 2D robot's lag."""
+    core = PolicyCore(FakeModel((1.0, 0.0)), action_delay=1)
+    ranges, angles = clear_scan()
+    first, *_ = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    second, *_ = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert (first, second) == (0.0, V_MAX)
+    core.reset()
+    again, *_ = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert again == 0.0

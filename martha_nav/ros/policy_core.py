@@ -39,7 +39,8 @@ class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
     def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, no_progress_time=15.0, target='carrot'):
+                 action_dim=2, stuck_signal=False, no_progress_time=15.0, target='carrot',
+                 action_delay=0):
         self.model = model
         self.lookahead = lookahead
         self.carrot_clearance = carrot_clearance
@@ -48,6 +49,9 @@ class PolicyCore:
         self.stuck_signal = stuck_signal
         self.no_progress_time = no_progress_time
         self.target = target
+        # Ticks each command is held back: a robot that obeys at once (Gazebo's mecanum)
+        # gets the lag of the one the policy was trained on.
+        self.action_delay = action_delay
         # An LSTM policy needs its hidden state carried from one tick to the next.
         self.recurrent = is_recurrent(model)
         self.reset()
@@ -57,6 +61,7 @@ class PolicyCore:
         self.prev_action = np.zeros(self.action_dim)
         self.progress = None
         self.lstm_state, self.episode_start = None, True
+        self.pending = [(0.0,) * self.action_dim] * self.action_delay
 
     def _follow(self, path):
         """A new goal starts a new episode; a replan to the same goal only swaps the route."""
@@ -99,7 +104,8 @@ class PolicyCore:
             action, _ = self.model.predict(obs, deterministic=True)
         action = np.clip(np.asarray(action, dtype=float).reshape(-1), -1.0, 1.0)
         self.prev_action = action
-        commands = list(action_to_cmd(action))
+        self.pending.append(action_to_cmd(action))
+        commands = list(self.pending.pop(0))
         # Directional guard: stop the motion that would hit, keep the one that escapes.
         if 'front' in blocked:
             commands[0] = min(commands[0], 0.0)
