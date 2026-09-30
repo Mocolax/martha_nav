@@ -339,3 +339,23 @@ Mapa de `lab.world` hecho con `tools/map_world.py` (`maps/lab.posegraph`), luego
 > se queda en centímetros y los fallos son atascos, como con la pose verdadera (79 % en E2 v4). El
 > pico de 2.65 m sin obstáculos es un episodio aislado aún sin analizar. Queda repetir con
 > `wide_dyn_s0`.
+
+### Repetición con `wide_dyn_s0` y el evaluador corregido
+
+Dos fallos del evaluador aparecieron con SLAM: `/initialpose` salía antes de que Gazebo mostrara el
+robot en el inicio (el localizador leía el teletransporte como odometría y arrancaba desviado
+metros), y el éxito se tomaba del planificador, que se guía por la pose estimada. Ahora la pose
+inicial espera al teletransporte y el éxito exige que la pose **verdadera** quede a menos de 0.5 m
+de la meta (si no, `lost`). Resultados en `runs/wide_dyn_s0/eval_gazebo_lab_slam{_clean,}_v2.csv`,
+pareados con `long_c_kl_s0` en las mismas semillas:
+
+| condición | `long_c_kl_s0` | `wide_dyn_s0` | ganados / perdidos | error medio | error máximo |
+|---|---|---|---|---|---|
+| sin obstáculos | 92 % | **97 %** | 6 / 1 (p = 0.13) | 2.5 cm | 9.5 cm |
+| 2–4 cajas no mapeadas | 74 % | **87 %** | 17 / 4 (p = 0.007) | 6.2 cm | 4.5 m (1 episodio) |
+
+> **Lectura:** sin obstáculos ningún episodio pasa de 10 cm: los errores de metros de antes eran
+> del evaluador. Con cajas fuera del mapa quedan dos episodios desviados, las semillas 1000062
+> (1.0 m, llega igual) y 1000078 (4.5 m, se atasca). Ambos tienen 4 cajas y se repiten igual antes
+> y después del arreglo, así que son pérdidas reales de slam_toolbox cuando el mapa difiere mucho de
+> lo que ve el LiDAR: 2 de 100 episodios. Ningún episodio terminó `lost`.
