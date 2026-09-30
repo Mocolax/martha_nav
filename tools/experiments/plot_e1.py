@@ -1,6 +1,6 @@
 """E1 figure: CNN vs MLP over three seeds each.
 
-python3 tools/plot_e1.py --out docs/figures/e1_cnn_vs_mlp.png
+python3 tools/experiments/plot_e1.py --out docs/figures/e1_cnn_vs_mlp.png
 """
 import argparse
 from pathlib import Path

@@ -34,7 +34,7 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 | `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `world_map_publisher.py`, `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py` |
 | `urdf/martha.urdf.xacro` | reusado del paquete anterior; `drive:=mecanum\|planar` |
 | `launch/sim.launch.py` | Gazebo + controladores + nodos + RViz opcional |
-| `tools/` | `ct`, `ct_ros`, gráficas y guiones de experimentos |
+| `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `run_e2.sh`, gráficas; `experiments/` guarda las colas ya corridas |
 | `docs/resultados.md` | bitácora citable (puerta, A/B/C, `target_kl`, E1, E2) |
 | `docs/resultados-noche.md` | brazos H (holonómico) y L (LSTM) |
 

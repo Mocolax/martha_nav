@@ -3,7 +3,7 @@
 # (LSTM) and arm HL (both), writing a summary to docs/resultados-noche.md.
 #
 # Every step is independent: a failure is logged and the queue moves on.
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 LOG=runs/night.log
 SUMMARY=docs/resultados-noche.md
 exec > >(tee -a "$LOG") 2>&1

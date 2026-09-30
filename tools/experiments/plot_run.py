@@ -1,6 +1,6 @@
 """Summary figure for a training run.
 
-python3 tools/plot_run.py runs/full_cnn_s0 [--out docs/figures/full_cnn_s0.png]
+python3 tools/experiments/plot_run.py runs/full_cnn_s0 [--out docs/figures/full_cnn_s0.png]
 
 A: periodic evaluation over training.  B: how training episodes with obstacles
 end, per 500k-step window.  C: deterministic evaluations (eval_*.csv).

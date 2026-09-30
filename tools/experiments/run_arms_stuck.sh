@@ -7,7 +7,7 @@
 #   con señal / con LSTM -> armSL_s0
 #
 # Waits for arm S to finish, evaluates it, then trains and evaluates arm SL.
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 exec > >(tee -a runs/arms_stuck.log) 2>&1
 say () { echo "[$(date +%H:%M)] $*"; }
 

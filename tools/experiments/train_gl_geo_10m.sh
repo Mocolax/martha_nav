@@ -5,11 +5,11 @@
 # linearly to zero at the end, so the 5M run cannot simply be continued.
 #
 # Runs inside the ros2_humble container, from the root of the repository:
-#   ./tools/train_gl_geo_10m.sh
+#   ./tools/experiments/train_gl_geo_10m.sh
 #
 # Variables: PY (python), NAME, STEPS, DEVICE (auto | cuda | cpu).
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 PY=${PY:-python3}
 NAME=${NAME:-armGLgeo10M_s0}
 STEPS=${STEPS:-10000000}

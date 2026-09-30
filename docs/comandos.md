@@ -66,6 +66,14 @@ Un run deja en `runs/<nombre>/`: `config.yaml`, `episodes.csv`, `evals.csv`,
 
 ## 3. Evaluación determinista en 2D
 
+La batería estándar de un run (limpio, obstáculos, laboratorio y sus puntos fijos) y su informe:
+
+```bash
+./tools/evaluate_run.sh runs/mi_run
+```
+
+O cada condición por separado:
+
 ```bash
 ./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/mi_run/best_model.zip --episodes 500 --condition obstacles
 ```
@@ -111,7 +119,7 @@ Comparación entre runs y figuras de los experimentos:
 ```
 
 ```bash
-./tools/ct python3 tools/plot_e1.py --out docs/figures/e1_cnn_vs_mlp.png
+./tools/ct python3 tools/experiments/plot_e1.py --out docs/figures/e1_cnn_vs_mlp.png
 ```
 
 ```bash
@@ -225,18 +233,15 @@ Y para una demo larga en el laboratorio, que es el mundo de la sustentación:
 EPISODES=30 GUI=true WORLDS=lab ./tools/run_demo_worlds.sh
 ```
 
-## 7. Guiones de experimentos ya preparados
+## 7. Guiones de experimentos ya hechos
+
+`tools/experiments/` guarda las colas que produjeron los resultados de `docs/resultados*.md`,
+tal como se corrieron, para poder repetirlas: `run_experiments_abc.sh` (A/B/C),
+`run_e1.sh` (CNN contra MLP), `run_night.sh` y `run_arms_stuck.sh` (brazos H, L, HL, S, SL),
+`train_gl_geo_10m.sh` (brazo GL geodésico, 10M pasos), `plot_e1.py` y `plot_run.py`.
 
 ```bash
-./tools/run_experiments_abc.sh    # A/B/C: choque -20, atasco terminal, LiDAR d/(d+1)
-```
-
-```bash
-./tools/run_e1.sh                 # CNN contra MLP, tres semillas cada uno
-```
-
-```bash
-./tools/run_night.sh              # cola larga: entrena y evalúa varios brazos seguidos
+./tools/experiments/run_e1.sh
 ```
 
 ## 8. Limpieza cuando algo queda colgado

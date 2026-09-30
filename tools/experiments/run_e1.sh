@@ -3,7 +3,7 @@
 # (LiDAR d/(d+1), collision -20, target_kl 0.02). Each best model is then evaluated
 # on the reserved seeds: clean, with obstacles, and in the unseen lab.
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 for seed in 0 1 2; do
   for arch in cnn mlp; do
     name="e1_${arch}_s${seed}"
