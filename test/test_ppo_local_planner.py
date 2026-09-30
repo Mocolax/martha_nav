@@ -52,10 +52,3 @@ def test_the_route_is_forgotten_when_the_episode_ends(node):
     node.on_status(String(data='succeeded'))
     assert node.path is None
     assert node.core.lstm_state is None
-
-
-def test_the_robot_is_left_stopped_when_the_node_closes(node):
-    sent = []
-    node.cmd_pub = type('Pub', (), {'publish': lambda self, msg: sent.append(msg)})()
-    node.destroy_node()
-    assert sent and sent[-1].linear.x == 0.0 and sent[-1].angular.z == 0.0

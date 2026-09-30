@@ -1,22 +1,30 @@
-import rclpy
-from geometry_msgs.msg import Twist  # noqa: F401 - ROS must be importable
+from martha_nav.ros.common import yaw_of
 
-from martha_nav.ros.common import run_node, yaw_of
+QUIET_NODE = """
+import os, signal, threading
+from rclpy.node import Node
+from martha_nav.ros.common import run_node
+
+class Quiet(Node):                    # no timer and nothing to receive, like world_map_publisher
+    def __init__(self):
+        super().__init__('quiet')
+        threading.Timer(1.0, os.kill, (os.getpid(), signal.SIGINT)).start()
+
+run_node(Quiet)
+print('stopped')
+"""
 
 
-def test_ctrl_c_shuts_the_node_down_quietly():
-    """No ExternalShutdownException traceback, and the node still gets to clean up."""
-    calls = []
-
-    class Node:
-        def destroy_node(self):
-            calls.append('destroyed while ROS is up' if rclpy.ok() else 'too late')
-
-    def body(node):
-        raise KeyboardInterrupt
-
-    run_node(Node, body)
-    assert calls == ['destroyed while ROS is up'] and not rclpy.ok()
+def test_ctrl_c_stops_an_idle_node_quietly():
+    """ros2 launch ... & in a script starts the nodes with SIGINT ignored, and a node with
+    nothing to do never wakes up by itself: Ctrl-C must still end it, without a traceback."""
+    import signal
+    import subprocess
+    import sys
+    done = subprocess.run([sys.executable, '-c', QUIET_NODE], capture_output=True, text=True,
+                          timeout=20, preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN))
+    assert done.returncode == 0 and 'stopped' in done.stdout
+    assert 'Traceback' not in done.stderr
 
 
 def test_yaw_of_a_quaternion():

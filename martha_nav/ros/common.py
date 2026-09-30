@@ -2,8 +2,8 @@
 import math
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from rclpy.signals import SignalHandlerOptions
 
 # Late subscribers still get the last message: /map, /plan, /nav_status, /goal_pose.
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -15,16 +15,12 @@ def yaw_of(q):
 
 
 def run_node(node_class, body=rclpy.spin):
-    """main() of a node: body(node) until Ctrl-C, then destroy it while ROS is still up.
-
-    rclpy's own SIGINT handler shuts ROS down first, so destroy_node could not publish
-    (the policy's final stop) and every node printed an ExternalShutdownException.
-    """
-    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    """main() of a node: body(node) until Ctrl-C, which ends it without a traceback."""
+    rclpy.init()
     node = node_class()
     try:
         body(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

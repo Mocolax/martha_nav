@@ -89,10 +89,6 @@ class PpoLocalPlanner(Node):
         q = tf.transform.rotation
         return tf.transform.translation.x, tf.transform.translation.y, yaw_of(q)
 
-    def destroy_node(self):
-        self.cmd_pub.publish(Twist())           # leave the robot stopped
-        super().destroy_node()
-
     # ---- control ----
     def stop(self, reason):
         self.cmd_pub.publish(Twist())
