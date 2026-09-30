@@ -8,15 +8,12 @@ from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Path as PathMsg
 from rclpy.duration import Duration
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Empty, String
 from tf2_ros import Buffer, TransformListener
 
+from martha_nav.ros.common import LATCHED, run_node
 from martha_nav.ros.occupancy import msg_to_grid
 from martha_nav.ros.planner_core import PlannerCore
-
-LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                     reliability=ReliabilityPolicy.RELIABLE)
 
 
 class GlobalPlanner(Node):
@@ -94,15 +91,7 @@ class GlobalPlanner(Node):
 
 
 def main():
-    rclpy.init()
-    node = GlobalPlanner()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(GlobalPlanner)
 
 
 if __name__ == '__main__':

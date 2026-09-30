@@ -1,14 +1,10 @@
 """Publish a rasterised .world as a latched /map."""
-import rclpy
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
+from martha_nav.ros.common import LATCHED, run_node
 from martha_nav.ros.occupancy import grid_to_msg
 from martha_nav.sim2d.worlds import rasterize_world
-
-LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                     reliability=ReliabilityPolicy.RELIABLE)
 
 
 class WorldMapPublisher(Node):
@@ -25,15 +21,7 @@ class WorldMapPublisher(Node):
 
 
 def main():
-    rclpy.init()
-    node = WorldMapPublisher()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(WorldMapPublisher)
 
 
 if __name__ == '__main__':

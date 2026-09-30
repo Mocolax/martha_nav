@@ -1,6 +1,4 @@
 """/plan + /scan + /odom -> /cmd_vel at 10 Hz, running the trained policy."""
-import math
-
 import numpy as np
 import rclpy
 import torch
@@ -9,19 +7,17 @@ from nav_msgs.msg import Odometry
 from nav_msgs.msg import Path as PathMsg
 from rclpy.duration import Duration
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
-
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
 
 from martha_nav.learning.evaluate import _trained_env, load_model
+from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
 from martha_nav.sim2d.planner import Path
 
-LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                     reliability=ReliabilityPolicy.RELIABLE)
 STALE = 0.3      # s; older sensor data stops the robot
 
 
@@ -91,8 +87,11 @@ class PpoLocalPlanner(Node):
         except Exception:                      # noqa: BLE001 - TF errors are expected at startup
             return None
         q = tf.transform.rotation
-        yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y ** 2 + q.z ** 2))
-        return tf.transform.translation.x, tf.transform.translation.y, yaw
+        return tf.transform.translation.x, tf.transform.translation.y, yaw_of(q)
+
+    def destroy_node(self):
+        self.cmd_pub.publish(Twist())           # leave the robot stopped
+        super().destroy_node()
 
     # ---- control ----
     def stop(self, reason):
@@ -131,16 +130,7 @@ class PpoLocalPlanner(Node):
 
 
 def main():
-    rclpy.init()
-    node = PpoLocalPlanner()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.cmd_pub.publish(Twist())
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(PpoLocalPlanner)
 
 
 if __name__ == '__main__':

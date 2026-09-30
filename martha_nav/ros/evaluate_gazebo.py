@@ -20,17 +20,14 @@ from gazebo_msgs.srv import DeleteEntity, SetEntityState, SpawnEntity
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Empty, String
 
+from martha_nav.ros.common import LATCHED, run_node
 from martha_nav.learning.evaluate import eval_seeds
 from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.env import EnvConfig, episode_steps
 from martha_nav.sim2d.planner import RouteProgress
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate, point_pairs
-
-LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                     reliability=ReliabilityPolicy.RELIABLE)
 
 BOX_SDF = """<?xml version="1.0"?>
 <sdf version="1.6"><model name="{name}"><static>true</static><link name="link">
@@ -255,15 +252,7 @@ class EvaluateGazebo(Node):
 
 
 def main():
-    rclpy.init()
-    node = EvaluateGazebo()
-    try:
-        node.run()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(EvaluateGazebo, EvaluateGazebo.run)
 
 
 if __name__ == '__main__':

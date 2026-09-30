@@ -4,7 +4,6 @@ Evaluation in Gazebo measures the policy, not the localisation (spec 7.2).
 """
 import math
 
-import rclpy
 from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
@@ -13,9 +12,7 @@ from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
 from tf2_ros import TransformBroadcaster
 
-
-def yaw_of(q):
-    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y ** 2 + q.z ** 2))
+from martha_nav.ros.common import run_node, yaw_of
 
 
 class GazeboGroundTruthTf(Node):
@@ -64,15 +61,7 @@ class GazeboGroundTruthTf(Node):
 
 
 def main():
-    rclpy.init()
-    node = GazeboGroundTruthTf()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(GazeboGroundTruthTf)
 
 
 if __name__ == '__main__':

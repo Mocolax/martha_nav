@@ -3,9 +3,10 @@
 The Humble mecanum_drive_controller does not subscribe to /cmd_vel: it takes a
 TwistStamped on <controller>/reference. Reused from the previous package.
 """
-import rclpy
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
+
+from martha_nav.ros.common import run_node
 
 REFERENCE_TOPIC = '/mecanum_drive_controller/reference'
 
@@ -31,15 +32,7 @@ class MecanumCmdVelBridge(Node):
 
 
 def main():
-    rclpy.init()
-    node = MecanumCmdVelBridge()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run_node(MecanumCmdVelBridge)
 
 
 if __name__ == '__main__':
