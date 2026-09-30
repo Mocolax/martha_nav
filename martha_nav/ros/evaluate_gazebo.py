@@ -121,10 +121,15 @@ class EvaluateGazebo(Node):
 
     # ---- gazebo helpers ----
     def call(self, client, request):
-        client.wait_for_service()
+        if not client.wait_for_service(timeout_sec=10.0):
+            raise RuntimeError(f'{client.srv_name} is not available: is Gazebo running?')
         future = client.call_async(request)
         rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
-        return future.result()
+        result = future.result()
+        if result is None or not result.success:
+            reason = getattr(result, 'status_message', 'no answer')
+            raise RuntimeError(f'{client.srv_name} failed ({reason}); restart the simulation')
+        return result
 
     def teleport(self, x, y, yaw):
         request = SetEntityState.Request()

@@ -81,3 +81,22 @@ def test_recurrent_models_keep_their_hidden_state():
     model = Recurrent()
     rows = run_episodes(model, OPEN, eval_seeds(4), n_envs=2)
     assert len(rows) == 4 and model.saw_state and model.saw_starts
+
+
+def test_cli_names_the_csv_after_its_sources_and_honours_episodes(tmp_path, monkeypatch):
+    """--episodes is never overridden, and a CSV is only called 'train' for the training set."""
+    from martha_nav.learning import evaluate
+    from martha_nav.sim2d.scenarios import point_pairs
+    played = []
+    monkeypatch.setattr(evaluate, 'load_model', lambda path: None)
+    monkeypatch.setattr(evaluate, 'run_episodes', lambda model, cfg, seeds, n_envs: played.append(
+        len(seeds)) or [{'episode_seed': s, 'outcome': 'success', 'spl': 1.0} for s in seeds])
+    model = str(tmp_path / 'best_model.zip')
+    evaluate.main(['--model', model, '--episodes', '3'])
+    evaluate.main(['--model', model, '--episodes', '3', '--sources', 'room', 'hall', 'tube'])
+    evaluate.main(['--model', model, '--points', 'lab', '--episodes', '500'])
+    evaluate.main(['--model', model, '--points', 'lab'])
+    assert played == [3, 3, 500, len(point_pairs('lab'))]
+    assert sorted(p.name for p in tmp_path.glob('eval_*.csv')) == [
+        'eval_obstacles_lab-points.csv', 'eval_obstacles_room-hall-tube.csv',
+        'eval_obstacles_train.csv']

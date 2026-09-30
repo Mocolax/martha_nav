@@ -89,3 +89,29 @@ def test_position_comes_from_gazebo_not_from_odometry():
     source = inspect.getsource(evaluate_gazebo.EvaluateGazebo)
     assert '/gazebo/model_states' in source
     assert "'/odom'" not in source
+
+
+class FakeClient:
+    srv_name = '/spawn_entity'
+
+    def __init__(self, available=True, success=True):
+        self.available, self.success = available, success
+
+    def wait_for_service(self, timeout_sec=None):
+        return self.available
+
+    def call_async(self, request):
+        from rclpy.task import Future
+        response = type('Response', (), {'success': self.success, 'status_message': 'exists'})()
+        future = Future()
+        future.set_result(response)
+        return future
+
+
+def test_a_failed_gazebo_call_stops_the_evaluation(evaluate_gazebo_node):
+    """A silent failure (an obstacle left by an interrupted run) would corrupt the results."""
+    evaluate_gazebo_node.call(FakeClient(), None)
+    with pytest.raises(RuntimeError, match='exists'):
+        evaluate_gazebo_node.call(FakeClient(success=False), None)
+    with pytest.raises(RuntimeError, match='not available'):
+        evaluate_gazebo_node.call(FakeClient(available=False), None)

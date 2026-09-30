@@ -120,7 +120,8 @@ def main(argv=None):
 
     ap = argparse.ArgumentParser(description='Evaluate a trained policy in the 2D simulator.')
     ap.add_argument('--model', required=True)
-    ap.add_argument('--episodes', type=int, default=500)
+    ap.add_argument('--episodes', type=int, default=None,
+                    help='default: 500, or one per pair with --points')
     ap.add_argument('--condition', choices=list(CONDITIONS), default='obstacles')
     ap.add_argument('--sources', nargs='+', default=list(TRAIN_SOURCES))
     ap.add_argument('--n-envs', type=int, default=8)
@@ -135,12 +136,12 @@ def main(argv=None):
     if args.points:
         pairs = point_pairs(args.points)
         scenario = replace(scenario, sources=(args.points,), point_pairs=pairs)
-        args.episodes = args.episodes if args.episodes != 500 else len(pairs)
     cfg = replace(cfg, scenario=scenario)
     model = load_model(args.model)
-    rows = run_episodes(model, cfg, eval_seeds(args.episodes), args.n_envs)
+    episodes = args.episodes or (len(scenario.point_pairs) if args.points else 500)
+    rows = run_episodes(model, cfg, eval_seeds(episodes), args.n_envs)
     name = args.points + '-points' if args.points else (
-        '-'.join(args.sources) if len(args.sources) < 3 else 'train')
+        'train' if tuple(args.sources) == TRAIN_SOURCES else '-'.join(args.sources))
     out = args.out or Path(args.model).with_name(f'eval_{args.condition}_{name}.csv')
     write_csv(rows, out)
     s = summarize(rows)
