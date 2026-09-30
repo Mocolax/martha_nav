@@ -304,6 +304,9 @@ intercambiarse entre arranques: usa siempre las rutas estables.
 ls -l /dev/serial/by-id/
 ```
 
+Si los dos adaptadores USB-serie tienen el mismo número de serie, `by-id` muestra
+un solo enlace: usa `/dev/serial/by-path/` en ese caso.
+
 ### 9.2 Firmware (en el anfitrión)
 
 ```bash
@@ -322,39 +325,57 @@ En el monitor se escriben los comandos a mano: `cmd_vel,0.1,0,0` o `reset`.
 2. Desoldar R4 (el firmware usa el pull-up interno).
 3. RV1 con los encoders conectados y los drivers despiertos: VD ≈ 0.7 V (~3.5 A por
    motor). Anotar R2/R3.
-4. Opcional e irreversible: `espefuse.py --port /dev/serial/by-id/<esp32> set_flash_voltage 3.3V`.
+4. Recomendado e irreversible: `espefuse.py --port /dev/serial/by-id/<esp32> set_flash_voltage 3.3V`
+   (si no, GPIO12 —encoder A de M1— puede impedir que la ESP32 arranque al reabrir el puerto con los drivers despiertos).
 
 ### 9.4 Puesta en marcha (en orden)
 
 1. Ruedas al aire, monitor serial: aparece `ready`; `battery,V` coincide con el
-   multímetro (si no, ajustar `BATTERY_GAIN`).
+   multímetro (si no, ajustar `BATTERY_GAIN`). Con el robot armado, cierra y reabre
+   el monitor dos veces: debe salir `ready` en las dos (si la ESP32 no arranca, es
+   GPIO12 — ver el eFuse de 9.3.4).
 2. `cmd_vel,0.1,0,0`: las 4 ruedas hacia adelante y `odom` con vx > 0. Si una rueda
    gira al revés, su entrada de `MOTOR_SIGN`; si cuenta al revés, la de `ENCODER_SIGN`.
    Repetir con `cmd_vel,0,0.1,0` (vy > 0, hacia la izquierda) y `cmd_vel,0,0,0.5` (wz > 0).
 3. La velocidad medida sigue a la ordenada; si no, ajustar `KP` y `KI`.
-4. Giro antihorario a mano: el último campo de `odom` (gz) > 0; quieto, ≈ 0.
+4. Giro antihorario a mano **con las ruedas apoyadas en el piso**: el último campo
+   de `odom` (gz) > 0; quieto, ≈ 0. Con las ruedas al aire el firmware cree que el
+   robot está quieto y reaprende el bias del gyro (~2 s), así que el giro no se ve;
+   gíralo rápido o hazlo en el piso.
 5. Un solo `cmd_vel,0.1,0,0`: las ruedas giran ~0.5 s y aparece `cmd_vel_timeout`.
    Puente de D23 a GND: `motor_overcurrent`; quitarlo y `reset` → `ready`.
-   Fuente de laboratorio < 11 V: `battery_too_low`.
-6. ROS en modo mapeo (9.5) con RViz: árbol `map → odom → base_link → lidar`; el scan
-   alineado con el frente del robot (si sale girado 180°, `flip_x_axis: true` en
-   `config/rplidar.yaml`); empujarlo 1 m → `/odom` ~1 m; girarlo 360° → ~2π.
+   Fuente de laboratorio < 11 V: `battery_too_low`. Sujeta una rueda con la mano
+   (con guantes) y manda un `cmd_vel` pequeño: `motor_overcurrent` debe salir en
+   ~2 s; si nunca sale, D23 conmuta con el PWM (anotarlo, pendiente de revisar).
+6. ROS en modo mapeo (9.5) con RViz: activa el display TF y comprueba el árbol
+   `map → odom → base_link → lidar`; el scan alineado con el frente del robot (si
+   sale girado 180°, `flip_x_axis: true` en `config/rplidar.yaml`); sin puntos del
+   scan sobre el propio robot (PC, mástil) — el PPO los tomaría como obstáculos
+   dentro del footprint; empujarlo 1 m → `/odom` ~1 m; girarlo 360° → ~2π.
 
 ### 9.5 Mapear un lugar
 
-Pon el robot sobre una marca de cinta en el piso: es donde arrancará la demo.
+Pon el robot sobre una marca de cinta en el piso, marcando también su orientación:
+es donde arrancará la demo (el mapa guardado arranca en (0, 0, 0), yaw incluido).
 
 ```bash
 ./tools/ct_ros ros2 launch martha_nav real.launch.py rviz:=true \
     esp32_port:=/dev/serial/by-id/<esp32> lidar_port:=/dev/serial/by-id/<rplidar>
 ```
 
+Para detener: Ctrl-C en esa terminal para todo. Si se cerró la terminal o algo
+quedó corriendo: `docker exec ros2_humble pkill -INT -f '[r]eal.launch.py'`. El
+paro físico es el interruptor de alimentación del robot.
+
 En otra terminal (el teleop necesita una terminal interactiva, por eso `-it`; con
 Shift se mueve lateral):
 
 ```bash
-docker exec -it ros2_humble bash -lc 'source /opt/ros/humble/setup.bash && ros2 run teleop_twist_keyboard teleop_twist_keyboard'
+docker exec -it ros2_humble bash -lc 'source /opt/ros/humble/setup.bash && ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p speed:=0.2 -p turn:=0.5'
 ```
+
+Mantener una tecla apretada tartamudea (el autorepeat del terminal contra el
+timeout de 500 ms); pulsa repetido o convive con eso.
 
 En RViz agrega un display Map sobre `/slam_map` para ver el mapa crecer. Al terminar:
 
@@ -367,7 +388,8 @@ Deja `<lugar>_real.pgm/.yaml` (el mapa del A*; se puede limpiar en GIMP) y
 
 ### 9.6 Demo
 
-Robot sobre la marca de cinta (o "2D Pose Estimate" en RViz), sin las cajas en el mapa:
+Robot sobre la marca de cinta con su orientación (o "2D Pose Estimate" en RViz),
+sin las cajas en el mapa:
 
 ```bash
 ./tools/ct_ros ros2 launch martha_nav real.launch.py rviz:=true \
@@ -387,3 +409,7 @@ la respuesta (`ready` o `reset_blocked`) sale en el log de `esp32_bridge`:
 ./tools/ct_ros ros2 topic pub --once /cancel_goal std_msgs/msg/Empty
 ./tools/ct_ros ros2 service call /esp32_bridge/reset std_srvs/srv/Trigger
 ```
+
+Los eventos se mandan una sola vez: si el robot no se mueve y no viste ninguno,
+puede haber quedado latcheado antes de que el bridge conectara; llama igual al
+reset y mira el log del bridge (`ready` o `reset_blocked`).

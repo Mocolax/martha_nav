@@ -85,7 +85,7 @@ En modo mapeo slam_toolbox mapea (y publica `map → odom`), no corren los plann
 | batería (divisor 39k/10k, ganancia 4.9) | 34 | R5/R6/C2 |
 | I2C del IMU | SDA 25, SCL 26 | J6.4, J6.3 |
 
-Orden lógico de ruedas: FL, FR, RL, RR. `MOTOR_OUTPUT_SIGN` y `ENCODER_COUNT_SIGN`
+Orden lógico de ruedas: FL, FR, RL, RR. `MOTOR_SIGN` y `ENCODER_SIGN`
 se mantienen para corregir la polaridad en la puesta en marcha.
 
 ### 4.2 Constantes del robot real
@@ -172,8 +172,10 @@ Traductor sin máquina de estados y sin límites propios.
     `base_link`; orientación y aceleración con `covariance[0] = -1`). El IMU va
     montado plano (`rpy 0 0 0` en el URDF viejo), así que su gyro z es el giro del robot.
   - Eventos → log como warning. Batería → log cada 30 s.
-  - Sin líneas `odom` durante 1 s → un warning (el `ppo_local_planner` ya se detiene
-    con `/odom` viejo).
+  - Sin líneas `odom` durante 1 s → un warning: es la señal a mirar, porque el EKF
+    sigue prediciendo y publicando `/odom` tras su propio `sensor_timeout` (nunca
+    queda viejo) y si el bridge muere, `odom → base_link` deriva a la última
+    velocidad; lo que sí para el robot es el timeout de 500 ms del firmware.
 - Servicio `~/reset` (`std_srvs/Trigger`): escribe `reset`. Responde solo que se
   envió; el resultado (`ready` / `reset_blocked`) sale en el log.
 - Al cerrar manda un cero (si muere sin mandarlo, el timeout del firmware lo cubre).
@@ -257,7 +259,7 @@ La placa impresa es `martha/pcb/martha_circuits/gerbers/` (2026-09-21); el
 1. `arduino-cli compile/upload` con `esp32:esp32:esp32doit-devkit-v1`.
 2. Ruedas al aire, monitor serial: `ready`; `battery,V` contra el multímetro.
 3. Polaridad: `cmd_vel,0.1,0,0` → las 4 ruedas adelante y vx > 0; si no, ajustar
-   `MOTOR_OUTPUT_SIGN` y `ENCODER_COUNT_SIGN`. Repetir con vy y wz.
+   `MOTOR_SIGN` y `ENCODER_SIGN`. Repetir con vy y wz.
 4. PI: la velocidad medida sigue a la ordenada; si no, ajustar Kp / Ki.
 5. IMU: giro antihorario → gz > 0; quieto → gz ≈ 0.
 6. Protecciones: puente D23–GND → latch → `~/reset`; matar el bridge → ruedas
