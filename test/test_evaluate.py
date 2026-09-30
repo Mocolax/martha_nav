@@ -93,7 +93,7 @@ def test_cli_names_the_csv_after_its_sources_and_honours_episodes(tmp_path, monk
     monkeypatch.setattr(evaluate, 'run_episodes', lambda model, cfg, seeds, n_envs: played.append(
         len(seeds)) or [{'episode_seed': s, 'outcome': 'success', 'spl': 1.0} for s in seeds])
     model = str(tmp_path / 'best_model.zip')
-    evaluate.main(['--model', model, '--episodes', '3'])
+    assert evaluate.main(['--model', model, '--episodes', '3']) is None     # evaluate_2d exits 0
     evaluate.main(['--model', model, '--episodes', '3', '--sources', 'room', 'hall', 'tube'])
     evaluate.main(['--model', model, '--points', 'lab', '--episodes', '500'])
     evaluate.main(['--model', model, '--points', 'lab'])

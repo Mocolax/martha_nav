@@ -6,9 +6,11 @@ from martha_nav.sim2d.observation import OBS_DIM
 
 
 def test_train_smoke(tmp_path):
-    run_dir = train_main(['--preset', 'gate', '--arch', 'cnn', '--steps', '2048', '--n-envs', '2',
-                          '--eval-every', '1024', '--eval-episodes', '2',
-                          '--runs-dir', str(tmp_path), '--name', 'smoke'])
+    status = train_main(['--preset', 'gate', '--arch', 'cnn', '--steps', '2048', '--n-envs', '2',
+                         '--eval-every', '1024', '--eval-episodes', '2',
+                         '--runs-dir', str(tmp_path), '--name', 'smoke'])
+    assert status is None               # train_policy exits 0 (sys.exit(main()))
+    run_dir = tmp_path / 'smoke'
     for f in ('config.yaml', 'episodes.csv', 'evals.csv', 'best_model.zip', 'last_model.zip',
               'vecnormalize.pkl'):
         assert (run_dir / f).exists(), f

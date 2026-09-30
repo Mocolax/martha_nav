@@ -139,7 +139,6 @@ def main(argv=None):
     print(f'{args.condition}: episodes={s["episodes"]} success={s["success"]:.3f} '
           f'[{s["success_ci"][0]:.3f}, {s["success_ci"][1]:.3f}] collision={s["collision"]:.3f} '
           f'timeout={s["timeout"]:.3f} stalled={s["stalled"]:.3f} spl={s["spl"]:.3f} -> {out}')
-    return s
 
 
 if __name__ == '__main__':

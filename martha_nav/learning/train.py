@@ -188,7 +188,6 @@ def main(argv=None):
     venv.close()
     minutes = (time.time() - start) / 60
     print(f'done: {steps} steps in {minutes:.1f} min ({steps / (minutes * 60):.0f} steps/s) -> {run_dir}')
-    return run_dir
 
 
 if __name__ == '__main__':
