@@ -32,8 +32,9 @@ def test_executables_say_what_they_do():
         assert callable(importlib.import_module(module).main)
 
 
-def test_the_launch_file_runs_installed_executables():
+def test_the_launch_files_run_installed_executables():
     import re
-    launched = re.findall(r"package='martha_nav', executable='(\w+)'",
-                          (REPO / 'launch' / 'sim.launch.py').read_text())
-    assert launched and set(launched) <= set(entry_points())
+    for launch in ('sim.launch.py', 'real.launch.py'):
+        launched = re.findall(r"package='martha_nav', executable='(\w+)'",
+                              (REPO / 'launch' / launch).read_text())
+        assert launched and set(launched) <= set(entry_points()), launch
