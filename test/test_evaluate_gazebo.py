@@ -34,12 +34,21 @@ def test_episodes_end_by_the_2d_rules_in_their_order():
     moving.update(1.0, 0.0)
     for _ in range(150):                               # 15 s pacing on the spot
         stuck.update(0.0, 0.0)
-    assert episode_outcome(True, 'succeeded', stuck, limit, limit, 15.0) == 'collision'
-    assert episode_outcome(False, 'succeeded', stuck, limit, limit, 15.0) == 'success'
-    assert episode_outcome(False, 'failed', moving, 1.0, limit, 15.0) == 'failed'
-    assert episode_outcome(False, 'active', stuck, limit, limit, 15.0) == 'stalled'
-    assert episode_outcome(False, 'active', moving, limit, limit, 15.0) == 'timeout'
-    assert episode_outcome(False, 'active', moving, limit - 0.1, limit, 15.0) is None
+    assert episode_outcome(True, 'succeeded', 0.2, stuck, limit, limit, 15.0) == 'collision'
+    assert episode_outcome(False, 'succeeded', 0.2, stuck, limit, limit, 15.0) == 'success'
+    assert episode_outcome(False, 'failed', 3.0, moving, 1.0, limit, 15.0) == 'failed'
+    assert episode_outcome(False, 'active', 3.0, stuck, limit, limit, 15.0) == 'stalled'
+    assert episode_outcome(False, 'active', 3.0, moving, limit, limit, 15.0) == 'timeout'
+    assert episode_outcome(False, 'active', 3.0, moving, limit - 0.1, limit, 15.0) is None
+
+
+def test_a_goal_reached_only_by_the_localization_is_lost_not_a_success():
+    """Under SLAM the planner says 'succeeded' from the estimated pose; the true pose decides."""
+    from martha_nav.ros.evaluate_gazebo import episode_outcome
+    from martha_nav.sim2d.planner import Path, RouteProgress
+    progress = RouteProgress(Path([[0.0, 0.0], [4.0, 0.0]]))
+    assert episode_outcome(False, 'succeeded', 0.45, progress, 10.0, 60.0, 15.0) == 'success'
+    assert episode_outcome(False, 'succeeded', 2.0, progress, 10.0, 60.0, 15.0) == 'lost'
 
 
 @pytest.fixture
@@ -61,17 +70,25 @@ def test_episode_time_is_simulated_time(evaluate_gazebo_node):
 
 def test_the_goal_is_cancelled_before_the_teleport(evaluate_gazebo_node):
     """Otherwise the planner resumes the previous goal and the robot leaves the start."""
+    from martha_nav.sim2d.scenarios import generate
     node, calls = evaluate_gazebo_node, []
-    for name in ('cancel_goal', 'teleport', 'set_initial_pose', 'spawn_obstacles',
+    for name in ('cancel_goal', 'set_initial_pose', 'spawn_obstacles',
                  'spawn_goal_marker', 'clear_obstacles', 'spin'):
         setattr(node, name, lambda *a, name=name: calls.append(name) or [])
     node.send_goal = lambda goal: setattr(node, 'status', 'failed')
+    node.position = (99.0, 99.0)                       # where the last episode left it
+    node.teleport = lambda x, y, yaw: calls.append('teleport')
+    node.spin = lambda seconds: (calls.append('spin'), 'teleport' in calls
+                                 and setattr(node, 'position', (x0, y0)))
+    x0, y0, _ = generate(node.seeds[0], node.cfg).start
     row = node.run_episode(node.seeds[0])
     assert row['outcome'] == 'failed'
     assert calls.index('cancel_goal') < calls.index('teleport')
     # A teleport is a kidnapping for a localizer: tell it where the robot is, as an
     # operator does in RViz before the demo.
     assert calls.index('teleport') < calls.index('set_initial_pose')
+    # ...but only once Gazebo shows it there, or the localizer reads the jump as odometry.
+    assert 'spin' in calls[calls.index('teleport'):calls.index('set_initial_pose')]
     assert {'loc_err_mean', 'loc_err_max', 'yaw_err_max_deg'} <= set(row)
 
 

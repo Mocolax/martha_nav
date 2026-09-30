@@ -56,12 +56,16 @@ CYLINDER_SDF = """<?xml version="1.0"?>
 </geometry></visual></link></model></sdf>"""
 
 
-def episode_outcome(contact, status, progress, elapsed, time_limit, no_progress_time):
-    """NavEnv's end rules in its order, or None while the episode goes on."""
+REACHED = 0.5          # m: the planner's 0.3 m goal tolerance plus the localization error
+
+
+def episode_outcome(contact, status, to_goal, progress, elapsed, time_limit, no_progress_time):
+    """NavEnv's end rules in its order, or None while the episode goes on. to_goal is the true
+    distance: under SLAM the planner succeeds on the estimated pose, which may be wrong."""
     if contact:
         return 'collision'
     if status == 'succeeded':
-        return 'success'
+        return 'success' if to_goal <= REACHED else 'lost'
     if status == 'failed':
         return 'failed'
     if progress.seconds_without_progress >= no_progress_time:
@@ -235,6 +239,9 @@ class EvaluateGazebo(Node):
         scenario = generate(seed, self.cfg)
         self.cancel_goal()                      # or the robot drives the last goal from here
         self.teleport(*scenario.start)
+        while self.position is None or math.dist(self.position, scenario.start[:2]) > 0.05:
+            self.spin(0.05)                     # or the localizer reads the jump as odometry
+        self.spin(0.2)
         self.set_initial_pose(*scenario.start)
         names = self.spawn_obstacles(scenario.obstacles) + self.spawn_goal_marker(scenario.goal)
         self.spin(self.settle)
@@ -254,7 +261,8 @@ class EvaluateGazebo(Node):
                 estimate = self.estimated_pose()
                 if estimate is not None:
                     errors.append(localization_error(estimate, (*self.position, self.yaw)))
-            outcome = episode_outcome(self.contact, self.status, progress, now - start,
+            outcome = episode_outcome(self.contact, self.status,
+                                      math.dist(self.position, scenario.goal), progress, now - start,
                                       time_limit, self.no_progress)
         self.clear_obstacles(names)
         return {'episode_seed': seed, 'outcome': outcome, 'source': scenario.source,
