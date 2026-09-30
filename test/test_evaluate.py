@@ -101,3 +101,20 @@ def test_cli_names_the_csv_after_its_sources_and_honours_episodes(tmp_path, monk
     assert sorted(p.name for p in tmp_path.glob('eval_*.csv')) == [
         'eval_obstacles_lab-points.csv', 'eval_obstacles_room-hall-tube.csv',
         'eval_obstacles_train.csv']
+
+
+def test_evaluation_uses_the_dynamics_the_model_was_trained_with(tmp_path):
+    import json
+    from dataclasses import asdict
+
+    import yaml
+
+    from martha_nav.learning.evaluate import trained_env_config
+    from martha_nav.sim2d.dynamics import WIDE_DYNAMICS, DynamicsRanges
+    model = tmp_path / 'best_model.zip'
+    env = json.loads(json.dumps(asdict(EnvConfig(dynamics=WIDE_DYNAMICS))))   # as train saves it
+    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': env}))
+    assert trained_env_config(model).dynamics == WIDE_DYNAMICS
+    del env['dynamics']['delay']                                     # runs from before the delay
+    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': env}))
+    assert trained_env_config(model).dynamics.delay == DynamicsRanges().delay

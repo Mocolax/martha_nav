@@ -69,3 +69,31 @@ def test_lateral_motion_follows_the_heading():
     for _ in range(11):
         d.step_holonomic(0.0, 0.2, 0.0, never)
     assert abs(d.pose[0] + 0.2) < 0.01          # +y of the robot is -x of the world
+
+
+def test_delay_is_the_number_of_control_periods_before_a_command_acts():
+    """Gazebo's mecanum obeys in the same period; a real robot may lag more than one."""
+    for delay in (0, 1, 2):
+        d = Dynamics(DynamicsParams(delay=delay))
+        moved = []
+        for _ in range(3):
+            d.step(0.3, 0.0, never)
+            moved.append(d.v > 0.0)
+        assert moved.index(True) == delay
+
+
+def test_default_ranges_draw_nothing_extra():
+    """The delay is only drawn when it varies, so existing episodes stay identical."""
+    rng, reference = np.random.default_rng(0), np.random.default_rng(0)
+    p = sample_params(rng)
+    reference.random(6)                                    # tau x2, acc x2, gain x2
+    assert p.delay == 1 and rng.random() == reference.random()
+
+
+def test_wide_ranges_cover_the_gazebo_mecanum():
+    from martha_nav.sim2d.dynamics import WIDE_DYNAMICS
+    rng = np.random.default_rng(0)
+    samples = [sample_params(rng, WIDE_DYNAMICS) for _ in range(300)]
+    assert {p.delay for p in samples} == {0, 1, 2}
+    assert max(p.acc_v for p in samples) > 2.5 and max(p.acc_w for p in samples) > 6.5
+    assert min(p.tau_v for p in samples) < 0.05

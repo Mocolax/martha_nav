@@ -19,6 +19,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNorma
 
 from martha_nav.learning.evaluate import run_episodes, summarize
 from martha_nav.learning.policy import policy_kwargs
+from martha_nav.sim2d.dynamics import WIDE_DYNAMICS
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
 from martha_nav.sim2d.scenarios import TRAIN_SOURCES
 
@@ -117,7 +118,8 @@ def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, target='carrot', progress_mode='route'):
+                 action_dim=2, stuck_signal=False, target='carrot', progress_mode='route',
+                 wide_dynamics=False):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
@@ -127,6 +129,8 @@ def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
     if stalled is not None:
         reward = replace(reward, stalled=stalled)
     reward = replace(reward, progress_mode=progress_mode)
+    if wide_dynamics:
+        cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
     return replace(cfg, reward=reward, lidar_encoding=lidar_encoding, action_dim=action_dim,
                    stuck_signal=stuck_signal, target=target,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
@@ -157,6 +161,8 @@ def main(argv=None):
                     help='progress along the A* route, or drop in geodesic distance to the goal')
     ap.add_argument('--stuck-signal', action='store_true',
                     help='add the time without advancing to the observation')
+    ap.add_argument('--wide-dynamics', action='store_true',
+                    help='delay 0-2 periods and faster responses, which cover the Gazebo mecanum')
     ap.add_argument('--recurrent', action='store_true',
                     help='train with an LSTM policy (RecurrentPPO); slower per step')
     args = ap.parse_args(argv)
@@ -167,7 +173,7 @@ def main(argv=None):
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
                            args.lidar_encoding, args.action_dim, args.stuck_signal,
-                           args.target, args.reward_progress)
+                           args.target, args.reward_progress, args.wide_dynamics)
     config = {'preset': args.preset, 'arch': args.arch, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,

@@ -14,6 +14,12 @@ class DynamicsRanges:
     acc_v: tuple = (0.3, 1.0)     # m/s^2
     acc_w: tuple = (1.0, 3.0)     # rad/s^2
     gain: tuple = (0.9, 1.1)
+    delay: tuple = (1, 1)         # control periods before a command acts, inclusive
+
+
+# Also covers Gazebo's mecanum, which obeys in the same period with 2.5 m/s^2 and
+# 6.5 rad/s^2 (docs/resultados.md, "Por qué se atasca más en Gazebo").
+WIDE_DYNAMICS = DynamicsRanges(tau=(0.02, 0.4), acc_v=(0.3, 3.0), acc_w=(1.0, 7.0), delay=(0, 2))
 
 
 @dataclass
@@ -24,18 +30,22 @@ class DynamicsParams:
     acc_w: float = 3.0
     gain_v: float = 1.0
     gain_w: float = 1.0
+    delay: int = 1
 
 
 def sample_params(rng, r=DynamicsRanges()):
-    return DynamicsParams(
+    p = DynamicsParams(
         tau_v=rng.uniform(*r.tau), tau_w=rng.uniform(*r.tau),
         acc_v=rng.uniform(*r.acc_v), acc_w=rng.uniform(*r.acc_w),
         gain_v=rng.uniform(*r.gain), gain_w=rng.uniform(*r.gain),
     )
+    # Drawn only when it varies, so a fixed delay leaves the episodes as they were.
+    p.delay = int(r.delay[0] if r.delay[0] == r.delay[1] else rng.integers(r.delay[0], r.delay[1] + 1))
+    return p
 
 
 class Dynamics:
-    """Integrates the robot pose; the command sent at step k acts at step k+1."""
+    """Integrates the robot pose; the command sent at step k acts at step k + delay."""
 
     def __init__(self, params, dt=DT, substeps=SUBSTEPS):
         self.p = params
@@ -48,7 +58,7 @@ class Dynamics:
         self.v = 0.0
         self.vy = 0.0
         self.w = 0.0
-        self.pending = (0.0, 0.0, 0.0)
+        self.pending = [(0.0, 0.0, 0.0)] * self.p.delay    # commands still on their way
 
     def _approach(self, current, target, tau, acc):
         alpha = 1.0 - np.exp(-self.h / tau)
@@ -66,10 +76,11 @@ class Dynamics:
         Returns True on collision; the pose then stays at the last free pose
         and the velocities are zeroed.
         """
-        target_v = self.p.gain_v * self.pending[0]
-        target_vy = self.p.gain_v * self.pending[1]
-        target_w = self.p.gain_w * self.pending[2]
-        self.pending = (cmd_v, cmd_vy, cmd_w)
+        self.pending.append((cmd_v, cmd_vy, cmd_w))
+        acting_v, acting_vy, acting_w = self.pending.pop(0)
+        target_v = self.p.gain_v * acting_v
+        target_vy = self.p.gain_v * acting_vy
+        target_w = self.p.gain_w * acting_w
         for _ in range(self.substeps):
             self.v = self._approach(self.v, target_v, self.p.tau_v, self.p.acc_v)
             self.vy = self._approach(self.vy, target_vy, self.p.tau_v, self.p.acc_v)

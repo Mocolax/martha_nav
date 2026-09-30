@@ -9,6 +9,7 @@ import yaml
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from martha_nav.learning.policy import is_recurrent
+from martha_nav.sim2d.dynamics import DynamicsRanges
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
 from martha_nav.sim2d.scenarios import CONDITIONS, TRAIN_SOURCES, point_pairs
 
@@ -88,8 +89,9 @@ def trained_env_config(model_path):
     if not config:
         return EnvConfig()
     saved = config['env']
+    dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})
     # Runs trained before these options existed used the linear encoding and (v, w).
-    return EnvConfig(lidar_encoding=saved.get('lidar_encoding', 'linear'),
+    return EnvConfig(dynamics=dynamics, lidar_encoding=saved.get('lidar_encoding', 'linear'),
                      action_dim=saved.get('action_dim', 2),
                      stuck_signal=saved.get('stuck_signal', False),
                      target=saved.get('target', 'carrot'))

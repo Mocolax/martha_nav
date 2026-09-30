@@ -53,3 +53,10 @@ def test_recurrent_flag_selects_recurrent_ppo(tmp_path):
         assert model.policy.lstm_actor.hidden_size > 0
     finally:
         venv.close()
+
+
+def test_wide_dynamics_flag_reaches_the_env_config():
+    from martha_nav.learning.train import build_config
+    from martha_nav.sim2d.dynamics import WIDE_DYNAMICS, DynamicsRanges
+    assert build_config('full').dynamics == DynamicsRanges()
+    assert build_config('full', wide_dynamics=True).dynamics == WIDE_DYNAMICS
