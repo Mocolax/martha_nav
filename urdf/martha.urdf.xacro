@@ -1,9 +1,8 @@
 <?xml version="1.0"?>
 <!-- Martha for martha_nav. Derived from martha/urdf/learning.xacro, keeping its
-     geometry and dropping what this package does not use, namely namespaces and
-     frame prefixes (one robot), the IMU, the mecanum wheels with their rollers and
-     the ros2_control stack. The policy drives /cmd_vel through planar_move, so the
-     wheels are decoration that also holds the chassis off the floor.
+     geometry, its mecanum wheels with rollers and its ros2_control stack, and dropping
+     what this package does not use, namely namespaces and frame prefixes (one robot)
+     and the IMU. The drive argument below swaps the mecanum wheels for planar_move.
 
      Geometry must match martha_nav/sim2d/geometry.py, with a footprint of
      0.56 x 0.41 m and the LiDAR 0.2325 m ahead of base_link.
@@ -274,9 +273,9 @@
                      `gz sdf -p /tmp/martha.urdf | grep "<collision name"`. -->
                 <collision>base_link_fixed_joint_lump__contact_shell_collision_collision</collision>
             </contact>
-            <!-- No remapping here on purpose. The launch file does it instead, because
-                 a remapping rule inside the URDF would also reach the parameter override
-                 rule described at the top of this file. -->
+            <!-- Publishes on /bumper_states, where evaluate_gazebo listens. No remapping
+                 here on purpose, because a remapping rule inside the URDF would also reach
+                 the parameter override rule described at the top of this file. -->
             <plugin name="gazebo_ros_bumper" filename="libgazebo_ros_bumper.so">
                 <frame_name>base_link</frame_name>
             </plugin>
@@ -310,7 +309,7 @@
                 </noise>
             </ray>
             <!-- Publishes on /gazebo_ros_lidar/out; the launch file remaps it to /scan
-                 (see the bumper comment above for why there is no remapping here). -->
+                 for the policy (see the bumper comment above for why not here). -->
             <plugin name="gazebo_ros_lidar" filename="libgazebo_ros_ray_sensor.so">
                 <output_type>sensor_msgs/LaserScan</output_type>
                 <frame_name>lidar</frame_name>

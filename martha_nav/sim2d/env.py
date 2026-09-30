@@ -74,8 +74,7 @@ class NavEnv(gym.Env):
             self.episode_seed = int(self.np_random.integers(TRAIN_SEED_LIMIT))
         self.sc = generate(self.episode_seed, self.cfg.scenario)
         self.rng = np.random.default_rng([self.episode_seed, 1])
-        self.dyn = Dynamics(sample_params(self.rng, self.cfg.dynamics),
-                            holonomic=self.cfg.action_dim == 3)
+        self.dyn = Dynamics(sample_params(self.rng, self.cfg.dynamics))
         self.dyn.reset(self.sc.start)
         self.lookahead = self.rng.uniform(*self.cfg.carrot_range)
         self.lidar_sigma = self.rng.uniform(*self.cfg.lidar_noise)

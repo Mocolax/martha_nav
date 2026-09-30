@@ -57,14 +57,14 @@ def test_sampled_params_stay_in_ranges():
 
 
 def test_lateral_command_moves_the_robot_sideways():
-    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100), holonomic=True)
+    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100))
     for _ in range(11):
         d.step_holonomic(0.0, 0.2, 0.0, never)
     assert abs(d.pose[1] - 0.2) < 0.01 and abs(d.pose[0]) < 1e-9
 
 
 def test_lateral_motion_follows_the_heading():
-    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100), holonomic=True)
+    d = Dynamics(DynamicsParams(tau_v=0.01, tau_w=0.01, acc_v=100, acc_w=100))
     d.reset([0.0, 0.0, np.pi / 2])
     for _ in range(11):
         d.step_holonomic(0.0, 0.2, 0.0, never)

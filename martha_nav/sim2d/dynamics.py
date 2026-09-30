@@ -1,4 +1,5 @@
-"""Unicycle (v, w) model with first-order lag, acceleration limits and 1-step delay."""
+"""Planar motion, (v, w) or holonomic (vx, vy, w), with first-order lag, acceleration limits
+and a 1-step delay."""
 from dataclasses import dataclass
 
 import numpy as np
@@ -36,11 +37,10 @@ def sample_params(rng, r=DynamicsRanges()):
 class Dynamics:
     """Integrates the robot pose; the command sent at step k acts at step k+1."""
 
-    def __init__(self, params, dt=DT, substeps=SUBSTEPS, holonomic=False):
+    def __init__(self, params, dt=DT, substeps=SUBSTEPS):
         self.p = params
         self.h = dt / substeps
         self.substeps = substeps
-        self.holonomic = holonomic
         self.reset(np.zeros(3))
 
     def reset(self, pose):

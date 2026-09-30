@@ -23,7 +23,6 @@ from martha_nav.ros.world_speed import create_scaled_world
 # The sensor plugins keep their default topics so the URDF has no ":=" in it
 # (gazebo_ros2_control cannot parse a robot_description containing one).
 SCAN_TOPIC = '/gazebo_ros_lidar/out'
-BUMPER_TOPIC = '/gazebo_ros_bumper/bumper_states'
 # With the mecanum drive the odometry comes from the controller, not from planar_move.
 MECANUM_ODOM = '/mecanum_drive_controller/odometry'
 MECANUM_ODOM_TF = '/mecanum_drive_controller/tf_odometry'

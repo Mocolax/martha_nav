@@ -113,7 +113,6 @@ def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
                   learning_rate=lambda f: LEARNING_RATE * f, **PPO_PARAMS)
     if not recurrent:
         return PPO('MlpPolicy', venv, **kwargs)
-    # RecurrentPPO needs the batch to be a whole number of environments.
     return RecurrentPPO('MlpLstmPolicy', venv, **kwargs)
 
 
