@@ -34,6 +34,7 @@ setup(
             'ppo_local_planner = martha_nav.ros.ppo_local_planner:main',
             'mecanum_cmd_vel_bridge = martha_nav.ros.mecanum_cmd_vel_bridge:main',
             'evaluate_gazebo = martha_nav.ros.evaluate_gazebo:main',
+            'esp32_bridge = martha_nav.ros.esp32_bridge:main',
         ],
     },
 )

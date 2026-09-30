@@ -13,8 +13,8 @@ def test_worlds_copied():
     assert names == ['four_rooms', 'hall', 'lab', 'multi', 'roblab', 'room', 'tube']
 
 
-EXECUTABLES = ['evaluate_2d', 'evaluate_gazebo', 'gazebo_ground_truth_tf', 'global_planner',
-               'mecanum_cmd_vel_bridge', 'ppo_local_planner', 'train_policy',
+EXECUTABLES = ['esp32_bridge', 'evaluate_2d', 'evaluate_gazebo', 'gazebo_ground_truth_tf',
+               'global_planner', 'mecanum_cmd_vel_bridge', 'ppo_local_planner', 'train_policy',
                'world_map_publisher']
 
 
