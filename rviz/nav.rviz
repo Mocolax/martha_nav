@@ -84,6 +84,9 @@ Visualization Manager:
     - Class: rviz_default_plugins/SetGoal
       Topic:
         Value: /goal_pose
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Value: /initialpose
   Value: true
   Views:
     Current:

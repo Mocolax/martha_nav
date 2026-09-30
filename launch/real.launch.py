@@ -46,7 +46,8 @@ def launch_setup(context, *args, **kwargs):
              remappings=[('odometry/filtered', '/odom')]),
         Node(package='rviz2', executable='rviz2', output='screen',
              condition=IfCondition(LaunchConfiguration('rviz')),
-             arguments=['-d', str(share / 'rviz' / 'nav.rviz')]),
+             arguments=['-d', str(share / 'rviz' / 'nav.rviz')],
+             remappings=[('/gazebo_ros_lidar/out', '/scan')]),
     ]
     if not saved_map:
         return actions + [slam_toolbox('mapping', '/scan', use_sim_time=False)]

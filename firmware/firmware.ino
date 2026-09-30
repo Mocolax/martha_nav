@@ -106,7 +106,7 @@ void handle(const char *line) {
     lastCmdMs = millis();
     cmdActive = true;
   } else if (strcmp(line, "reset") == 0) {
-    arm(BATTERY_RESET);
+    if (latched) arm(BATTERY_RESET); else Serial.println("ready");
   }
 }
 
@@ -148,7 +148,7 @@ void control() {
     reportCounts[i] += counts;
     if (counts != 0 || refRpm[i] != 0) lastMotionMs = millis();
     const float rpm = counts / COUNTS_PER_REV * 60.0f / dt;
-    drive(i, MOTOR_SIGN[i] * wheelPI[i].update(refRpm[i] - rpm, dt));
+    drive(i, cmdActive ? MOTOR_SIGN[i] * wheelPI[i].update(refRpm[i] - rpm, dt) : 0);
   }
 
   battery += dt / 0.5f * (readBattery() - battery);  // 0.5 s low-pass
