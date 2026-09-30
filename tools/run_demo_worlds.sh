@@ -5,7 +5,7 @@
 #   ./tools/run_demo_worlds.sh                       # 10 episodes per world, headless
 #   EPISODES=5 GUI=true WORLDS=lab ./tools/run_demo_worlds.sh
 #
-# For each world it starts sim.launch.py, waits for the policy, runs gazebo_eval on
+# For each world it starts sim.launch.py, waits for the policy, runs evaluate_gazebo on
 # the reserved seeds, tears the simulation down and moves on. The episodes are the
 # ones the 2D simulator plays for those seeds, so the numbers are comparable.
 cd "$(dirname "$0")/.."
@@ -52,7 +52,7 @@ print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
   LAUNCH_PID=$!
 
   until grep -q 'policy loaded' "$log" 2>/dev/null; do
-    grep -q 'policy_node.*process has died' "$log" 2>/dev/null &&
+    grep -q 'ppo_local_planner.*process has died' "$log" 2>/dev/null &&
       { say "$world: la política no cargó, ver $log"; stop_sim; return 1; }
     sleep 2
     waited=$((waited + 2))
@@ -61,7 +61,7 @@ print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
   sleep 5                                  # let the first scan and the map arrive
 
   say "$world: $EPISODES episodios"
-  ros2 run martha_nav gazebo_eval --ros-args -p world:="$world" -p mode:=seeds \
+  ros2 run martha_nav evaluate_gazebo --ros-args -p world:="$world" -p mode:=seeds \
     -p condition:="$CONDITION" -p episodes:="$EPISODES" -p out:="$OUT/demo_$world.csv" \
     2>&1 | grep -E 'seed |done:'
   stop_sim

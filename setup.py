@@ -26,12 +26,14 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'map_publisher = martha_nav.ros.map_publisher:main',
-            'ground_truth_tf = martha_nav.ros.ground_truth_tf:main',
-            'planner_node = martha_nav.ros.planner_node:main',
-            'policy_node = martha_nav.ros.policy_node:main',
-            'cmd_vel_bridge = martha_nav.ros.cmd_vel_bridge:main',
-            'gazebo_eval = martha_nav.ros.gazebo_eval:main',
+            'train_policy = martha_nav.learning.train:main',
+            'evaluate_2d = martha_nav.learning.evaluate:main',
+            'world_map_publisher = martha_nav.ros.world_map_publisher:main',
+            'gazebo_ground_truth_tf = martha_nav.ros.gazebo_ground_truth_tf:main',
+            'global_planner = martha_nav.ros.global_planner:main',
+            'ppo_local_planner = martha_nav.ros.ppo_local_planner:main',
+            'mecanum_cmd_vel_bridge = martha_nav.ros.mecanum_cmd_vel_bridge:main',
+            'evaluate_gazebo = martha_nav.ros.evaluate_gazebo:main',
         ],
     },
 )

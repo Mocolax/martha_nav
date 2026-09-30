@@ -1,10 +1,10 @@
-"""planner_node's publishing order and goal cancellation, without TF or a map topic."""
+"""global_planner's publishing order and goal cancellation, without TF or a map topic."""
 import pytest
 import rclpy
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Empty
 
-from martha_nav.ros.planner_node import PlannerNode
+from martha_nav.ros.global_planner import GlobalPlanner
 from martha_nav.sim2d.geometry import empty_grid
 
 
@@ -19,7 +19,7 @@ class Recorder:
 @pytest.fixture
 def node():
     rclpy.init()
-    node = PlannerNode()
+    node = GlobalPlanner()
     node.core.set_map(empty_grid(8.0, 4.0))
     node.pose = lambda: (1.0, 2.0)
     node.log = []
@@ -55,7 +55,7 @@ def test_cancel_clears_the_route_and_reports_idle(node):
 
 
 def test_every_cancel_is_acknowledged(node):
-    """gazebo_eval waits for 'idle' after each cancel, even when nothing was running."""
+    """evaluate_gazebo waits for 'idle' after each cancel, even when nothing was running."""
     node.on_cancel(Empty())
     node.on_cancel(Empty())
     assert [msg.data for name, msg in node.log if name == 'status'] == ['idle', 'idle']

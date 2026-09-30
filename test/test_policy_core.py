@@ -150,7 +150,7 @@ def test_recurrent_policy_keeps_its_state_between_ticks_and_resets_on_a_new_rout
     angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
     for _ in range(3):
         core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
-    core.reset()                                    # policy_node calls this when the episode ends
+    core.reset()                                    # ppo_local_planner calls this when the episode ends
     core.compute(path, (0.0, 0.0, 0.0), np.full(360, 5.0), angles, (0.0, 0.0))
     assert calls == [(None, True), (1, False), (2, False), (None, True)]
 

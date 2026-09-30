@@ -73,15 +73,15 @@ def launch_setup(context, *args, **kwargs):
         Node(package='robot_state_publisher', executable='robot_state_publisher', output='screen',
              parameters=[{'robot_description': urdf, 'use_sim_time': True}]),
         spawn,
-        Node(package='martha_nav', executable='map_publisher', output='screen',
+        Node(package='martha_nav', executable='world_map_publisher', output='screen',
              parameters=[{'world': LaunchConfiguration('world'), 'use_sim_time': True}]),
-        Node(package='martha_nav', executable='ground_truth_tf', output='screen',
+        Node(package='martha_nav', executable='gazebo_ground_truth_tf', output='screen',
              remappings=odom_remap,
              parameters=[{'use_sim_time': True,
                           'odom_tf_topic': MECANUM_ODOM_TF if drive == 'mecanum' else ''}]),
-        Node(package='martha_nav', executable='planner_node', output='screen',
+        Node(package='martha_nav', executable='global_planner', output='screen',
              parameters=[{'use_sim_time': True}]),
-        Node(package='martha_nav', executable='policy_node', output='screen',
+        Node(package='martha_nav', executable='ppo_local_planner', output='screen',
              remappings=[('/scan', SCAN_TOPIC)] + odom_remap,
              parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'use_sim_time': True}]),
         Node(package='rviz2', executable='rviz2', output='screen',
@@ -102,7 +102,7 @@ def launch_setup(context, *args, **kwargs):
         actions += [
             RegisterEventHandler(OnProcessExit(target_action=spawn, on_exit=[broadcaster])),
             RegisterEventHandler(OnProcessExit(target_action=broadcaster, on_exit=[controller])),
-            Node(package='martha_nav', executable='cmd_vel_bridge', output='screen',
+            Node(package='martha_nav', executable='mecanum_cmd_vel_bridge', output='screen',
                  parameters=[{'use_sim_time': True}]),
         ]
     return actions

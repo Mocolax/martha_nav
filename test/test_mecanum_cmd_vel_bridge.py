@@ -1,7 +1,7 @@
 from builtin_interfaces.msg import Time
 from geometry_msgs.msg import Twist
 
-from martha_nav.ros.cmd_vel_bridge import REFERENCE_TOPIC, to_twist_stamped
+from martha_nav.ros.mecanum_cmd_vel_bridge import REFERENCE_TOPIC, to_twist_stamped
 
 
 def test_conversion_keeps_the_twist_and_stamps_it():

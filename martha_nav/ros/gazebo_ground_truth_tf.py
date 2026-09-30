@@ -18,9 +18,9 @@ def yaw_of(q):
     return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y ** 2 + q.z ** 2))
 
 
-class GroundTruthTf(Node):
+class GazeboGroundTruthTf(Node):
     def __init__(self):
-        super().__init__('ground_truth_tf')
+        super().__init__('gazebo_ground_truth_tf')
         self.model = self.declare_parameter('model_name', 'martha').value
         self.truth = None                      # (x, y, yaw) of base_link in map
         self.broadcaster = TransformBroadcaster(self)
@@ -65,7 +65,7 @@ class GroundTruthTf(Node):
 
 def main():
     rclpy.init()
-    node = GroundTruthTf()
+    node = GazeboGroundTruthTf()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

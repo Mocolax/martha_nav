@@ -1,7 +1,7 @@
-"""Tests for the parts of gazebo_eval that do not need a running Gazebo."""
+"""Tests for the parts of evaluate_gazebo that do not need a running Gazebo."""
 import pytest
 
-from martha_nav.ros.gazebo_eval import BOX_SDF, CYLINDER_SDF
+from martha_nav.ros.evaluate_gazebo import BOX_SDF, CYLINDER_SDF
 from martha_nav.sim2d.scenarios import Obstacle
 
 
@@ -24,7 +24,7 @@ def test_cylinder_sdf_is_well_formed_and_uses_the_radius():
 
 def test_episodes_end_by_the_2d_rules_in_their_order():
     """Collision, then success, then a stall on the route, then the route-length timeout."""
-    from martha_nav.ros.gazebo_eval import episode_outcome
+    from martha_nav.ros.evaluate_gazebo import episode_outcome
     from martha_nav.sim2d.dynamics import DT
     from martha_nav.sim2d.env import episode_steps
     from martha_nav.sim2d.planner import Path, RouteProgress
@@ -43,25 +43,25 @@ def test_episodes_end_by_the_2d_rules_in_their_order():
 
 
 @pytest.fixture
-def gazebo_eval_node():
+def evaluate_gazebo_node():
     import rclpy
 
-    from martha_nav.ros.gazebo_eval import GazeboEval
+    from martha_nav.ros.evaluate_gazebo import EvaluateGazebo
     rclpy.init()
-    node = GazeboEval()
+    node = EvaluateGazebo()
     yield node
     node.destroy_node()
     rclpy.try_shutdown()
 
 
-def test_episode_time_is_simulated_time(gazebo_eval_node):
+def test_episode_time_is_simulated_time(evaluate_gazebo_node):
     """Gazebo rarely runs at exactly 1x; the rules are in seconds of simulation, as in 2D."""
-    assert gazebo_eval_node.get_parameter('use_sim_time').value is True
+    assert evaluate_gazebo_node.get_parameter('use_sim_time').value is True
 
 
-def test_the_goal_is_cancelled_before_the_teleport(gazebo_eval_node):
+def test_the_goal_is_cancelled_before_the_teleport(evaluate_gazebo_node):
     """Otherwise the planner resumes the previous goal and the robot leaves the start."""
-    node, calls = gazebo_eval_node, []
+    node, calls = evaluate_gazebo_node, []
     for name in ('cancel_goal', 'teleport', 'spawn_obstacles', 'spawn_goal_marker',
                  'clear_obstacles', 'spin'):
         setattr(node, name, lambda *a, name=name: calls.append(name) or [])
@@ -74,7 +74,7 @@ def test_goal_marker_has_no_collision():
     """The marker is decoration: a collision would show up in the LiDAR."""
     import xml.etree.ElementTree as ET
 
-    from martha_nav.ros.gazebo_eval import GOAL_SDF
+    from martha_nav.ros.evaluate_gazebo import GOAL_SDF
     model = ET.fromstring(GOAL_SDF).find('model')
     assert model.get('name') == 'goal_marker'
     assert model.find('link/collision') is None
@@ -85,7 +85,7 @@ def test_position_comes_from_gazebo_not_from_odometry():
     """The odometry topic depends on the drive; model_states always exists."""
     import inspect
 
-    from martha_nav.ros import gazebo_eval
-    source = inspect.getsource(gazebo_eval.GazeboEval)
+    from martha_nav.ros import evaluate_gazebo
+    source = inspect.getsource(evaluate_gazebo.EvaluateGazebo)
     assert '/gazebo/model_states' in source
     assert "'/odom'" not in source

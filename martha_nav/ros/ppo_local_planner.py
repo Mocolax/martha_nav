@@ -25,9 +25,9 @@ LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
 STALE = 0.3      # s; older sensor data stops the robot
 
 
-class PolicyNode(Node):
+class PpoLocalPlanner(Node):
     def __init__(self):
-        super().__init__('policy_node')
+        super().__init__('ppo_local_planner')
         checkpoint = self.declare_parameter('checkpoint', '').value
         if not checkpoint:
             raise RuntimeError('parameter "checkpoint" is required')
@@ -132,7 +132,7 @@ class PolicyNode(Node):
 
 def main():
     rclpy.init()
-    node = PolicyNode()
+    node = PpoLocalPlanner()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

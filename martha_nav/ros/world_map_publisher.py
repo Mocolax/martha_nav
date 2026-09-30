@@ -11,9 +11,9 @@ LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      reliability=ReliabilityPolicy.RELIABLE)
 
 
-class MapPublisher(Node):
+class WorldMapPublisher(Node):
     def __init__(self):
-        super().__init__('map_publisher')
+        super().__init__('world_map_publisher')
         world = self.declare_parameter('world', 'lab').value
         frame = self.declare_parameter('frame_id', 'map').value
         msg = grid_to_msg(rasterize_world(world), frame)
@@ -26,7 +26,7 @@ class MapPublisher(Node):
 
 def main():
     rclpy.init()
-    node = MapPublisher()
+    node = WorldMapPublisher()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

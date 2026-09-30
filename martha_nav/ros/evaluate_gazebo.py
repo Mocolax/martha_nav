@@ -1,7 +1,7 @@
 """Episodic evaluation in Gazebo, against a running sim.launch.py.
 
-ros2 run martha_nav gazebo_eval --ros-args -p episodes:=100 -p out:=/tmp/eval.csv
-ros2 run martha_nav gazebo_eval --ros-args -p mode:=points -p out:=/tmp/eval_points.csv
+ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p out:=/tmp/eval.csv
+ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p out:=/tmp/eval_points.csv
 
 mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 "points" plays the hand-placed start/goal pairs of the previous package. Both build
@@ -71,9 +71,9 @@ def episode_outcome(contact, status, progress, elapsed, time_limit, no_progress_
     return None
 
 
-class GazeboEval(Node):
+class EvaluateGazebo(Node):
     def __init__(self):
-        super().__init__('gazebo_eval',
+        super().__init__('evaluate_gazebo',
                          parameter_overrides=[Parameter('use_sim_time', value=True)])
         self.world = self.declare_parameter('world', 'lab').value
         self.mode = self.declare_parameter('mode', 'seeds').value
@@ -251,7 +251,7 @@ class GazeboEval(Node):
 
 def main():
     rclpy.init()
-    node = GazeboEval()
+    node = EvaluateGazebo()
     try:
         node.run()
     except KeyboardInterrupt:

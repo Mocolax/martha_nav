@@ -18,9 +18,9 @@ def to_twist_stamped(twist, frame_id, stamp):
     return msg
 
 
-class CmdVelBridge(Node):
+class MecanumCmdVelBridge(Node):
     def __init__(self):
-        super().__init__('cmd_vel_bridge')
+        super().__init__('mecanum_cmd_vel_bridge')
         self.frame_id = self.declare_parameter('frame_id', 'base_link').value
         output = self.declare_parameter('output_topic', REFERENCE_TOPIC).value
         self.pub = self.create_publisher(TwistStamped, output, 10)
@@ -32,7 +32,7 @@ class CmdVelBridge(Node):
 
 def main():
     rclpy.init()
-    node = CmdVelBridge()
+    node = MecanumCmdVelBridge()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

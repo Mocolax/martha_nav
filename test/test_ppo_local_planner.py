@@ -1,4 +1,4 @@
-"""policy_node's handling of /plan and /nav_status, with a stand-in model."""
+"""ppo_local_planner's handling of /plan and /nav_status, with a stand-in model."""
 import numpy as np
 import pytest
 import rclpy
@@ -6,7 +6,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path as PathMsg
 from std_msgs.msg import String
 
-from martha_nav.ros import policy_node
+from martha_nav.ros import ppo_local_planner
 
 
 class FakeModel:
@@ -25,10 +25,10 @@ def plan(*points):
 
 @pytest.fixture
 def node(monkeypatch):
-    monkeypatch.setattr(policy_node, 'load_model', lambda path: FakeModel())
-    monkeypatch.setattr(policy_node, '_trained_env', lambda path: {})
+    monkeypatch.setattr(ppo_local_planner, 'load_model', lambda path: FakeModel())
+    monkeypatch.setattr(ppo_local_planner, '_trained_env', lambda path: {})
     rclpy.init(args=['--ros-args', '-p', 'checkpoint:=/fake/best_model.zip'])
-    node = policy_node.PolicyNode()
+    node = ppo_local_planner.PpoLocalPlanner()
     yield node
     node.destroy_node()
     rclpy.try_shutdown()

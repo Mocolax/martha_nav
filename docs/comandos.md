@@ -2,7 +2,8 @@
 
 Todo se ejecuta desde la raíz del repo (`~/ros2_ws/src/martha_nav`) en el anfitrión.
 `./tools/ct` corre dentro del contenedor `ros2_humble`; `./tools/ct_ros` además
-hace `source` de ROS 2 Humble. `git` se ejecuta fuera del contenedor.
+hace `source` de ROS 2 Humble y del workspace, así que acepta `ros2 run martha_nav ...`
+directamente. `git` se ejecuta fuera del contenedor.
 
 ```bash
 docker start ros2_humble          # si no está arriba
@@ -10,7 +11,7 @@ docker start ros2_humble          # si no está arriba
 
 ## 1. Pruebas del paquete
 
-Las 132 pruebas, incluidas las que importan mensajes de ROS y `xacro`:
+Todas las pruebas, incluidas las que importan mensajes de ROS y `xacro`:
 
 ```bash
 ./tools/ct_ros python3 -m pytest test -q
@@ -27,16 +28,16 @@ Solo lo del simulador 2D y el aprendizaje, que es más rápido y no necesita ROS
 Puerta de convergencia, ~15 min, sala abierta sin obstáculos (debe pasar de 80%):
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.train --preset gate --arch cnn --seed 0 --name gate_check
+./tools/ct_ros ros2 run martha_nav train_policy --preset gate --arch cnn --seed 0 --name gate_check
 ```
 
 Entrenamiento completo, 5M pasos, todas las fuentes con obstáculos mezclados:
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.train --preset full --arch cnn --seed 0 --name mi_run
+./tools/ct_ros ros2 run martha_nav train_policy --preset full --arch cnn --seed 0 --name mi_run
 ```
 
-Opciones útiles de `train`:
+Opciones útiles de `train_policy`:
 
 | bandera | para qué |
 |---|---|
@@ -53,7 +54,7 @@ Opciones útiles de `train`:
 Lanzarlo en segundo plano y seguir el avance:
 
 ```bash
-nohup ./tools/ct python3 -m martha_nav.learning.train --preset full --arch cnn --seed 0 --name mi_run > runs/mi_run.log 2>&1 &
+nohup ./tools/ct_ros ros2 run martha_nav train_policy --preset full --arch cnn --seed 0 --name mi_run > runs/mi_run.log 2>&1 &
 ```
 
 ```bash
@@ -66,23 +67,23 @@ Un run deja en `runs/<nombre>/`: `config.yaml`, `episodes.csv`, `evals.csv`,
 ## 3. Evaluación determinista en 2D
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.evaluate --model runs/mi_run/best_model.zip --episodes 500 --condition obstacles
+./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/mi_run/best_model.zip --episodes 500 --condition obstacles
 ```
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.evaluate --model runs/mi_run/best_model.zip --episodes 500 --condition clean
+./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/mi_run/best_model.zip --episodes 500 --condition clean
 ```
 
 Generalización al laboratorio, que nunca se entrenó:
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.evaluate --model runs/mi_run/best_model.zip --episodes 200 --condition obstacles --sources lab
+./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/mi_run/best_model.zip --episodes 200 --condition obstacles --sources lab
 ```
 
 Con los puntos fijos del paquete anterior (90 pares de `config/training_points.yaml`):
 
 ```bash
-./tools/ct python3 -m martha_nav.learning.evaluate --model runs/mi_run/best_model.zip --condition obstacles --points lab
+./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/mi_run/best_model.zip --condition obstacles --points lab
 ```
 
 ## 4. Gráficas
@@ -135,7 +136,7 @@ Compilar el paquete (solo hace falta tras tocar `setup.py`, `launch/`, `urdf/`,
 Levantar la simulación con una política cargada, con ventana de Gazebo y RViz:
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 launch martha_nav sim.launch.py world:=lab rviz:=true checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/best_model.zip'
+./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab rviz:=true checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/best_model.zip
 ```
 
 Argumentos del launch: `world` (`lab`, `room`, `hall`, `multi`, `tube`, `four_rooms`,
@@ -145,23 +146,23 @@ Argumentos del launch: `world` (`lab`, `room`, `hall`, `multi`, `tube`, `four_ro
 Mandarle una meta a mano (o con la herramienta *2D Goal Pose* de RViz):
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: map}, pose: {position: {x: 2.0, y: 2.0}, orientation: {w: 1.0}}}"'
+./tools/ct_ros ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: map}, pose: {position: {x: 2.0, y: 2.0}, orientation: {w: 1.0}}}"
 ```
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic echo /nav_status'
+./tools/ct_ros ros2 topic echo /nav_status
 ```
 
 Cancelar la meta (el estado pasa a `idle` y el robot se detiene):
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 topic pub --once /cancel_goal std_msgs/msg/Empty {}'
+./tools/ct_ros ros2 topic pub --once /cancel_goal std_msgs/msg/Empty {}
 ```
 
 RViz por separado, contra una simulación ya levantada:
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 run rviz2 rviz2 -d /home/ros/ros2_ws/src/martha_nav/rviz/nav.rviz --ros-args -p use_sim_time:=true'
+./tools/ct_ros ros2 run rviz2 rviz2 -d /home/ros/ros2_ws/src/martha_nav/rviz/nav.rviz --ros-args -p use_sim_time:=true
 ```
 
 ## 6. Evaluación en Gazebo (E2)
@@ -170,13 +171,13 @@ Con `sim.launch.py` ya corriendo (conviene `gui:=false` para que vaya más rápi
 en **otra terminal**. Las mismas semillas que en 2D, así que la comparación es pareada:
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 run martha_nav gazebo_eval --ros-args -p episodes:=100 -p mode:=seeds -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab.csv'
+./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p mode:=seeds -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab.csv
 ```
 
 Con los puntos fijos del paquete anterior:
 
 ```bash
-./tools/ct_ros bash -c 'source /home/ros/ros2_ws/install/setup.bash && ros2 run martha_nav gazebo_eval --ros-args -p mode:=points -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab_points.csv'
+./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab_points.csv
 ```
 
 O el guion que encadena las dos:
@@ -188,7 +189,7 @@ O el guion que encadena las dos:
 ## 6.1. Demostración en todos los mundos
 
 `tools/run_demo_worlds.sh` recorre los mundos uno por uno: levanta `sim.launch.py`,
-espera a que la política esté cargada, corre unos cuantos episodios con `gazebo_eval`,
+espera a que la política esté cargada, corre unos cuantos episodios con `evaluate_gazebo`,
 cierra Gazebo y pasa al siguiente. Deja un CSV por mundo y una tabla en
 `runs/demo_worlds/resumen.md`.
 

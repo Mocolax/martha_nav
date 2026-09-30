@@ -31,7 +31,7 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 |---|---|
 | `martha_nav/sim2d/` | `geometry.py` (rejilla, raycast), `planner.py` (Dijkstra, zanahoria, inflado 0.40 m), `worlds.py` (rasteriza SDF), `scenarios.py` (plantillas y `generate`), `dynamics.py`, `observation.py`, `reward.py`, `env.py` |
 | `martha_nav/learning/` | `policy.py` (CNN 1D sobre el LiDAR), `train.py`, `evaluate.py` |
-| `martha_nav/ros/` | `planner_node.py`, `policy_node.py`, `map_publisher.py`, `ground_truth_tf.py`, `cmd_vel_bridge.py`, `world_speed.py`, `gazebo_eval.py` |
+| `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `world_map_publisher.py`, `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py` |
 | `urdf/martha.urdf.xacro` | reusado del paquete anterior; `drive:=mecanum\|planar` |
 | `launch/sim.launch.py` | Gazebo + controladores + nodos + RViz opcional |
 | `tools/` | `ct`, `ct_ros`, gráficas y guiones de experimentos |
@@ -61,12 +61,12 @@ nada medible**; el fallo que queda es bloqueo/atasco, no choque.
   como regla de parámetro y se parsea como YAML. Lo vigila `test_urdf.py`.
 - Los comentarios XML no admiten `--`.
 - Con `mecanum_drive_controller` la odometría y el TF salen en topics propios; el launch
-  remapea `/odom` y `ground_truth_tf` reenvía `/mecanum_drive_controller/tf_odometry`.
+  remapea `/odom` y `gazebo_ground_truth_tf` reenvía `/mecanum_drive_controller/tf_odometry`.
 - `libgazebo_ros_state.so` cargado con `-s` no publica solo: `create_scaled_world`
   le inyecta el plugin con `update_rate 50`.
-- `gazebo_eval` toma la posición de `/gazebo/model_states`, no de `/odom` (con mecanum
+- `evaluate_gazebo` toma la posición de `/gazebo/model_states`, no de `/odom` (con mecanum
   ese topic no existe y la regla de atasco quedaba muerta en silencio).
-- La parada de seguridad del `policy_node` congelaba al robot contra las paredes; ahora
+- La parada de seguridad del `ppo_local_planner` congelaba al robot contra las paredes; ahora
   el guardia es **direccional** (clasifica la intrusión por el eje dominante). Eso subió
   Gazebo de 76% a 88%.
 - `evaluate` fija `torch.set_num_threads(4)`: sin eso torch usaba los 24 hilos y dejaba

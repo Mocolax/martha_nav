@@ -19,9 +19,9 @@ LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                      reliability=ReliabilityPolicy.RELIABLE)
 
 
-class PlannerNode(Node):
+class GlobalPlanner(Node):
     def __init__(self):
-        super().__init__('planner_node')
+        super().__init__('global_planner')
         self.core = PlannerCore(
             inflation=self.declare_parameter('inflation', 0.40).value,
             replan_distance=self.declare_parameter('replan_distance', 1.0).value,
@@ -95,7 +95,7 @@ class PlannerNode(Node):
 
 def main():
     rclpy.init()
-    node = PlannerNode()
+    node = GlobalPlanner()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
