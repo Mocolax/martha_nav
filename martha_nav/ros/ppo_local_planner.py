@@ -12,7 +12,7 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
 
-from martha_nav.learning.evaluate import _trained_env, load_model
+from martha_nav.learning.evaluate import load_model, trained_env_config
 from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
@@ -29,17 +29,17 @@ class PpoLocalPlanner(Node):
             raise RuntimeError('parameter "checkpoint" is required')
         torch.set_num_threads(1)
         model = load_model(checkpoint)
-        trained = _trained_env(checkpoint)      # LiDAR encoding and action space of the run
+        trained = trained_env_config(checkpoint)
         self.core = PolicyCore(
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
-            lidar_encoding=trained.get('lidar_encoding', 'inverse'),
-            action_dim=trained.get('action_dim', 2),
-            stuck_signal=trained.get('stuck_signal', False),
-            target=trained.get('target', 'carrot'))
+            lidar_encoding=trained.lidar_encoding,
+            action_dim=trained.action_dim,
+            stuck_signal=trained.stuck_signal,
+            no_progress_time=trained.no_progress_time,
+            target=trained.target)
         self.action_dim = self.core.action_dim
-        self.get_logger().info(f'action space: {self.action_dim}D, '
-                               f"lidar {trained.get('lidar_encoding', 'inverse')}")
+        self.get_logger().info(f'action space: {self.action_dim}D, lidar {trained.lidar_encoding}')
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()

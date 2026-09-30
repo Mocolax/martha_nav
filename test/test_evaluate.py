@@ -1,7 +1,7 @@
 import numpy as np
 
-from martha_nav.learning.evaluate import eval_seeds, run_episodes, summarize, wilson
-from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig
+from martha_nav.learning.evaluate import run_episodes, summarize, wilson
+from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig, eval_seeds
 from martha_nav.sim2d.scenarios import ScenarioConfig
 
 OPEN = EnvConfig(scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none'))
@@ -33,17 +33,18 @@ def test_run_episodes_plays_each_seed_once():
 
 
 def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
-    from martha_nav.learning.evaluate import _trained_env
-    assert _trained_env(tmp_path / 'best_model.zip') == {}                     # no config: defaults
+    from martha_nav.learning.evaluate import trained_env_config
+    model = tmp_path / 'best_model.zip'
+    assert trained_env_config(model) == EnvConfig()                             # no config: defaults
     (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
-    old = _trained_env(tmp_path / 'best_model.zip')                            # before the options
-    assert old == {'lidar_encoding': 'linear', 'action_dim': 2, 'stuck_signal': False,
-                   'target': 'carrot'}
+    old = trained_env_config(model)                                             # before the options
+    assert (old.lidar_encoding, old.action_dim, old.stuck_signal, old.target) == (
+        'linear', 2, False, 'carrot')
     (tmp_path / 'config.yaml').write_text(
         'env:\n  lidar_encoding: inverse\n  action_dim: 3\n  stuck_signal: true\n  target: goal\n')
-    assert _trained_env(tmp_path / 'best_model.zip') == {'lidar_encoding': 'inverse',
-                                                         'action_dim': 3, 'stuck_signal': True,
-                                                         'target': 'goal'}
+    new = trained_env_config(model)
+    assert (new.lidar_encoding, new.action_dim, new.stuck_signal, new.target) == (
+        'inverse', 3, True, 'goal')
 
 
 def test_point_mode_builds_one_episode_per_pair():
@@ -66,7 +67,7 @@ def test_recurrent_models_keep_their_hidden_state():
     from martha_nav.learning.evaluate import run_episodes
 
     class Recurrent:
-        is_recurrent = True
+        policy = type('P', (), {'lstm_actor': object()})()
 
         def __init__(self):
             self.saw_state, self.saw_starts = False, False

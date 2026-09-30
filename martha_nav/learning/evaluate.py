@@ -5,26 +5,17 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import yaml
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig, NavEnv
-from martha_nav.sim2d.scenarios import TRAIN_SOURCES, point_pairs
-
-CONDITIONS = {'clean': 'none', 'obstacles': 'always', 'mixed': 'mixed'}
-
-
-def eval_seeds(n, offset=0):
-    """Evaluation episode seeds; disjoint from training seeds by construction."""
-    return [TRAIN_SEED_LIMIT + offset + i for i in range(n)]
+from martha_nav.learning.policy import is_recurrent
+from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
+from martha_nav.sim2d.scenarios import CONDITIONS, TRAIN_SOURCES, point_pairs
 
 
 def make_vec_env(cfgs):
     fns = [lambda c=c: NavEnv(c) for c in cfgs]
     return DummyVecEnv(fns) if len(fns) == 1 else SubprocVecEnv(fns)
-
-
-def _is_recurrent(model):
-    return getattr(model, 'is_recurrent', False) or 'Recurrent' in type(model).__name__
 
 
 def run_episodes(model, env_cfg, seeds, n_envs=8, deterministic=True):
@@ -35,7 +26,7 @@ def run_episodes(model, env_cfg, seeds, n_envs=8, deterministic=True):
     done_count = [0] * n_envs
     rows = []
     obs = venv.reset()
-    recurrent = _is_recurrent(model)
+    recurrent = is_recurrent(model)
     state, episode_starts = None, np.ones(n_envs, dtype=bool)
     while any(done_count[i] < len(chunks[i]) for i in range(n_envs)):
         if recurrent:
@@ -85,28 +76,28 @@ def write_csv(rows, path):
         writer.writerows(rows)
 
 
-def _trained_env(model_path):
-    """The env must match training: read its settings from the run's config.yaml."""
-    config = Path(model_path).with_name('config.yaml')
-    if not config.exists():
-        return {}
-    import yaml
-    saved = yaml.safe_load(config.read_text())['env']
+def _run_config(model_path):
+    """The config.yaml train wrote next to the model, or {} when there is none."""
+    path = Path(model_path).with_name('config.yaml')
+    return yaml.safe_load(path.read_text()) if path.exists() else {}
+
+
+def trained_env_config(model_path):
+    """The EnvConfig the model was trained with: its observation must match."""
+    config = _run_config(model_path)
+    if not config:
+        return EnvConfig()
+    saved = config['env']
     # Runs trained before these options existed used the linear encoding and (v, w).
-    return {'lidar_encoding': saved.get('lidar_encoding', 'linear'),
-            'action_dim': saved.get('action_dim', 2),
-            'stuck_signal': saved.get('stuck_signal', False),
-            'target': saved.get('target', 'carrot')}
+    return EnvConfig(lidar_encoding=saved.get('lidar_encoding', 'linear'),
+                     action_dim=saved.get('action_dim', 2),
+                     stuck_signal=saved.get('stuck_signal', False),
+                     target=saved.get('target', 'carrot'))
 
 
 def load_model(path):
     """PPO, or RecurrentPPO when the run's config says it was trained with an LSTM."""
-    config = Path(path).with_name('config.yaml')
-    recurrent = False
-    if config.exists():
-        import yaml
-        recurrent = bool(yaml.safe_load(config.read_text()).get('recurrent', False))
-    if recurrent:
+    if _run_config(path).get('recurrent', False):
         from sb3_contrib import RecurrentPPO
         return RecurrentPPO.load(path, device='cpu')
     from stable_baselines3 import PPO
@@ -130,7 +121,7 @@ def main(argv=None):
     ap.add_argument('--out', default=None, help='CSV path (default: next to the model)')
     args = ap.parse_args(argv)
 
-    cfg = EnvConfig(**_trained_env(args.model))
+    cfg = trained_env_config(args.model)
     scenario = replace(cfg.scenario, sources=tuple(args.sources),
                        obstacle_mode=CONDITIONS[args.condition])
     if args.points:

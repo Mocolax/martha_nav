@@ -17,9 +17,9 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
 
-from martha_nav.learning.evaluate import eval_seeds, run_episodes, summarize
+from martha_nav.learning.evaluate import run_episodes, summarize
 from martha_nav.learning.policy import policy_kwargs
-from martha_nav.sim2d.env import EnvConfig, NavEnv
+from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
 from martha_nav.sim2d.scenarios import TRAIN_SOURCES
 
 RUNS_DIR = Path(__file__).resolve().parents[2] / 'runs'

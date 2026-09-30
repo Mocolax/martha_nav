@@ -7,6 +7,7 @@ from nav_msgs.msg import Path as PathMsg
 from std_msgs.msg import String
 
 from martha_nav.ros import ppo_local_planner
+from martha_nav.sim2d.env import EnvConfig
 
 
 class FakeModel:
@@ -26,7 +27,7 @@ def plan(*points):
 @pytest.fixture
 def node(monkeypatch):
     monkeypatch.setattr(ppo_local_planner, 'load_model', lambda path: FakeModel())
-    monkeypatch.setattr(ppo_local_planner, '_trained_env', lambda path: {})
+    monkeypatch.setattr(ppo_local_planner, 'trained_env_config', lambda path: EnvConfig())
     rclpy.init(args=['--ros-args', '-p', 'checkpoint:=/fake/best_model.zip'])
     node = ppo_local_planner.PpoLocalPlanner()
     yield node

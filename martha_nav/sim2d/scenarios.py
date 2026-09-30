@@ -163,6 +163,10 @@ class Obstacle:
             draw_circle(grid, self.x, self.y, self.radius)
 
 
+# Evaluation condition -> ScenarioConfig.obstacle_mode, for evaluate_2d and evaluate_gazebo.
+CONDITIONS = {'clean': 'none', 'obstacles': 'always', 'mixed': 'mixed'}
+
+
 @dataclass
 class ScenarioConfig:
     sources: tuple = TRAIN_SOURCES

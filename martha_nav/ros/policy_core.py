@@ -1,6 +1,7 @@
 """Local-planner logic, without ROS: carrot, observation, action and safety stop."""
 import numpy as np
 
+from martha_nav.learning.policy import is_recurrent
 from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
 from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, WAYPOINT_MAX, action_to_cmd,
                                           build_observation)
@@ -48,7 +49,7 @@ class PolicyCore:
         self.no_progress_time = no_progress_time
         self.target = target
         # An LSTM policy needs its hidden state carried from one tick to the next.
-        self.recurrent = hasattr(getattr(model, 'policy', None), 'lstm_actor')
+        self.recurrent = is_recurrent(model)
         self.reset()
 
     def reset(self):

@@ -23,11 +23,10 @@ from rclpy.parameter import Parameter
 from std_msgs.msg import Empty, String
 
 from martha_nav.ros.common import LATCHED, run_node
-from martha_nav.learning.evaluate import eval_seeds
 from martha_nav.sim2d.dynamics import DT
-from martha_nav.sim2d.env import EnvConfig, episode_steps
+from martha_nav.sim2d.env import EnvConfig, episode_steps, eval_seeds
 from martha_nav.sim2d.planner import RouteProgress
-from martha_nav.sim2d.scenarios import ScenarioConfig, generate, point_pairs
+from martha_nav.sim2d.scenarios import CONDITIONS, ScenarioConfig, generate, point_pairs
 
 BOX_SDF = """<?xml version="1.0"?>
 <sdf version="1.6"><model name="{name}"><static>true</static><link name="link">
@@ -81,8 +80,7 @@ class EvaluateGazebo(Node):
         self.no_progress = self.declare_parameter('no_progress_seconds',
                                                   EnvConfig().no_progress_time).value
 
-        obstacles = {'obstacles': 'always', 'clean': 'none', 'mixed': 'mixed'}[self.condition]
-        self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=obstacles)
+        self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=CONDITIONS[self.condition])
         if self.mode == 'points':
             pairs = point_pairs(self.world)
             self.cfg = replace(self.cfg, point_pairs=pairs)

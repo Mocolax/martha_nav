@@ -17,6 +17,11 @@ from martha_nav.sim2d.scenarios import ScenarioConfig, generate
 TRAIN_SEED_LIMIT = 1_000_000   # training episode seeds are < this; evaluation seeds are >=
 
 
+def eval_seeds(n, offset=0):
+    """Evaluation episode seeds; disjoint from training seeds by construction."""
+    return [TRAIN_SEED_LIMIT + offset + i for i in range(n)]
+
+
 def episode_steps(route_length):
     """Control steps before a timeout: three times the route at full speed, plus 10 s."""
     return int(np.ceil((3 * route_length / V_MAX + 10) / DT))

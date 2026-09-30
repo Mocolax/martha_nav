@@ -39,7 +39,7 @@ run_world () {
   local world=$1 log="$OUT/launch_$1.log" xy waited=0
   # Spawn where the first episode starts, so the robot never appears inside a wall.
   xy=$(python3 -c "
-from martha_nav.learning.evaluate import eval_seeds
+from martha_nav.sim2d.env import eval_seeds
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
 s = generate(eval_seeds(1)[0], ScenarioConfig(sources=('$world',), obstacle_mode='always'))
 print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
