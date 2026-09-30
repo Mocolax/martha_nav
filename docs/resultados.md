@@ -285,3 +285,57 @@ arranca con menos de 0.45 m de holgura y ninguna por debajo del inflado de 0.40 
 > observación sí contiene la evidencia del bloqueo (ordenó avanzar y la velocidad medida es cero),
 > pero una política sin estado no puede encadenar esa evidencia entre pasos. Es el argumento para el
 > brazo S, que añade la señal de atasco explícita a la observación.
+
+## Causa de la brecha de E2: la actuación, no la percepción (2026-09-30)
+
+Los fallos extra de Gazebo en E2 v4 eran atascos. El 2D siempre aplicaba el comando **un periodo
+tarde** y con una dinámica lenta; el `mecanum_drive_controller` de Gazebo obedece en el mismo periodo
+y acelera a 2.5 m/s² y 6.5 rad/s². Jugar el 2D sin retardo y con esas aceleraciones reproduce los
+números de Gazebo (77 % en semillas, 64 % en puntos, con los atascos de Gazebo). El guardia, el
+carrot y la odometría quedaron descartados.
+
+**Confirmación en Gazebo:** el mismo modelo (`long_c_kl_s0`) con `action_delay:=1` en
+`sim.launch.py`, que retiene cada comando un periodo como en el 2D
+(`runs/long_c_kl_s0/eval_gazebo_lab{,_points}_delay1.csv`):
+
+| conjunto | 2D | Gazebo (E2 v4) | Gazebo, `action_delay:=1` |
+|---|---|---|---|
+| semillas (100) | 88 % | 79 % | **87 %** |
+| puntos (90) | 72 % | 68 % | **72 %** |
+
+## Corrección: entrenar con dinámica amplia (`wide_dyn_s0`)
+
+En vez de retrasar el robot real, se entrena para cubrir los dos casos: `train --wide-dynamics`
+aleatoriza el retardo entre 0 y 2 periodos, `tau` 0.02–0.4 s y aceleraciones hasta 3 m/s² y
+7 rad/s² (`WIDE_DYNAMICS`). Misma configuración que `long_c_kl_s0` en lo demás, 5M pasos.
+
+Evaluación 2D estándar: limpio 97.2 %, con obstáculos 89.6 %, `lab` 85.5 %, puntos de `lab` 85.6 %.
+
+E2 en Gazebo **sin** `action_delay` (`runs/wide_dyn_s0/eval_gazebo_lab{,_points}.csv`), pareado
+(McNemar exacto):
+
+| comparación | semillas (100) | puntos (90) |
+|---|---|---|
+| 2D → Gazebo, `wide_dyn_s0` | 84 → 83 % (7 vs 6, p = 1.0) | 86 → 88 % (6 vs 8, p = 0.79) |
+| Gazebo, `long_c_kl_s0` → `wide_dyn_s0` | 79 → 83 % (4 vs 8, p = 0.39) | 68 → **88 %** (0 vs 18, p < 0.001) |
+
+> **Lectura:** con dinámica amplia la brecha 2D → Gazebo desaparece sin retrasar los comandos, y en
+> los puntos fijos el modelo nuevo gana 18 episodios sin perder ninguno. Los atascos en Gazebo bajan
+> a 13 % (semillas) y 7 % (puntos); las colisiones quedan en 3–4 %. `wide_dyn_s0` pasa a ser el
+> modelo de referencia, también para el robot real, cuya actuación no conocemos todavía.
+
+## Localización con slam_toolbox frente a obstáculos fuera del mapa
+
+Mapa de `lab.world` hecho con `tools/map_world.py` (`maps/lab.posegraph`), luego
+`sim.launch.py slam:=localization` y `evaluate_gazebo` comparando la pose de SLAM con la verdadera
+(`runs/long_c_kl_s0/eval_gazebo_lab_slam{_clean,}.csv`, modelo `long_c_kl_s0`, 100 semillas):
+
+| condición | éxito | fallos | error de posición medio / máximo |
+|---|---|---|---|
+| sin obstáculos | 92 % | 8 atascos | 8.5 cm / 2.65 m (un episodio) |
+| 2–4 cajas no mapeadas | 74 % | 23 atascos, 2 timeouts, 1 colisión | 6.9 cm / 0.85 m |
+
+> **Lectura:** las cajas que no están en el mapa no hacen que slam_toolbox se pierda: el error medio
+> se queda en centímetros y los fallos son atascos, como con la pose verdadera (79 % en E2 v4). El
+> pico de 2.65 m sin obstáculos es un episodio aislado aún sin analizar. Queda repetir con
+> `wide_dyn_s0`.
