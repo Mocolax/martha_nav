@@ -252,10 +252,13 @@ En otra terminal, el recorrido por los puntos fijos del mundo, que al final guar
 ./tools/ct_ros python3 tools/map_world.py --world lab --out /home/ros/ros2_ws/src/martha_nav/maps/lab
 ```
 
+Deja `maps/lab.posegraph` y `maps/lab.data` (unos 9 MB). `maps/` no está en git: si no existe,
+este paso lo regenera (unos 2 minutos).
+
 2. Cerrar la simulación y relanzarla localizando con ese mapa:
 
 ```bash
-./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.95 y:=1.35 slam:=localization slam_map:=/home/ros/ros2_ws/src/martha_nav/maps/lab checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/best_model.zip
+./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.95 y:=1.35 slam:=localization slam_map:=/home/ros/ros2_ws/src/martha_nav/maps/lab checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/wide_dyn_s0/best_model.zip
 ```
 
 3. Evaluar sin obstáculos y con ellos (1 a 4 cajas o cilindros cerca de la ruta, que el mapa
