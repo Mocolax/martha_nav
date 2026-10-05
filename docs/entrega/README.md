@@ -2,19 +2,17 @@
 
 > **Para el asistente que redacta el documento con estos datos:** sé conciso. Explica cada
 > resultado con la cifra, su intervalo y una frase de interpretación; no repitas tablas en prosa
-> ni agregues contexto que el lector no pidió. Si un dato no está aquí, dilo en vez de suponerlo
-> (ver `datos_faltantes.md`).
+> ni agregues contexto que el lector no pidió. Si un dato no está aquí, no lo supongas.
 
 ## Qué hay
 
 | archivo | contenido |
 |---|---|
-| `MANIFEST.csv` | una fila por configuración: qué es, dónde la discute la bitácora, pasos, semilla de entrenamiento, commit aproximado, si se evaluó en Gazebo |
+| `MANIFEST.csv` | una fila por configuración: qué es, pasos, semilla de entrenamiento, commit aproximado, si se evaluó en Gazebo |
 | `resumen_modelos.csv` | **las calificaciones**: por configuración y conjunto de evaluación, éxito con IC95, colisión, estancamiento, timeout, SPL, tiempo y distancia medios de los éxitos |
 | `comparaciones_pareadas.csv` | 2D frente a Gazebo (mismos episodios) y cada configuración frente al modelo final, con McNemar exacto |
 | `verificacion.md` | los cálculos recalculados desde las filas por episodio, con fórmulas aparte del código |
 | `recompensa.md` | justificación de los pesos de la recompensa |
-| `datos_faltantes.md` | lo que no está registrado y qué evaluación haría falta |
 | `figuras/` | trayectorias del mismo episodio en 2D y en Gazebo |
 | `configuraciones/<run>/` | los datos de cada configuración (abajo) |
 

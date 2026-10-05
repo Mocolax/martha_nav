@@ -38,10 +38,10 @@ Debe hacer que un episodio que termina en choque valga menos que uno en que el r
 - Con el −10 del primer run, ese mismo choque valía 12 − 10 − 1.7 = **+0.3**: chocar cerca del
   final podía ser rentable. Por eso se pasó a −20.
 
-Evidencia experimental (experimentos A/B/C, `2d_obstaculos`, 500 episodios; cifras de
-`resumen_modelos.csv`): con solo el cambio a −20 (A) el éxito no cambió de forma distinguible del
-ruido (0.366 → 0.342, los IC95 se solapan). La mejora grande vino de la codificación del LiDAR
-(C: 0.716, colisión 0.260 → 0.048). El −20 se mantiene por el argumento de arriba, no porque A lo haya demostrado.
+Evidencia experimental (ajuste previo de la recompensa, 500 episodios con obstáculos): cambiar
+solo el choque de −10 a −20 no movió el éxito de forma distinguible del ruido (0.366 → 0.342, los
+IC95 se solapan). La mejora grande vino de codificar el LiDAR como d/(d+1): éxito 0.716 y colisión
+0.260 → 0.048. El −20 se mantiene por el argumento de arriba.
 
 ## Tiempo: −0.005 por paso
 
@@ -51,11 +51,11 @@ Un robot detenido pierde 0.05 por segundo, poco frente a lo que gana avanzando.
 
 ## Términos desactivados
 
-- **Atasco terminal (−5):** el experimento B lo probó y el éxito con obstáculos cayó a 0.130
-  (frente a 0.342 de A). Un castigo grande comparado con el progreso de los primeros pasos enseña
+- **Atasco terminal (−5):** se probó y el éxito con obstáculos cayó a 0.130 (frente a 0.342
+  sin él). Un castigo grande comparado con el progreso de los primeros pasos enseña
   a no moverse. El estancamiento se mide igual como resultado, pero no se castiga.
 - **Proximidad y giro brusco:** quedaron implementados y en 0. La colisión ya bajó a 0.048 con la
-  codificación del LiDAR (C), así que no hizo falta un castigo por acercarse.
+  codificación d/(d+1) del LiDAR, así que no hizo falta un castigo por acercarse.
 
 ## Hiperparámetros de PPO
 
@@ -63,6 +63,4 @@ Un robot detenido pierde 0.05 por segundo, poco frente a lo que gana avanzando.
 `clip_range` 0.2, `ent_coef` 0, tasa de aprendizaje 3e-4 con decaimiento lineal y
 **`target_kl` 0.02**. El `target_kl` corta las épocas de un lote cuando la política cambia
 demasiado. Sin él, la desviación estándar de la política colapsaba (0.60 → 0.007), cada
-actualización reescribía la política y el mejor modelo aparecía pronto para luego degradarse
-(`resultados.md`, "Por qué empeoraba con el entrenamiento"). Las configuraciones E1, el primer run
-y A/B/C son anteriores a ese arreglo.
+actualización reescribía la política y el mejor modelo aparecía pronto para luego degradarse.

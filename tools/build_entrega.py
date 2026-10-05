@@ -26,26 +26,15 @@ OUTCOME = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado'
 REFERENCE = 'wide_dyn_s0'
 # run, what it is, where the document discusses it, evaluated in Gazebo
 CONFIGS = [
-    ('wide_dyn_s0', 'Modelo final: C + target_kl 0.02 + dinámica amplia (retardo 0-2 periodos)',
+    ('wide_dyn_s0', 'Modelo final: LiDAR d/(d+1), choque -20, target_kl 0.02, dinámica amplia (retardo 0-2 periodos)',
      'resultados.md, "Corrección: entrenar con dinámica amplia"', True),
-    ('long_c_kl_s0', 'Línea base: C + target_kl 0.02, 5M pasos',
+    ('long_c_kl_s0', 'Línea base: LiDAR d/(d+1), choque -20, target_kl 0.02, dinámica fija',
      'resultados.md, "Verificación: long_c_kl_s0"', True),
     ('armG_goal_s0', 'Brazo G: holonómico, la política ve la meta en vez de la zanahoria',
      'resultados-atasco.md, "Brazo G"', True),
     ('armH_holonomic_s0', 'Brazo H: acción holonómica (vx, vy, w)',
      'resultados-noche.md, "Brazo H"', True),
     ('armL_lstm_s0', 'Brazo L: política recurrente (LSTM)', 'resultados-noche.md, "Brazo L"', True),
-    ('e1_cnn_s0', 'E1: CNN, semilla 0 (sin target_kl)', 'ppo-local-planner-design.md, E1', False),
-    ('e1_cnn_s1', 'E1: CNN, semilla 1 (sin target_kl)', 'ppo-local-planner-design.md, E1', False),
-    ('e1_cnn_s2', 'E1: CNN, semilla 2 (sin target_kl)', 'ppo-local-planner-design.md, E1', False),
-    ('full_cnn_s0', 'Primer run completo: LiDAR lineal, choque -10, sin target_kl',
-     'resultados.md, "Primer run completo"', False),
-    ('expA_col20', 'A: primer run + choque -20 (2M pasos)', 'resultados.md, "Experimentos A / B / C"',
-     False),
-    ('expB_col20_stall5', 'B: A + atasco terminal -5 (2M pasos)',
-     'resultados.md, "Experimentos A / B / C"', False),
-    ('expC_col20_inverse', 'C: A + LiDAR d/(d+1) (2M pasos)',
-     'resultados.md, "Experimentos A / B / C"', False),
 ]
 # evaluation set -> (file in v5/, scenario of its episodes)
 SETS = {
@@ -341,14 +330,14 @@ def main():
     for run, desc, doc, gazebo in CONFIGS:
         commit = copy_config(run, gazebo, dest)
         cfg = (ROOT / 'runs' / run / 'config.yaml').read_text()
-        manifest.append({'configuracion': run, 'descripcion': desc, 'documento': doc,
+        manifest.append({'configuracion': run, 'descripcion': desc,
                          'gazebo': 'sí' if gazebo else 'no', 'commit_aproximado': commit,
                          'pasos': next((ln.split()[1] for ln in cfg.splitlines()
                                         if ln.startswith('steps:')), ''),
                          'semilla_entrenamiento': next((ln.split()[1] for ln in cfg.splitlines()
                                                         if ln.startswith('seed:')), '')})
     write(manifest, dest / 'MANIFEST.csv')
-    for doc in (ROOT / 'docs' / 'entrega').glob('*.md'):      # README, recompensa, datos faltantes
+    for doc in (ROOT / 'docs' / 'entrega').glob('*.md'):      # README, recompensa
         shutil.copy2(doc, dest / doc.name)
     summary_table(dest)
     paired_table(dest)
