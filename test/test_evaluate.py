@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from martha_nav.learning.evaluate import run_episodes, summarize, wilson
 from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig, eval_seeds
@@ -91,14 +92,16 @@ def test_cli_names_the_csv_after_its_sources_and_honours_episodes(tmp_path, monk
     played = []
     monkeypatch.setattr(evaluate, 'load_model', lambda path: None)
     monkeypatch.setattr(evaluate, 'run_episodes', lambda model, cfg, seeds, n_envs: played.append(
-        len(seeds)) or [{'episode_seed': s, 'outcome': 'success', 'spl': 1.0} for s in seeds])
+        len(seeds)) or [{'episode_seed': s, 'outcome': 'success', 'spl': 1.0, 'trajectory': []}
+                         for s in seeds])
     model = str(tmp_path / 'best_model.zip')
     assert evaluate.main(['--model', model, '--episodes', '3']) is None     # evaluate_2d exits 0
     evaluate.main(['--model', model, '--episodes', '3', '--sources', 'room', 'hall', 'tube'])
     evaluate.main(['--model', model, '--points', 'lab', '--episodes', '500'])
     evaluate.main(['--model', model, '--points', 'lab'])
     assert played == [3, 3, 500, len(point_pairs('lab'))]
-    assert sorted(p.name for p in tmp_path.glob('eval_*.csv')) == [
+    side = ('_traj.csv', '_route.csv', '_obstacles.csv')
+    assert sorted(p.name for p in tmp_path.glob('eval_*.csv') if not p.name.endswith(side)) == [
         'eval_obstacles_lab-points.csv', 'eval_obstacles_room-hall-tube.csv',
         'eval_obstacles_train.csv']
 
@@ -118,3 +121,28 @@ def test_evaluation_uses_the_dynamics_the_model_was_trained_with(tmp_path):
     del env['dynamics']['delay']                                     # runs from before the delay
     (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': env}))
     assert trained_env_config(model).dynamics.delay == DynamicsRanges().delay
+
+
+def test_cli_writes_each_episode_trajectory_route_and_obstacles(tmp_path, monkeypatch):
+    """Beside the per-episode CSV: what the robot did, the A* route it was given and the boxes."""
+    import csv
+
+    from martha_nav.learning import evaluate
+    from martha_nav.sim2d.scenarios import generate
+    monkeypatch.setattr(evaluate, 'load_model', lambda path: Pursuit())
+    model = str(tmp_path / 'best_model.zip')
+    evaluate.main(['--model', model, '--episodes', '2', '--sources', 'open_room', '--n-envs', '1'])
+    read = lambda name: list(csv.DictReader(open(tmp_path / name)))
+    rows = read('eval_obstacles_open_room.csv')
+    assert 'trajectory' not in rows[0]
+    traj = read('eval_obstacles_open_room_traj.csv')
+    route = read('eval_obstacles_open_room_route.csv')
+    obstacles = read('eval_obstacles_open_room_obstacles.csv')
+    seed = rows[0]['episode_seed']
+    steps = [p for p in traj if p['episode_seed'] == seed]
+    assert len(steps) == int(rows[0]['steps']) + 1
+    sc = generate(int(seed), evaluate.trained_env_config(model).scenario.__class__(
+        sources=('open_room',), obstacle_mode='always'))
+    first = next(p for p in route if p['episode_seed'] == seed and p['i'] == '0')
+    assert (float(first['x']), float(first['y'])) == pytest.approx(tuple(sc.path.points[0]))
+    assert len([o for o in obstacles if o['episode_seed'] == seed]) == len(sc.obstacles)

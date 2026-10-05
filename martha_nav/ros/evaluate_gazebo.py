@@ -12,10 +12,8 @@ in simulated time (the "seconds" column too).
 The loc_err_* columns compare the localization (TF map -> base_link) with Gazebo's
 true pose: zero with sim.launch.py's default, the test with slam:=localization.
 """
-import csv
 import math
 from dataclasses import replace
-from pathlib import Path
 
 import rclpy
 from gazebo_msgs.msg import ContactsState, ModelStates
@@ -26,6 +24,7 @@ from rclpy.parameter import Parameter
 from std_msgs.msg import Empty, String
 from tf2_ros import Buffer, TransformListener
 
+from martha_nav.learning.evaluate import write_csv, write_episode_files
 from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.env import EnvConfig, episode_steps, eval_seeds
@@ -99,7 +98,9 @@ class EvaluateGazebo(Node):
             pairs = point_pairs(self.world)
             self.cfg = replace(self.cfg, point_pairs=pairs)
             episodes = len(pairs)
-        self.seeds = eval_seeds(episodes)
+        # shard:=i/n plays every n-th seed from the i-th: n Gazebos side by side cover the set.
+        i, n = map(int, self.declare_parameter('shard', '0/1').value.split('/'))
+        self.seeds = eval_seeds(episodes)[i::n]
 
         self.goal_pub = self.create_publisher(PoseStamped, '/goal_pose', LATCHED)
         self.cancel_pub = self.create_publisher(Empty, '/cancel_goal', 10)
@@ -251,14 +252,19 @@ class EvaluateGazebo(Node):
         progress = RouteProgress(scenario.path)
         time_limit = episode_steps(scenario.path.length) * DT
         start = sample = now = self.now()
-        outcome, errors = None, []
+        outcome, errors, trajectory, travelled = None, [], [], 0.0
         while outcome is None:
             rclpy.spin_once(self, timeout_sec=0.05)
             now = self.now()
             while self.position is not None and sample + DT <= now:
                 sample += DT
                 progress.update(*self.position)
+                if trajectory:
+                    travelled += math.dist(self.position, (trajectory[-1]['x'], trajectory[-1]['y']))
                 estimate = self.estimated_pose()
+                trajectory.append({'t': round(sample - start, 3), 'x': self.position[0],
+                                   'y': self.position[1], 'yaw': self.yaw,
+                                   **dict(zip(('est_x', 'est_y', 'est_yaw'), estimate or ()))})
                 if estimate is not None:
                     errors.append(localization_error(estimate, (*self.position, self.yaw)))
             outcome = episode_outcome(self.contact, self.status,
@@ -270,6 +276,10 @@ class EvaluateGazebo(Node):
                 'route_length': round(scenario.path.length, 3),
                 'shortest': round(scenario.shortest, 3),
                 'seconds': round(now - start, 2),
+                'travelled': round(travelled, 3),
+                'spl': (round(scenario.shortest / max(scenario.shortest, travelled), 3)
+                        if outcome == 'success' else 0.0),
+                'trajectory': trajectory,
                 'loc_err_mean': round(sum(e for e, _ in errors) / len(errors), 3) if errors else None,
                 'loc_err_max': round(max(e for e, _ in errors), 3) if errors else None,
                 'yaw_err_max_deg': round(math.degrees(max(y for _, y in errors)), 1) if errors else None}
@@ -285,16 +295,13 @@ class EvaluateGazebo(Node):
                 f'{done}/{len(self.seeds)} seed {seed}: {row["outcome"]} (éxito {share:.2%})')
             self.write(rows)
         self.cancel_goal()
+        write_episode_files(rows, self.cfg, self.out)
         counts = {o: sum(r['outcome'] == o for r in rows) / len(rows)
                   for o in sorted({r['outcome'] for r in rows})}
         self.get_logger().info(f'done: {counts} -> {self.out}')
 
     def write(self, rows):
-        Path(self.out).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.out, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=list(rows[0]))
-            writer.writeheader()
-            writer.writerows(rows)
+        write_csv(rows, self.out)
 
 
 def main():

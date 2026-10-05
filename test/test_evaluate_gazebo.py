@@ -51,6 +51,22 @@ def test_a_goal_reached_only_by_the_localization_is_lost_not_a_success():
     assert episode_outcome(False, 'succeeded', 2.0, progress, 10.0, 60.0, 15.0) == 'lost'
 
 
+def test_shards_split_the_seeds_between_parallel_simulations():
+    """shard:=i/n plays every n-th seed from the i-th, so n Gazebos cover the set once."""
+    import rclpy
+
+    from martha_nav.ros.evaluate_gazebo import EvaluateGazebo
+    from martha_nav.sim2d.env import eval_seeds
+    played = []
+    for i in range(3):
+        rclpy.init(args=['--ros-args', '-p', f'shard:={i}/3', '-p', 'episodes:=10'])
+        node = EvaluateGazebo()
+        played += node.seeds
+        node.destroy_node()
+        rclpy.try_shutdown()
+    assert sorted(played) == eval_seeds(10)
+
+
 @pytest.fixture
 def evaluate_gazebo_node():
     import rclpy
@@ -89,7 +105,8 @@ def test_the_goal_is_cancelled_before_the_teleport(evaluate_gazebo_node):
     assert calls.index('teleport') < calls.index('set_initial_pose')
     # ...but only once Gazebo shows it there, or the localizer reads the jump as odometry.
     assert 'spin' in calls[calls.index('teleport'):calls.index('set_initial_pose')]
-    assert {'loc_err_mean', 'loc_err_max', 'yaw_err_max_deg'} <= set(row)
+    assert {'loc_err_mean', 'loc_err_max', 'yaw_err_max_deg', 'travelled', 'spl'} <= set(row)
+    assert row['spl'] == 0.0 and isinstance(row['trajectory'], list)
 
 
 def test_goal_marker_has_no_collision():

@@ -1,7 +1,7 @@
 """Deterministic evaluation on fixed seeds; CSV rows and a summary with 95% CIs."""
 import argparse
 import csv
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +11,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from martha_nav.learning.policy import is_recurrent
 from martha_nav.sim2d.dynamics import DynamicsRanges
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
-from martha_nav.sim2d.scenarios import CONDITIONS, TRAIN_SOURCES, point_pairs
+from martha_nav.sim2d.scenarios import CONDITIONS, TRAIN_SOURCES, generate, point_pairs
 
 
 def make_vec_env(cfgs):
@@ -70,11 +70,27 @@ def summarize(rows):
 def write_csv(rows, path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    keys = sorted({k for r in rows for k in r})
+    keys = sorted({k for r in rows for k in r} - {'trajectory'})   # in its own file
     with open(path, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
+        writer = csv.DictWriter(f, fieldnames=keys, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_episode_files(rows, scenario_cfg, out):
+    """Beside out: each episode's trajectory, A* route and obstacles."""
+    stem = str(Path(out).with_suffix(''))
+    traj, route, obstacles = [], [], []
+    for row in rows:
+        seed = row['episode_seed']
+        traj += [{'episode_seed': seed, **p} for p in row['trajectory']]
+        sc = generate(seed, scenario_cfg)
+        route += [{'episode_seed': seed, 'i': i, 'x': x, 'y': y}
+                  for i, (x, y) in enumerate(sc.path.points)]
+        obstacles += [{'episode_seed': seed, **asdict(o)} for o in sc.obstacles]
+    write_csv(traj, stem + '_traj.csv')
+    write_csv(route, stem + '_route.csv')
+    write_csv(obstacles, stem + '_obstacles.csv')
 
 
 def _run_config(model_path):
@@ -129,13 +145,14 @@ def main(argv=None):
     if args.points:
         pairs = point_pairs(args.points)
         scenario = replace(scenario, sources=(args.points,), point_pairs=pairs)
-    cfg = replace(cfg, scenario=scenario)
+    cfg = replace(cfg, scenario=scenario, record_trajectory=True)
     model = load_model(args.model)
     episodes = args.episodes or (len(scenario.point_pairs) if args.points else 500)
     rows = run_episodes(model, cfg, eval_seeds(episodes), args.n_envs)
     name = args.points + '-points' if args.points else (
         'train' if tuple(args.sources) == TRAIN_SOURCES else '-'.join(args.sources))
     out = args.out or Path(args.model).with_name(f'eval_{args.condition}_{name}.csv')
+    write_episode_files(rows, scenario, out)
     write_csv(rows, out)
     s = summarize(rows)
     print(f'{args.condition}: episodes={s["episodes"]} success={s["success"]:.3f} '

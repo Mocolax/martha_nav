@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import numpy as np
+import pytest
 from gymnasium.utils.env_checker import check_env
 
 from martha_nav.sim2d.env import TRAIN_SEED_LIMIT, EnvConfig, NavEnv
@@ -163,3 +164,32 @@ def test_geodesic_progress_telescopes_to_the_distance_covered():
             break
     # Potential-based: the sum of the per-step terms is the net drop in distance.
     assert abs(env.terms['progress'] - (start - env.geo)) < 1e-6
+
+
+def test_an_evaluation_episode_records_its_trajectory():
+    """For the plots of the evasion: the pose every control step, from the start pose on."""
+    from dataclasses import replace
+
+    from martha_nav.sim2d.dynamics import DT
+    from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
+    from martha_nav.sim2d.scenarios import ScenarioConfig
+    cfg = EnvConfig(scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none'),
+                    episode_seeds=tuple(eval_seeds(1)), record_trajectory=True)
+    env = NavEnv(cfg)
+    env.reset()
+    start = env.sc.start
+    info = {}
+    while 'outcome' not in info:
+        *_, info = env.step(np.array([0.5, 0.3]))
+    traj = info['trajectory']
+    assert len(traj) == info['steps'] + 1
+    assert traj[0] == {'t': 0.0, 'x': start[0], 'y': start[1], 'yaw': start[2]}
+    assert traj[-1]['t'] == pytest.approx(info['steps'] * DT)
+    walked = sum(np.hypot(b['x'] - a['x'], b['y'] - a['y']) for a, b in zip(traj, traj[1:]))
+    assert walked == pytest.approx(info['travelled'])
+    env = NavEnv(replace(cfg, record_trajectory=False))            # training: nothing extra
+    env.reset()
+    info = {}
+    while 'outcome' not in info:
+        *_, info = env.step(np.array([0.5, 0.3]))
+    assert 'trajectory' not in info

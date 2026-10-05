@@ -50,6 +50,7 @@ class EnvConfig:
     # deployed policy needs no global planner. The route still shapes the reward in training.
     target: str = 'carrot'
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
+    record_trajectory: bool = False  # evaluation: the pose every step, in the episode's info
 
 
 class NavEnv(gym.Env):
@@ -84,6 +85,8 @@ class NavEnv(gym.Env):
         self.prev_action = np.zeros(self.cfg.action_dim)
         self.travelled = 0.0
         self.terms = defaultdict(float)
+        self.trajectory = []
+        self._record()
         if self.cfg.reward.progress_mode == 'geodesic':
             # Cropped around the route: the whole world costs up to 50 ms per reset.
             lo = self.sc.path.points.min(axis=0) - 2.0
@@ -104,6 +107,7 @@ class NavEnv(gym.Env):
         x, y, _ = self.dyn.pose
         self.travelled += float(np.hypot(*(self.dyn.pose[:2] - before)))
         self.steps += 1
+        self._record()
         gain = self.progress.update(x, y)
         to_goal = np.hypot(x - self.sc.goal[0], y - self.sc.goal[1])
         reached = not collided and to_goal < self.cfg.goal_tolerance
@@ -126,6 +130,11 @@ class NavEnv(gym.Env):
                        else 'stalled' if stalled else 'timeout')
             info = self._summary(outcome)
         return self._obs(), float(reward), terminated, truncated, info
+
+    def _record(self):
+        if self.cfg.record_trajectory:
+            x, y, yaw = self.dyn.pose
+            self.trajectory.append({'t': self.steps * DT, 'x': x, 'y': y, 'yaw': yaw})
 
     def _reward_progress(self, route_gain, x, y):
         """Metres of progress for the reward. The stall rule keeps using the route."""
@@ -184,4 +193,6 @@ class NavEnv(gym.Env):
             'steps': self.steps,
         }
         info.update({f'r_{k}': v for k, v in self.terms.items()})
+        if self.cfg.record_trajectory:
+            info['trajectory'] = self.trajectory
         return info
