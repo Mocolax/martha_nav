@@ -359,3 +359,21 @@ pareados con `long_c_kl_s0` en las mismas semillas:
 > (1.0 m, llega igual) y 1000078 (4.5 m, se atasca). Ambos tienen 4 cajas y se repiten igual antes
 > y después del arreglo, así que son pérdidas reales de slam_toolbox cuando el mapa difiere mucho de
 > lo que ve el LiDAR: 2 de 100 episodios. Ningún episodio terminó `lost`.
+
+## Evaluación rápida en Gazebo (2026-10-04)
+
+`tools/evaluate_gazebo_fast.sh` corre 3 Gazebos en paralelo (cada uno con su `ROS_DOMAIN_ID` y
+puerto de Gazebo) con la física sin límite (`gz physics -u 0`, ~3× tiempo real cada uno) y reparte
+las semillas con `shard:=i/n`. Validación con `wide_dyn_s0`, 100 semillas en `lab`:
+
+| corrida | éxito | mismo resultado que la original a 1× |
+|---|---|---|
+| original, 1× | 83 % | — |
+| repetición, 1× | 87 % | 94 / 100 |
+| rápida, ~3× | 84 % | 95 / 100 |
+
+Acelerar no cambia los resultados más que repetir a 1×: Gazebo varía ~±4 puntos entre corridas
+idénticas. Los 190 episodios de E2 pasan de ~1.5 h a ~13 min.
+
+Con esto se re-evaluaron todas las configuraciones del paquete de datos de la tesis
+(`tools/build_entrega.py`, resultados en `runs/<run>/v5/`): ver `entrega_tesis/resumen_modelos.csv`.

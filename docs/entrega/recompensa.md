@@ -38,10 +38,10 @@ Debe hacer que un episodio que termina en choque valga menos que uno en que el r
 - Con el −10 del primer run, ese mismo choque valía 12 − 10 − 1.7 = **+0.3**: chocar cerca del
   final podía ser rentable. Por eso se pasó a −20.
 
-Evidencia experimental (`resultados.md`, experimentos A/B/C, 500 episodios con obstáculos): con
-solo el cambio a −20 (A) el éxito no cambió de forma distinguible del ruido (0.366 → 0.340, los
-IC95 se solapan). La mejora grande vino de la codificación del LiDAR (C: 0.712, colisión 0.266 →
-0.046). El −20 se mantiene por el argumento de arriba, no porque A lo haya demostrado.
+Evidencia experimental (experimentos A/B/C, `2d_obstaculos`, 500 episodios; cifras de
+`resumen_modelos.csv`): con solo el cambio a −20 (A) el éxito no cambió de forma distinguible del
+ruido (0.366 → 0.342, los IC95 se solapan). La mejora grande vino de la codificación del LiDAR
+(C: 0.716, colisión 0.260 → 0.048). El −20 se mantiene por el argumento de arriba, no porque A lo haya demostrado.
 
 ## Tiempo: −0.005 por paso
 
@@ -51,10 +51,10 @@ Un robot detenido pierde 0.05 por segundo, poco frente a lo que gana avanzando.
 
 ## Términos desactivados
 
-- **Atasco terminal (−5):** el experimento B lo probó y el éxito con obstáculos cayó a 0.148
-  (frente a 0.340 de A). Un castigo grande comparado con el progreso de los primeros pasos enseña
+- **Atasco terminal (−5):** el experimento B lo probó y el éxito con obstáculos cayó a 0.130
+  (frente a 0.342 de A). Un castigo grande comparado con el progreso de los primeros pasos enseña
   a no moverse. El estancamiento se mide igual como resultado, pero no se castiga.
-- **Proximidad y giro brusco:** quedaron implementados y en 0. La colisión ya bajó a 0.046 con la
+- **Proximidad y giro brusco:** quedaron implementados y en 0. La colisión ya bajó a 0.048 con la
   codificación del LiDAR (C), así que no hizo falta un castigo por acercarse.
 
 ## Hiperparámetros de PPO

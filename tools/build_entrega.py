@@ -21,6 +21,8 @@ from martha_nav.sim2d.dynamics import DT  # noqa: E402
 from martha_nav.sim2d.scenarios import CONDITIONS, ScenarioConfig, generate  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+OUTCOME = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado',
+           'timeout': 'timeout', 'failed': 'sin ruta', 'lost': 'perdido'}
 REFERENCE = 'wide_dyn_s0'
 # run, what it is, where the document discusses it, evaluated in Gazebo
 CONFIGS = [
@@ -313,15 +315,15 @@ def trajectory_figure(dest, run=REFERENCE, n=6):
         pts = lambda rows: ([float(p['x']) for p in rows if p['episode_seed'] == seed],  # noqa: E731
                             [float(p['y']) for p in rows if p['episode_seed'] == seed])
         ax.plot(*pts(route), '--', color='0.4', lw=1.5, label='ruta A* (referencia)')
-        ax.plot(*pts(t2d), color='tab:blue', lw=2, label=f'2D: {outcome2d[seed]}')
-        ax.plot(*pts(tgz), color='tab:orange', lw=2, label=f'Gazebo: {outcomegz[seed]}')
+        ax.plot(*pts(t2d), color='tab:blue', lw=2, label=f'2D: {OUTCOME[outcome2d[seed]]}')
+        ax.plot(*pts(tgz), color='tab:orange', lw=2, label=f'Gazebo: {OUTCOME[outcomegz[seed]]}')
         ax.plot(*sc.start[:2], 'o', color='k')
         ax.plot(*sc.goal, '*', color='tab:green', ms=14)
         xs, ys = pts(route)
         ax.set_xlim(min(xs) - 1.5, max(xs) + 1.5)
         ax.set_ylim(min(ys) - 1.5, max(ys) + 1.5)
         ax.set_aspect('equal')
-        ax.set_title(f'semilla {seed}, {len(sc.obstacles)} obstáculos')
+        ax.set_title(f'semilla {seed}, obstáculos: {len(sc.obstacles)}')
         ax.legend(fontsize=8, loc='best')
     fig.suptitle(f'{run}: el mismo episodio en 2D y en Gazebo (lab.world, obstáculos fuera del mapa)')
     fig.tight_layout()
