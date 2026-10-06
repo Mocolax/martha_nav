@@ -1,4 +1,6 @@
 """The exported numpy policy must act exactly as the PyTorch one, without importing it."""
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -47,3 +49,12 @@ def test_the_final_model_exports_exactly(tmp_path):
         shutil.copy(WIDE.with_name(name), tmp_path / name)
     from martha_nav.learning.evaluate import trained_env_config
     same_actions(tmp_path / 'best_model.zip', NavEnv(trained_env_config(WIDE)))
+
+
+def test_the_robot_side_never_imports_pytorch():
+    code = ('import sys\n'
+            'from martha_nav.ros import ppo_local_planner, numpy_policy\n'
+            "heavy = [m for m in ('torch', 'stable_baselines3', 'gymnasium') if m in sys.modules]\n"
+            'assert not heavy, heavy\n')
+    done = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr

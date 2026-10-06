@@ -1,7 +1,6 @@
 """/plan + /scan + /odom -> /cmd_vel at 10 Hz, running the trained policy."""
 import numpy as np
 import rclpy
-import torch
 from geometry_msgs.msg import PointStamped, Twist
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import Path as PathMsg
@@ -12,13 +11,37 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformListener
 
-from martha_nav.learning.evaluate import load_model, trained_env_config
+from martha_nav.robots import ROBOTS
 from martha_nav.ros.common import LATCHED, run_node, yaw_of
+from martha_nav.ros.numpy_policy import NumpyPolicy, settings_of
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
 from martha_nav.sim2d.planner import Path
 
 STALE = 0.3      # s; older sensor data stops the robot
+LATENCY_REPORT = 10.0   # s between latency log lines
+
+
+def load_policy(checkpoint):
+    """(model, settings): an exported .npz runs on numpy alone; a .zip needs PyTorch."""
+    if checkpoint.endswith('.npz'):
+        policy = NumpyPolicy(checkpoint)
+        return policy, policy.settings
+    import torch
+
+    from martha_nav.learning.evaluate import load_model, trained_env_config
+    torch.set_num_threads(1)
+    return load_model(checkpoint), settings_of(trained_env_config(checkpoint))
+
+
+def to_twist(velocities, scale=1.0):
+    """(v, w) or (vx, vy, w) -> Twist, every component times scale."""
+    cmd = Twist()
+    cmd.linear.x = scale * float(velocities[0])
+    if len(velocities) == 3:
+        cmd.linear.y = scale * float(velocities[1])
+    cmd.angular.z = scale * float(velocities[-1])
+    return cmd
 
 
 class PpoLocalPlanner(Node):
@@ -27,22 +50,27 @@ class PpoLocalPlanner(Node):
         checkpoint = self.declare_parameter('checkpoint', '').value
         if not checkpoint:
             raise RuntimeError('parameter "checkpoint" is required')
-        torch.set_num_threads(1)
-        model = load_model(checkpoint)
-        trained = trained_env_config(checkpoint)
+        model, settings = load_policy(checkpoint)
+        wanted = self.declare_parameter('robot', '').value
+        if wanted and wanted != settings['robot']:
+            raise RuntimeError(f"{checkpoint} drives {settings['robot']}, not {wanted}")
         self.core = PolicyCore(
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
-            action_dim=trained.action_dim,
-            target=trained.target,
-            action_delay=self.declare_parameter('action_delay', 0).value)
+            action_dim=settings['action_dim'],
+            target=settings['target'],
+            action_delay=self.declare_parameter('action_delay', 0).value,
+            robot=ROBOTS[settings['robot']])
+        self.speed_scale = self.declare_parameter('speed_scale', 1.0).value
         self.action_dim = self.core.action_dim
-        self.get_logger().info(f'action space: {self.action_dim}D, action delay {self.core.action_delay}')
+        self.get_logger().info(f"robot {settings['robot']}, action space {self.action_dim}D, "
+                               f'action delay {self.core.action_delay}, speed x{self.speed_scale}')
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self)
-        self.scan = self.scan_time = self.odom_time = None
+        self.scan = self.scan_time = self.odom_time = self.scan_stamp = None
+        self.latencies = []
         self.velocity = (0.0, 0.0)
         self.path = None
         self.status = 'idle'
@@ -53,12 +81,14 @@ class PpoLocalPlanner(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.carrot_pub = self.create_publisher(PointStamped, '/carrot', 10)
         self.create_timer(0.1, self.tick)
+        self.create_timer(LATENCY_REPORT, self.report_latency)
         self.get_logger().info(f'policy loaded: {checkpoint}')
 
     # ---- inputs ----
     def on_scan(self, msg):
         self.scan = scan_to_arrays(msg)
         self.scan_time = self.get_clock().now()
+        self.scan_stamp = rclpy.time.Time.from_msg(msg.header.stamp)
 
     def on_odom(self, msg):
         twist = msg.twist.twist
@@ -109,18 +139,21 @@ class PpoLocalPlanner(Node):
         if info['blocked']:
             self.get_logger().warning(f"obstacle inside the footprint ({info['blocked']}), "
                                       'blocking those directions', throttle_duration_sec=2.0)
-        cmd = Twist()
-        cmd.linear.x = float(velocities[0])
-        if len(velocities) == 3:
-            cmd.linear.y = float(velocities[1])
-        cmd.angular.z = float(velocities[-1])
-        self.cmd_pub.publish(cmd)
+        self.cmd_pub.publish(to_twist(velocities, self.speed_scale))
+        self.latencies.append((self.get_clock().now() - self.scan_stamp).nanoseconds * 1e-9)
         if info['carrot'] is not None:
             point = PointStamped()
             point.header.frame_id = self.map_frame
             point.header.stamp = self.get_clock().now().to_msg()
             point.point.x, point.point.y = float(info['carrot'][0]), float(info['carrot'][1])
             self.carrot_pub.publish(point)
+
+    def report_latency(self):
+        """Scan stamp -> /cmd_vel: the delay the policy acts with on this machine and network."""
+        if self.latencies:
+            self.get_logger().info(f'latency scan -> cmd_vel: mean {np.mean(self.latencies):.3f} s,'
+                                   f' max {np.max(self.latencies):.3f} s')
+            self.latencies = []
 
 
 def main():
