@@ -28,13 +28,13 @@ Solo lo del simulador 2D y el aprendizaje, que es más rápido y no necesita ROS
 Puerta de convergencia, ~15 min, sala abierta sin obstáculos (debe pasar de 80%):
 
 ```bash
-./tools/ct_ros ros2 run martha_nav train_policy --preset gate --arch cnn --seed 0 --name gate_check
+./tools/ct_ros ros2 run martha_nav train_policy --preset gate --seed 0 --name gate_check
 ```
 
 Entrenamiento completo, 5M pasos, todas las fuentes con obstáculos mezclados:
 
 ```bash
-./tools/ct_ros ros2 run martha_nav train_policy --preset full --arch cnn --seed 0 --name mi_run
+./tools/ct_ros ros2 run martha_nav train_policy --preset full --seed 0 --name mi_run
 ```
 
 Opciones útiles de `train_policy`:
@@ -42,7 +42,6 @@ Opciones útiles de `train_policy`:
 | bandera | para qué |
 |---|---|
 | `--steps N` | cambia el presupuesto del preset |
-| `--arch cnn\|mlp` | arquitectura del extractor |
 | `--n-envs 16` | entornos en paralelo |
 | `--action-dim 3` | añade `vy` (mecanum holonómico) |
 | `--recurrent` | política LSTM (usar con `--device cpu`) |
@@ -54,7 +53,7 @@ Opciones útiles de `train_policy`:
 Lanzarlo en segundo plano y seguir el avance:
 
 ```bash
-nohup ./tools/ct_ros ros2 run martha_nav train_policy --preset full --arch cnn --seed 0 --name mi_run > runs/mi_run.log 2>&1 &
+nohup ./tools/ct_ros ros2 run martha_nav train_policy --preset full --seed 0 --name mi_run > runs/mi_run.log 2>&1 &
 ```
 
 ```bash

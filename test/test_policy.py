@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import torch
 from gymnasium import spaces
 
@@ -29,9 +28,7 @@ def test_cnn_is_circular_over_the_lidar():
     assert conv(x)[0, :, 0].abs().sum() > 0      # sector 89 leaks into sector 0
 
 
-def test_policy_kwargs():
-    assert policy_kwargs('cnn')['features_extractor_class'] is LidarCnnExtractor
-    assert 'features_extractor_class' not in policy_kwargs('mlp')
-    assert policy_kwargs('mlp')['share_features_extractor'] is False
-    with pytest.raises(ValueError):
-        policy_kwargs('lstm')
+def test_policy_kwargs_use_the_cnn():
+    kwargs = policy_kwargs()
+    assert kwargs['features_extractor_class'] is LidarCnnExtractor
+    assert kwargs['share_features_extractor'] is False

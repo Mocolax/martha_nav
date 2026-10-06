@@ -1,7 +1,7 @@
 """Train PPO (Stable-Baselines3) on the 2D simulator.
 
-python3 -m martha_nav.learning.train --preset gate --arch cnn --seed 0
-python3 -m martha_nav.learning.train --preset full --arch cnn --seed 0
+python3 -m martha_nav.learning.train --preset gate --seed 0
+python3 -m martha_nav.learning.train --preset full --seed 0
 """
 import argparse
 import csv
@@ -107,9 +107,9 @@ def make_vec_env(env_cfg, n_envs, seed):
                         gamma=PPO_PARAMS['gamma'])
 
 
-def build_model(venv, arch, recurrent, seed, device, tensorboard_log):
+def build_model(venv, recurrent, seed, device, tensorboard_log):
     """PPO, or RecurrentPPO with an LSTM head when recurrent is asked for."""
-    kwargs = dict(policy_kwargs=policy_kwargs(arch), seed=seed, device=device,
+    kwargs = dict(policy_kwargs=policy_kwargs(), seed=seed, device=device,
                   tensorboard_log=tensorboard_log, verbose=0,
                   learning_rate=lambda f: LEARNING_RATE * f, **PPO_PARAMS)
     if not recurrent:
@@ -140,7 +140,6 @@ def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Train the PPO local planner.')
     ap.add_argument('--preset', choices=list(PRESETS), default='gate')
-    ap.add_argument('--arch', choices=['cnn', 'mlp'], default='cnn')
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--steps', type=int, default=None, help='override the preset budget')
     ap.add_argument('--n-envs', type=int, default=16)
@@ -168,13 +167,13 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']
-    name = args.name or f'{args.preset}_{args.arch}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
+    name = args.name or f'{args.preset}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
                            args.lidar_encoding, args.action_dim, args.stuck_signal,
                            args.target, args.reward_progress, args.wide_dynamics)
-    config = {'preset': args.preset, 'arch': args.arch, 'recurrent': args.recurrent,
+    config = {'preset': args.preset, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,
@@ -183,7 +182,7 @@ def main(argv=None):
 
     torch.set_num_threads(4)
     venv = make_vec_env(env_cfg, args.n_envs, args.seed)
-    model = build_model(venv, args.arch, args.recurrent, args.seed, args.device,
+    model = build_model(venv, args.recurrent, args.seed, args.device,
                         str(run_dir / 'tb'))
     callbacks = [EpisodeLogger(run_dir / 'episodes.csv'),
                  PeriodicEval(env_cfg, run_dir, args.eval_every, args.eval_episodes)]

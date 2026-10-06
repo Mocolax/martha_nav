@@ -1,4 +1,4 @@
-"""Feature extractors and SB3 policy kwargs for the two compared architectures."""
+"""Feature extractor and SB3 policy kwargs: a circular 1D CNN over the LiDAR."""
 import torch
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
@@ -33,12 +33,7 @@ def is_recurrent(model):
     return hasattr(getattr(model, 'policy', None), 'lstm_actor')
 
 
-def policy_kwargs(arch):
-    """SB3 policy_kwargs for 'cnn' (main) or 'mlp' (baseline)."""
-    kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]),
-                  share_features_extractor=False, log_std_init=-0.5)
-    if arch == 'cnn':
-        kwargs['features_extractor_class'] = LidarCnnExtractor
-    elif arch != 'mlp':
-        raise ValueError(f'unknown arch {arch!r}')
-    return kwargs
+def policy_kwargs():
+    """SB3 policy_kwargs: the CNN extractor, separate for the actor and the critic."""
+    return dict(net_arch=dict(pi=[256, 256], vf=[256, 256]), share_features_extractor=False,
+                log_std_init=-0.5, features_extractor_class=LidarCnnExtractor)

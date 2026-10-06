@@ -6,7 +6,7 @@ from martha_nav.sim2d.observation import OBS_DIM
 
 
 def test_train_smoke(tmp_path):
-    status = train_main(['--preset', 'gate', '--arch', 'cnn', '--steps', '2048', '--n-envs', '2',
+    status = train_main(['--preset', 'gate', '--steps', '2048', '--n-envs', '2',
                          '--eval-every', '1024', '--eval-episodes', '2',
                          '--runs-dir', str(tmp_path), '--name', 'smoke'])
     assert status is None               # train_policy exits 0 (sys.exit(main()))
@@ -46,7 +46,7 @@ def test_recurrent_flag_selects_recurrent_ppo(tmp_path):
     env_cfg = train_module.build_config('gate')
     venv = train_module.make_vec_env(env_cfg, n_envs=2, seed=0)
     try:
-        model = build_model(venv, arch='cnn', recurrent=True, seed=0, device='cpu',
+        model = build_model(venv, recurrent=True, seed=0, device='cpu',
                             tensorboard_log=str(tmp_path))
         assert isinstance(model, RecurrentPPO)
         assert hasattr(model.policy, 'lstm_actor')          # an actual LSTM, not just the class
