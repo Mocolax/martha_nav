@@ -17,6 +17,7 @@ out=${4:-$run}
 mkdir -p "$out"
 ws=/home/ros/ros2_ws/src/martha_nav
 ros='source /opt/ros/humble/setup.bash; source /home/ros/ros2_ws/install/setup.bash'
+robot=$(./tools/ct_ros python3 -c "from martha_nav.robots import checkpoint_robot; print(checkpoint_robot('$run/best_model.zip'))" </dev/null)
 
 stop() {
   for i in $(seq 0 $((n - 1))); do
@@ -42,8 +43,8 @@ for mode in seeds points; do
   if [ $mode = points ]; then name=eval_gazebo_lab_points$suffix; fi
   for i in $(seq 0 $((n - 1))); do
     ./tools/ct_ros env ROS_DOMAIN_ID=$((60 + i)) ros2 run martha_nav evaluate_gazebo --ros-args \
-      -p mode:=$mode -p episodes:=${EPISODES:-100} -p condition:=obstacles -p shard:=$i/$n \
-      -p out:=$ws/$out/$name.part$i.csv </dev/null > "$out/$name.part$i.log" 2>&1 &
+      -p robot:=$robot -p mode:=$mode -p episodes:=${EPISODES:-100} -p condition:=obstacles \
+      -p shard:=$i/$n -p out:=$ws/$out/$name.part$i.csv </dev/null > "$out/$name.part$i.log" 2>&1 &
   done
   wait
   ./tools/ct python3 - "$out/$name" "$n" <<'EOF'

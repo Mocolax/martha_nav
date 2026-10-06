@@ -1,0 +1,176 @@
+<?xml version="1.0"?>
+<!-- TurtleBot3 Burger for Gazebo: the measures of turtlebot3_burger.urdf (ROBOTIS) in simple
+     shapes, plus the contact sensor evaluate_gazebo needs. The 2D simulator uses the same
+     numbers, ROBOTS['burger'] in martha_nav/robots.py; test/test_urdf.py checks they agree.
+     No ":=" anywhere: see the note at the top of martha.urdf.xacro. -->
+<robot name="burger" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="lidar_samples" default="360"/>
+  <xacro:arg name="lidar_range" default="3.5"/>
+  <xacro:arg name="lidar_min" default="0.12"/>
+  <xacro:arg name="lidar_rate" default="5"/>
+
+  <link name="base_footprint"/>
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.010"/>
+  </joint>
+  <link name="base_link">
+    <visual>
+      <origin xyz="-0.032 0 0.070"/>
+      <geometry><box size="0.140 0.140 0.143"/></geometry>
+    </visual>
+    <inertial>
+      <origin xyz="-0.032 0 0.070"/>
+      <mass value="0.825"/>
+      <inertia ixx="2.2e-03" ixy="0" ixz="0" iyy="2.2e-03" iyz="0" izz="2.0e-03"/>
+    </inertial>
+  </link>
+
+  <!-- Contact envelope = the 2D footprint (body and wheels), held above the floor so the
+       ground is never a contact. -->
+  <joint name="contact_shell_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="contact_shell"/>
+    <origin xyz="-0.032 0 0.080"/>
+  </joint>
+  <link name="contact_shell">
+    <collision name="contact_shell_collision">
+      <geometry><box size="0.14 0.178 0.100"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+  </link>
+
+  <xacro:macro name="wheel" params="side y">
+    <joint name="wheel_${side}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="wheel_${side}_link"/>
+      <origin xyz="0 ${y} 0.023" rpy="-1.5708 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+    <link name="wheel_${side}_link">
+      <visual><geometry><cylinder radius="0.033" length="0.018"/></geometry></visual>
+      <collision><geometry><cylinder radius="0.033" length="0.018"/></geometry></collision>
+      <inertial>
+        <mass value="0.0285"/>
+        <inertia ixx="1.1e-05" ixy="0" ixz="0" iyy="1.1e-05" iyz="0" izz="2.0e-05"/>
+      </inertial>
+    </link>
+    <gazebo reference="wheel_${side}_link">
+      <mu1>100000</mu1>
+      <mu2>100000</mu2>
+      <kp>500000</kp>
+      <kd>10</kd>
+      <minDepth>0.001</minDepth>
+      <maxVel>0.1</maxVel>
+      <fdir1>1 0 0</fdir1>
+    </gazebo>
+  </xacro:macro>
+  <xacro:wheel side="left" y="0.080"/>
+  <xacro:wheel side="right" y="-0.080"/>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_link"/>
+    <origin xyz="-0.081 0 -0.004"/>
+  </joint>
+  <link name="caster_link">
+    <collision><geometry><sphere radius="0.005"/></geometry></collision>
+    <inertial>
+      <mass value="0.005"/>
+      <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7"/>
+    </inertial>
+  </link>
+  <gazebo reference="caster_link">
+    <mu1>0</mu1>
+    <mu2>0</mu2>
+  </gazebo>
+
+  <joint name="scan_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_scan"/>
+    <origin xyz="-0.032 0 0.172"/>
+  </joint>
+  <link name="base_scan">
+    <visual><geometry><cylinder radius="0.035" length="0.030"/></geometry></visual>
+    <inertial>
+      <mass value="0.114"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+  </link>
+
+  <gazebo>
+    <!-- turtlebot3_gazebo's burger values. -->
+    <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+      <update_rate>30</update_rate>
+      <left_joint>wheel_left_joint</left_joint>
+      <right_joint>wheel_right_joint</right_joint>
+      <wheel_separation>0.160</wheel_separation>
+      <wheel_diameter>0.066</wheel_diameter>
+      <max_wheel_torque>20</max_wheel_torque>
+      <max_wheel_acceleration>1.0</max_wheel_acceleration>
+      <command_topic>cmd_vel</command_topic>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>false</publish_wheel_tf>
+      <odometry_topic>odom</odometry_topic>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+    </plugin>
+    <plugin name="joint_states" filename="libgazebo_ros_joint_state_publisher.so">
+      <update_rate>30</update_rate>
+      <joint_name>wheel_left_joint</joint_name>
+      <joint_name>wheel_right_joint</joint_name>
+    </plugin>
+  </gazebo>
+
+  <gazebo reference="base_footprint">
+    <sensor name="contact_sensor" type="contact">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <contact>
+        <collision>base_footprint_fixed_joint_lump__contact_shell_collision_collision_1</collision>
+      </contact>
+      <!-- Publishes on /bumper_states, where evaluate_gazebo listens. -->
+      <plugin name="gazebo_ros_bumper" filename="libgazebo_ros_bumper.so">
+        <frame_name>base_footprint</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="base_scan">
+    <sensor name="lidar_sensor" type="ray">
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <update_rate>$(arg lidar_rate)</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>$(arg lidar_samples)</samples>
+            <resolution>1</resolution>
+            <min_angle>${-pi}</min_angle>
+            <max_angle>${pi}</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>$(arg lidar_min)</min>
+          <max>$(arg lidar_range)</max>
+          <resolution>0.015</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <!-- Publishes on /gazebo_ros_lidar/out, the topic sim.launch.py remaps to /scan. -->
+      <plugin name="gazebo_ros_lidar" filename="libgazebo_ros_ray_sensor.so">
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>base_scan</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+</robot>

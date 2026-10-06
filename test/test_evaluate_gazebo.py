@@ -67,6 +67,40 @@ def test_shards_split_the_seeds_between_parallel_simulations():
     assert sorted(played) == eval_seeds(10)
 
 
+def test_the_burger_episode_gets_its_time_and_inflation():
+    import rclpy
+
+    from martha_nav.ros.evaluate_gazebo import EvaluateGazebo
+    rclpy.init(args=['--ros-args', '-p', 'robot:=burger'])
+    try:
+        node = EvaluateGazebo()
+        assert node.robot.name == 'burger' and node.cfg.inflation == 0.20
+        node.destroy_node()
+    finally:
+        rclpy.try_shutdown()
+
+
+def test_the_point_pairs_are_built_with_the_robots_inflation(monkeypatch):
+    """The 2D evaluator and this one must play the same pairs."""
+    import rclpy
+
+    from martha_nav.ros import evaluate_gazebo
+    inflations, real = [], evaluate_gazebo.point_pairs
+
+    def spy(world, **kwargs):
+        inflations.append(kwargs.get('inflation'))
+        return real(world, **kwargs)
+
+    monkeypatch.setattr(evaluate_gazebo, 'point_pairs', spy)
+    rclpy.init(args=['--ros-args', '-p', 'robot:=burger', '-p', 'mode:=points'])
+    try:
+        node = evaluate_gazebo.EvaluateGazebo()
+        node.destroy_node()
+    finally:
+        rclpy.try_shutdown()
+    assert inflations == [0.20]
+
+
 @pytest.fixture
 def evaluate_gazebo_node():
     import rclpy

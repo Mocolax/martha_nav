@@ -18,7 +18,7 @@ from martha_nav.ros.common import run_node, yaw_of
 class GazeboGroundTruthTf(Node):
     def __init__(self):
         super().__init__('gazebo_ground_truth_tf')
-        self.model = self.declare_parameter('model_name', 'martha').value
+        self.model = self.declare_parameter('model_name', 'robot').value
         self.truth = None                      # (x, y, yaw) of base_link in map
         self.broadcaster = TransformBroadcaster(self)
         # Off when slam_toolbox localizes: then it owns map -> odom.

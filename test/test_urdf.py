@@ -1,5 +1,8 @@
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 import xacro
 
 from martha_nav.robots import ROBOTS
@@ -96,3 +99,40 @@ def test_wheels_stay_inside_the_contact_shell():
         doc = robot(drive)
         x = joint_origin(doc, 'base_front_left_wheel_joint')[0]
         assert x + 0.075 < ROBOT_LENGTH / 2, drive     # 0.075 m is the wheel envelope
+
+
+BURGER_URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'burger.urdf.xacro'
+BURGER = ROBOTS['burger']
+
+
+def burger():
+    return xacro.process_file(str(BURGER_URDF)).toprettyxml()
+
+
+def test_burger_contact_shell_is_the_2d_footprint():
+    doc = burger()
+    size = doc.split('name="contact_shell_collision"', 1)[1].split('size="', 1)[1].split('"', 1)[0]
+    sx, sy, _ = (float(v) for v in size.split())
+    assert (sx, sy) == (BURGER.length, BURGER.width)
+    assert joint_origin(doc, 'contact_shell_joint')[0] == BURGER.footprint_offset_x
+
+
+def test_burger_lidar_matches_the_profile():
+    doc = burger()
+    assert joint_origin(doc, 'scan_joint')[0] == BURGER.lidar_offset_x
+    ray = doc.split('<range>', 1)[1]
+    assert float(ray.split('<min>', 1)[1].split('<', 1)[0]) == BURGER.lidar_min
+    assert float(ray.split('<max>', 1)[1].split('<', 1)[0]) == BURGER.lidar_range
+    rate = doc.split('name="lidar_sensor"', 1)[1].split('<update_rate>', 1)[1].split('<', 1)[0]
+    assert float(rate) == BURGER.lidar_rate
+
+
+@pytest.mark.skipif(shutil.which('gz') is None, reason='needs Gazebo')
+def test_burger_contact_sensor_watches_a_collision_gazebo_keeps(tmp_path):
+    """Gazebo renames collisions when it lumps fixed joints; the sensor must use the new name."""
+    path = tmp_path / 'burger.urdf'
+    path.write_text(burger())
+    sdf = subprocess.run(['gz', 'sdf', '-p', str(path)], capture_output=True, text=True,
+                         check=True).stdout
+    watched = sdf.split('<contact>', 1)[1].split('<collision>', 1)[1].split('</collision>', 1)[0]
+    assert f"<collision name='{watched}'>" in sdf or f'<collision name="{watched}">' in sdf

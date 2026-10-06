@@ -8,7 +8,8 @@ mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 "points" plays the hand-placed start/goal pairs of config/training_points.yaml. Both build
 the episode with scenarios.generate, so the same seed is the same episode as in the
 2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
-in simulated time (the "seconds" column too).
+in simulated time (the "seconds" column too). robot:=burger gives the Burger's time limit and
+inflation; it must be the robot of the running sim.launch.py (evaluate_run_gazebo.sh passes it).
 
 The loc_err_* columns compare the localization (TF map -> base_link) with Gazebo's
 true pose: zero with sim.launch.py's default, the test with slam:=localization.
@@ -26,6 +27,7 @@ from std_msgs.msg import Empty, String
 from tf2_ros import Buffer, TransformListener
 
 from martha_nav.learning.evaluate import write_csv, write_episode_files
+from martha_nav.robots import ROBOTS
 from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.sim2d.dynamics import DT
 from martha_nav.sim2d.env import EnvConfig, episode_steps, eval_seeds
@@ -57,6 +59,7 @@ CYLINDER_SDF = """<?xml version="1.0"?>
 </geometry></visual></link></model></sdf>"""
 
 
+ENTITY = 'robot'       # sim.launch.py spawns either robot under this name
 REACHED = 0.5          # m: the planner's 0.3 m goal tolerance plus the localization error
 
 
@@ -95,9 +98,11 @@ class EvaluateGazebo(Node):
         self.no_progress = self.declare_parameter('no_progress_seconds',
                                                   EnvConfig().no_progress_time).value
 
-        self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=CONDITIONS[self.condition])
+        self.robot = ROBOTS[self.declare_parameter('robot', 'martha').value]
+        self.cfg = ScenarioConfig(sources=(self.world,), obstacle_mode=CONDITIONS[self.condition],
+                                  inflation=self.robot.inflation)
         if self.mode == 'points':
-            pairs = point_pairs(self.world)
+            pairs = point_pairs(self.world, inflation=self.robot.inflation)
             self.cfg = replace(self.cfg, point_pairs=pairs)
             episodes = len(pairs)
         # shard:=i/n plays every n-th seed from the i-th: n Gazebos side by side cover the set.
@@ -128,8 +133,8 @@ class EvaluateGazebo(Node):
             self.contact = True
 
     def on_states(self, msg):
-        if 'martha' in msg.name:
-            pose = msg.pose[msg.name.index('martha')]
+        if ENTITY in msg.name:
+            pose = msg.pose[msg.name.index(ENTITY)]
             self.position = (pose.position.x, pose.position.y)
             self.yaw = yaw_of(pose.orientation)
 
@@ -156,7 +161,7 @@ class EvaluateGazebo(Node):
 
     def teleport(self, x, y, yaw):
         request = SetEntityState.Request()
-        request.state.name = 'martha'
+        request.state.name = ENTITY
         request.state.pose.position.x, request.state.pose.position.y = float(x), float(y)
         request.state.pose.position.z = 0.05
         request.state.pose.orientation.z = math.sin(yaw / 2)
@@ -241,7 +246,7 @@ class EvaluateGazebo(Node):
         self.send_goal(scenario.goal)
         # As NavEnv: progress on the static route sampled every DT, timeout by its length.
         progress = RouteProgress(scenario.path)
-        time_limit = episode_steps(scenario.path.length) * DT
+        time_limit = episode_steps(scenario.path.length, self.robot) * DT
         start = sample = now = self.now()
         outcome, errors, trajectory, travelled = None, [], [], 0.0
         while outcome is None:

@@ -5,6 +5,8 @@ ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip
 drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
 drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
 dynamics. sim_speed_factor and physics_step_size rewrite the world's physics.
+robot:=burger simulates the TurtleBot3 Burger (urdf/burger.urdf.xacro); by default the robot
+is the one the checkpoint was trained for.
 
 Localization is Gazebo's true pose unless slam:=localization slam_map:=/abs/maps/lab,
 where slam_toolbox localizes in a map made with slam:=mapping (tools/map_world.py).
@@ -22,6 +24,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
+from martha_nav.robots import ROBOTS, checkpoint_robot
 from martha_nav.ros.slam import slam_toolbox
 from martha_nav.ros.world_speed import create_scaled_world
 
@@ -35,6 +38,8 @@ MECANUM_ODOM_TF = '/mecanum_drive_controller/tf_odometry'
 ARGUMENTS = [
     DeclareLaunchArgument('world', default_value='lab'),
     DeclareLaunchArgument('drive', default_value='mecanum', choices=['mecanum', 'planar']),
+    DeclareLaunchArgument('robot', default_value='',
+                          description="martha or burger; empty: the checkpoint's"),
     DeclareLaunchArgument('gui', default_value='true'),
     DeclareLaunchArgument('rviz', default_value='false'),
     DeclareLaunchArgument('checkpoint', default_value=''),
@@ -53,7 +58,13 @@ ARGUMENTS = [
 
 def launch_setup(context, *args, **kwargs):
     share = Path(FindPackageShare('martha_nav').perform(context))
-    drive = LaunchConfiguration('drive').perform(context)
+    checkpoint = LaunchConfiguration('checkpoint').perform(context)
+    trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
+    name = LaunchConfiguration('robot').perform(context) or trained
+    if name != trained:
+        raise RuntimeError(f'{checkpoint} drives {trained}, not {name}')
+    robot = ROBOTS[name]
+    drive = LaunchConfiguration('drive').perform(context) if name == 'martha' else 'diff'
     slam = LaunchConfiguration('slam').perform(context)
     odom_remap = [('/odom', MECANUM_ODOM)] if drive == 'mecanum' else []
     world = create_scaled_world(
@@ -61,15 +72,23 @@ def launch_setup(context, *args, **kwargs):
         speed_factor=LaunchConfiguration('sim_speed_factor').perform(context),
         physics_step_size=LaunchConfiguration('physics_step_size').perform(context))
 
-    urdf = ParameterValue(Command([
-        'xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
-        ' drive:=', drive,
-        ' controllers_file:=', str(share / 'config' / 'controllers.yaml'),
-        ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
-    ]), value_type=str)
+    if name == 'burger':
+        urdf = ParameterValue(Command([
+            'xacro ', str(share / 'urdf' / 'burger.urdf.xacro'),
+            ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
+            f' lidar_range:={robot.lidar_range} lidar_min:={robot.lidar_min}',
+            f' lidar_rate:={robot.lidar_rate:g}',
+        ]), value_type=str)
+    else:
+        urdf = ParameterValue(Command([
+            'xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
+            ' drive:=', drive,
+            ' controllers_file:=', str(share / 'config' / 'controllers.yaml'),
+            ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
+        ]), value_type=str)
 
     spawn = Node(package='gazebo_ros', executable='spawn_entity.py', output='screen',
-                 arguments=['-topic', 'robot_description', '-entity', 'martha',
+                 arguments=['-topic', 'robot_description', '-entity', 'robot',
                             '-x', LaunchConfiguration('x'), '-y', LaunchConfiguration('y'),
                             '-z', '0.05'])
 
@@ -90,10 +109,11 @@ def launch_setup(context, *args, **kwargs):
              parameters=[{'use_sim_time': True, 'publish_map_odom': slam != 'localization',
                           'odom_tf_topic': MECANUM_ODOM_TF if drive == 'mecanum' else ''}]),
         Node(package='martha_nav', executable='global_planner', output='screen',
-             parameters=[{'use_sim_time': True}]),
+             parameters=[{'use_sim_time': True, 'robot': name}]),
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
              remappings=[('/scan', SCAN_TOPIC)] + odom_remap,
              parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'use_sim_time': True,
+                          'robot': name,
                           'action_delay': ParameterValue(LaunchConfiguration('action_delay'),
                                                          value_type=int)}]),
         Node(package='rviz2', executable='rviz2', output='screen',
@@ -106,7 +126,7 @@ def launch_setup(context, *args, **kwargs):
 
     if slam != 'off':
         actions.append(slam_toolbox(
-            slam, SCAN_TOPIC, use_sim_time=True, publish_tf=False,
+            slam, SCAN_TOPIC, use_sim_time=True, publish_tf=False, max_range=robot.lidar_range,
             map_file=LaunchConfiguration('slam_map').perform(context),
             start_pose=(float(LaunchConfiguration('x').perform(context)),
                         float(LaunchConfiguration('y').perform(context)), 0.0)))
