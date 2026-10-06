@@ -115,7 +115,7 @@ class NavEnv(gym.Env):
             self.terms[k] += v
         self.prev_action = action
         # A stall truncates the episode: its value is bootstrapped, not punished.
-        terminated = collided or reached
+        terminated = bool(collided or reached)
         truncated = not terminated and (self.steps >= self.max_steps or stalled)
         info = {}
         if terminated or truncated:

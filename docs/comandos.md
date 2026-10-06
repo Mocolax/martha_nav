@@ -271,6 +271,11 @@ están en su `config.yaml`, y los guiones en el historial de git:
 git log --diff-filter=D --name-only -- tools/experiments
 ```
 
+Los runs entrenados con opciones que el código ya no tiene no se pueden evaluar: los que tienen
+`lidar_encoding: linear` o `stuck_signal` se rechazan, y `full_cnn_s0` y `gate_cnn_s0` (entrenados
+con la codificación `linear` antes de que el `config.yaml` la registrara) se cargarían mal, así
+que no deben evaluarse.
+
 ## 8. Limpieza cuando algo queda colgado
 
 ```bash

@@ -105,8 +105,10 @@ def trained_env_config(model_path):
     if not config:
         return EnvConfig()
     saved = config['env']
-    if saved.get('lidar_encoding') == 'linear' or saved.get('stuck_signal'):
-        raise ValueError(f'{model_path} was trained with options this code no longer has')
+    removed = ('lidar_encoding: linear' if saved.get('lidar_encoding') == 'linear'
+               else 'stuck_signal' if saved.get('stuck_signal') else None)
+    if removed:
+        raise ValueError(f'{model_path} was trained with {removed}, which this code no longer has')
     dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})
     # Defaults for configs that do not record an option.
     return EnvConfig(dynamics=dynamics, action_dim=saved.get('action_dim', 2),
