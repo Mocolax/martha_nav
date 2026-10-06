@@ -102,13 +102,21 @@ def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     assert beside == {'left'}
 
 
-def test_the_burger_guard_uses_its_footprint_and_lidar():
+def test_the_burger_guard_reacts_to_readings_its_lidar_can_produce():
     burger = ROBOTS['burger']
     angles = np.array([0.0, np.pi])
-    # LiDAR and footprint centre coincide: 0.07 m to the front and to the back.
-    assert 'front' in footprint_blocked(np.array([0.10, 3.5]), angles, burger)
-    assert footprint_blocked(np.array([0.15, 3.5]), angles, burger) == set()
-    assert 'rear' in footprint_blocked(np.array([3.5, 0.10]), angles, burger)
+    # LiDAR and footprint centre coincide and it reads nothing under 0.12 m: the guard reaches
+    # 0.07 + 0.10 = 0.17 m to the front and to the back.
+    assert footprint_blocked(np.array([0.15, 3.5]), angles, burger) == {'front'}
+    assert footprint_blocked(np.array([0.20, 3.5]), angles, burger) == set()
+    assert 'rear' in footprint_blocked(np.array([3.5, 0.15]), angles, burger)
+
+
+def test_the_burger_scan_points_start_at_its_lidar():
+    core = PolicyCore(FakeModel(), robot=ROBOTS['burger'])
+    points = core._scan_points(np.array([1.0]), np.zeros(1), (0.0, 0.0, 0.0))
+    assert np.allclose(points, [[1.0 - 0.032, 0.0]])
+    assert core._scan_points(np.array([3.5]), np.zeros(1), (0.0, 0.0, 0.0)).shape == (0, 2)
 
 
 def test_the_burger_core_commands_its_own_speeds():

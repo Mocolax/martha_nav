@@ -91,3 +91,5 @@ def test_the_burger_scales_actions_and_velocities_to_its_own_limits():
 
 def test_an_empty_sector_reads_the_robots_range():
     assert reduce_scan(np.array([np.inf]), np.zeros(1), max_range=3.5)[0] == 3.5
+    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0), robot=BURGER)
+    assert np.isclose(empty[45], 3.5 / 4.5)

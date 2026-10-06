@@ -63,6 +63,23 @@ def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
             trained_env_config(model)
 
 
+def test_cli_builds_the_point_pairs_with_the_robots_inflation(tmp_path, monkeypatch):
+    from martha_nav.learning import evaluate
+    inflations, real = [], evaluate.point_pairs
+
+    def spy(world, **kwargs):
+        inflations.append(kwargs.get('inflation'))
+        return real(world, **kwargs)
+
+    monkeypatch.setattr(evaluate, 'point_pairs', spy)
+    monkeypatch.setattr(evaluate, 'load_model', lambda path: None)
+    monkeypatch.setattr(evaluate, 'run_episodes', lambda model, cfg, seeds, n_envs: [
+        {'episode_seed': s, 'outcome': 'success', 'spl': 1.0, 'trajectory': []} for s in seeds])
+    (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
+    evaluate.main(['--model', str(tmp_path / 'best_model.zip'), '--points', 'lab', '--episodes', '2'])
+    assert inflations == [0.20]
+
+
 def test_point_mode_builds_one_episode_per_pair():
     from dataclasses import replace
 

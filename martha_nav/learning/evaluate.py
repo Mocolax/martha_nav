@@ -149,7 +149,7 @@ def main(argv=None):
     scenario = replace(cfg.scenario, sources=tuple(args.sources),
                        obstacle_mode=CONDITIONS[args.condition])
     if args.points:
-        pairs = point_pairs(args.points)
+        pairs = point_pairs(args.points, inflation=cfg.scenario.inflation)
         scenario = replace(scenario, sources=(args.points,), point_pairs=pairs)
     cfg = replace(cfg, scenario=scenario, record_trajectory=True)
     model = load_model(args.model)

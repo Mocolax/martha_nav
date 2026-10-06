@@ -122,6 +122,8 @@ def build_config(preset, collision=None, action_dim=2, target='carrot', progress
                  wide_dynamics=False, robot='martha'):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
+    if action_dim == 3 and not ROBOTS[robot].holonomic:
+        raise ValueError(f'{robot} cannot slide sideways: use action_dim 2')
     cfg = EnvConfig()
     reward = replace(cfg.reward, progress_mode=progress_mode)
     if collision is not None:
@@ -162,10 +164,10 @@ def main(argv=None):
 
     steps = args.steps or PRESETS[args.preset]['steps']
     name = args.name or f'{args.preset}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
-    run_dir = Path(args.runs_dir) / name
-    run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
                            args.reward_progress, args.wide_dynamics, args.robot)
+    run_dir = Path(args.runs_dir) / name
+    run_dir.mkdir(parents=True, exist_ok=False)
     config = {'preset': args.preset, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,

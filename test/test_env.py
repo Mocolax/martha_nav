@@ -181,3 +181,18 @@ def test_the_burger_episode_uses_its_profile():
 def test_a_holonomic_action_space_needs_a_holonomic_robot():
     with pytest.raises(ValueError, match='burger'):
         NavEnv(EnvConfig(robot='burger', action_dim=3))
+
+
+def test_the_burger_lidar_reads_nothing_inside_its_blind_zone():
+    from martha_nav.sim2d.geometry import draw_box
+    env = NavEnv(EnvConfig(robot='burger', lidar_noise=(0.0, 0.0), lidar_dropout=0.0,
+                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
+    env.reset(seed=3)
+    x, y, th = env.dyn.pose
+    ox, oy = x + env.robot.lidar_offset_x * np.cos(th), y + env.robot.lidar_offset_x * np.sin(th)
+    # A wall from 0.05 m to 0.50 m in front of the LiDAR: its nearest cells are under 0.12 m away.
+    draw_box(env.sc.full, ox + 0.275 * np.cos(th), oy + 0.275 * np.sin(th), 0.45, 2.0, th)
+    env._scan()
+    ahead = np.abs(env.ray_angles) < np.deg2rad(15)
+    assert (env.ranges[ahead] == env.robot.lidar_range).all()
+    assert (env.ranges >= env.robot.lidar_min).all()

@@ -33,6 +33,17 @@ def test_build_config_takes_the_robot_and_its_inflation():
     assert build_config('full').scenario.inflation == 0.40
 
 
+def test_a_sideways_action_space_is_refused_before_a_run_is_created(tmp_path):
+    import pytest
+
+    from martha_nav.learning.train import build_config
+    with pytest.raises(ValueError, match='burger'):
+        build_config('full', action_dim=3, robot='burger')
+    with pytest.raises(ValueError, match='burger'):
+        train_main(['--robot', 'burger', '--action-dim', '3', '--runs-dir', str(tmp_path)])
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_ppo_updates_are_kl_limited():
     # Without it the policy std collapsed and approx_kl reached 1-2 (docs/resultados.md).
     from martha_nav.learning.train import PPO_PARAMS

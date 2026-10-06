@@ -60,6 +60,7 @@ class NavEnv(gym.Env):
         if self.cfg.action_dim == 3 and not self.robot.holonomic:
             raise ValueError(f'{self.robot.name} cannot slide sideways: use action_dim 2')
         self.footprint = footprint_points(self.robot)
+        self.scan_every = max(1, round(1 / (self.robot.lidar_rate * DT)))
         self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
@@ -81,7 +82,6 @@ class NavEnv(gym.Env):
         self.lookahead = self.rng.uniform(*self.cfg.carrot_range)
         self.lidar_sigma = self.rng.uniform(*self.cfg.lidar_noise)
         # A LiDAR slower than the control loop repeats its last scan in between (random phase).
-        self.scan_every = max(1, round(1 / (self.robot.lidar_rate * DT)))
         self.scan_phase = int(self.rng.integers(self.scan_every)) if self.scan_every > 1 else 0
         self.progress = RouteProgress(self.sc.path)
         self.steps = 0
