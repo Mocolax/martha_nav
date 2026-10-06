@@ -89,7 +89,7 @@ def test_the_goal_is_cancelled_before_the_teleport(evaluate_gazebo_node):
     from martha_nav.sim2d.scenarios import generate
     node, calls = evaluate_gazebo_node, []
     for name in ('cancel_goal', 'set_initial_pose', 'spawn_obstacles',
-                 'spawn_goal_marker', 'clear_obstacles', 'spin'):
+                 'add_model', 'clear_models', 'spin'):
         setattr(node, name, lambda *a, name=name: calls.append(name) or [])
     node.send_goal = lambda goal: setattr(node, 'status', 'failed')
     node.position = (99.0, 99.0)                       # where the last episode left it

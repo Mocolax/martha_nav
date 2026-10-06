@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# E2 for one run, fast: N Gazebos side by side (each with its own ROS domain and Gazebo port)
-# with the physics unthrottled (~3x real time each; checked against 1x in docs/resultados.md).
+# The standard Gazebo evaluation (E2) of a run's best model, as evaluate_run.sh is for 2D:
+# launches N Gazebos side by side (each with its own ROS domain and Gazebo port) and runs the
+# evaluate_gazebo node in each, with the physics unthrottled (~3x real time each; checked
+# against 1x in docs/resultados.md).
 # shard:=i/N splits the seeds between them; the parts are merged at the end.
-#   ./tools/evaluate_gazebo_fast.sh runs/wide_dyn_s0 _v5 [instances] [out_dir]
+#   [EPISODES=100] ./tools/evaluate_run_gazebo.sh runs/wide_dyn_s0 _v5 [instances] [out_dir]
 # -> <out_dir, default the run>/eval_gazebo_lab_v5.csv, eval_gazebo_lab_points_v5.csv
 #    (+ _traj/_route/_obstacles beside each)
 set -e
 cd "$(dirname "$0")/.."
-run=${1:?usage: $0 runs/<name> <suffix> [instances]}
-suffix=${2?usage: $0 runs/<name> <suffix> [instances]}
+usage="usage: $0 runs/<name> <suffix> [instances] [out_dir]"
+run=${1:?$usage}
+suffix=${2?$usage}
 n=${3:-3}
 out=${4:-$run}
 mkdir -p "$out"
@@ -49,8 +52,9 @@ from pathlib import Path
 base, n = sys.argv[1], int(sys.argv[2])
 for side in ('', '_traj', '_route', '_obstacles'):
     parts = [Path(f'{base}.part{i}{side}.csv') for i in range(n)]
-    rows = [r for p in parts for r in csv.DictReader(open(p))]
-    keys = list(dict.fromkeys(k for p in parts for k in (csv.DictReader(open(p)).fieldnames or [])))
+    readers = [csv.DictReader(p.open()) for p in parts]
+    rows = [r for reader in readers for r in reader]
+    keys = list(dict.fromkeys(k for reader in readers for k in reader.fieldnames or []))
     rows.sort(key=lambda r: int(r['episode_seed']))          # stable: steps keep their order
     with open(f'{base}{side}.csv', 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=keys)

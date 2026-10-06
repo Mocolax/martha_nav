@@ -1,4 +1,5 @@
-"""Episodic evaluation in Gazebo, against a running sim.launch.py.
+"""Episodic evaluation in Gazebo, against a running sim.launch.py. For a whole run without
+launching anything, N simulations in parallel: tools/evaluate_run_gazebo.sh.
 
 ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p out:=/tmp/eval.csv
 ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p out:=/tmp/eval_points.csv
@@ -37,7 +38,8 @@ BOX_SDF = """<?xml version="1.0"?>
 <visual name="v"><geometry><box><size>{sx} {sy} 0.6</size></box></geometry></visual>
 </link></model></sdf>"""
 
-# Visual only, no collision: the LiDAR must not see the marker.
+# A green post at the goal, so the demo is readable in gzclient. Visual only, no collision:
+# the LiDAR must not see the marker.
 GOAL_SDF = """<?xml version="1.0"?>
 <sdf version="1.6"><model name="goal_marker"><static>true</static><link name="link">
 <visual name="v"><geometry><cylinder><radius>0.15</radius><length>0.02</length></cylinder></geometry>
@@ -112,12 +114,10 @@ class EvaluateGazebo(Node):
         # Position from Gazebo itself: the odometry topic depends on the drive, and a
         # missing subscription would silently disable the stall rule.
         self.create_subscription(ModelStates, '/gazebo/model_states', self.on_states, 10)
-        self.position = self.yaw = None
         self.spawn = self.create_client(SpawnEntity, '/spawn_entity')
         self.delete = self.create_client(DeleteEntity, '/delete_entity')
         self.set_state = self.create_client(SetEntityState, '/gazebo/set_entity_state')
-        self.status = None
-        self.contact = False
+        self.status, self.contact, self.position, self.yaw = None, False, None, None
 
     # ---- callbacks ----
     def on_status(self, msg):
@@ -174,34 +174,24 @@ class EvaluateGazebo(Node):
         msg.pose.pose.orientation.w = math.cos(yaw / 2)
         self.initial_pose_pub.publish(msg)
 
-    def spawn_goal_marker(self, goal):
-        """A green post at the goal, so the demo is readable in gzclient."""
+    def add_model(self, name, sdf, x, y, z, yaw=0.0):
         request = SpawnEntity.Request()
-        request.name, request.xml = 'goal_marker', GOAL_SDF
-        request.initial_pose.position.x = float(goal[0])
-        request.initial_pose.position.y = float(goal[1])
-        request.initial_pose.position.z = 0.01
+        request.name, request.xml = name, sdf
+        request.initial_pose.position.x, request.initial_pose.position.y = float(x), float(y)
+        request.initial_pose.position.z = z
+        request.initial_pose.orientation.z = math.sin(yaw / 2)
+        request.initial_pose.orientation.w = math.cos(yaw / 2)
         self.call(self.spawn, request)
-        return ['goal_marker']
 
     def spawn_obstacles(self, obstacles):
-        names = []
-        for i, ob in enumerate(obstacles):
-            name = f'obstacle_{i}'
+        names = [f'obstacle_{i}' for i in range(len(obstacles))]
+        for name, ob in zip(names, obstacles):
             sdf = (BOX_SDF.format(name=name, sx=ob.sx, sy=ob.sy) if ob.kind == 'box'
                    else CYLINDER_SDF.format(name=name, r=ob.radius))
-            request = SpawnEntity.Request()
-            request.name, request.xml = name, sdf
-            request.initial_pose.position.x = float(ob.x)
-            request.initial_pose.position.y = float(ob.y)
-            request.initial_pose.position.z = 0.3
-            request.initial_pose.orientation.z = math.sin(ob.yaw / 2)
-            request.initial_pose.orientation.w = math.cos(ob.yaw / 2)
-            self.call(self.spawn, request)
-            names.append(name)
+            self.add_model(name, sdf, ob.x, ob.y, 0.3, ob.yaw)
         return names
 
-    def clear_obstacles(self, names):
+    def clear_models(self, names):
         for name in names:
             request = DeleteEntity.Request()
             request.name = name
@@ -244,7 +234,8 @@ class EvaluateGazebo(Node):
             self.spin(0.05)                     # or the localizer reads the jump as odometry
         self.spin(0.2)
         self.set_initial_pose(*scenario.start)
-        names = self.spawn_obstacles(scenario.obstacles) + self.spawn_goal_marker(scenario.goal)
+        names = self.spawn_obstacles(scenario.obstacles) + ['goal_marker']
+        self.add_model('goal_marker', GOAL_SDF, *scenario.goal, 0.01)
         self.spin(self.settle)
         self.contact = False                    # ignore contacts caused by the teleport
         self.send_goal(scenario.goal)
@@ -270,7 +261,7 @@ class EvaluateGazebo(Node):
             outcome = episode_outcome(self.contact, self.status,
                                       math.dist(self.position, scenario.goal), progress, now - start,
                                       time_limit, self.no_progress)
-        self.clear_obstacles(names)
+        self.clear_models(names)
         return {'episode_seed': seed, 'outcome': outcome, 'source': scenario.source,
                 'mode': self.mode, 'n_obstacles': len(scenario.obstacles),
                 'route_length': round(scenario.path.length, 3),
@@ -293,15 +284,12 @@ class EvaluateGazebo(Node):
             share = sum(r['outcome'] == 'success' for r in rows) / done
             self.get_logger().info(
                 f'{done}/{len(self.seeds)} seed {seed}: {row["outcome"]} (éxito {share:.2%})')
-            self.write(rows)
+            write_csv(rows, self.out)
         self.cancel_goal()
         write_episode_files(rows, self.cfg, self.out)
         counts = {o: sum(r['outcome'] == o for r in rows) / len(rows)
                   for o in sorted({r['outcome'] for r in rows})}
         self.get_logger().info(f'done: {counts} -> {self.out}')
-
-    def write(self, rows):
-        write_csv(rows, self.out)
 
 
 def main():

@@ -46,7 +46,7 @@ muy por encima de A y B, y B sigue siendo la peor.
 
 | dato | estado | qué haría falta |
 |---|---|---|
-| Gazebo para E1, el primer run y A/B/C | no evaluado | `tools/evaluate_gazebo_fast.sh` por configuración, ~15 min cada una |
+| Gazebo para E1, el primer run y A/B/C | no evaluado | `tools/evaluate_run_gazebo.sh` por configuración, ~15 min cada una |
 | E1 con MLP, brazos combinados (GL, SL, S, geodésicos) | fuera del paquete por decisión | están en `runs/` si se necesitan |
 | Localización con slam_toolbox | solo `long_c_kl_s0` y `wide_dyn_s0`, 100 semillas, **sin** trayectorias ni distancia (evaluador anterior) | repetir con el evaluador actual si el documento analiza esas trayectorias |
 | Robot real | sin datos (los motores no han llegado) | la demo con 2–4 obstáculos |

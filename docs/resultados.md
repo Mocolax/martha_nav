@@ -362,7 +362,7 @@ pareados con `long_c_kl_s0` en las mismas semillas:
 
 ## Evaluación rápida en Gazebo (2026-10-04)
 
-`tools/evaluate_gazebo_fast.sh` corre 3 Gazebos en paralelo (cada uno con su `ROS_DOMAIN_ID` y
+`tools/evaluate_run_gazebo.sh` corre 3 Gazebos en paralelo (cada uno con su `ROS_DOMAIN_ID` y
 puerto de Gazebo) con la física sin límite (`gz physics -u 0`, ~3× tiempo real cada uno) y reparte
 las semillas con `shard:=i/n`. Validación con `wide_dyn_s0`, 100 semillas en `lab`:
 

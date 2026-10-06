@@ -188,10 +188,12 @@ Con los puntos fijos del paquete anterior:
 ./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab_points.csv
 ```
 
-O el guion que encadena las dos:
+O las dos de una vez (de ~1.5 h a ~13 min), sin levantar la simulación antes:
+`tools/evaluate_run_gazebo.sh` levanta 3 Gazebos sin GUI, cada uno con la física sin límite,
+y les reparte las semillas (`shard:=i/3`). Deja los CSV en el run, o en `out_dir` si se da:
 
 ```bash
-./tools/run_e2.sh
+./tools/evaluate_run_gazebo.sh runs/mi_run _v5
 ```
 
 ## 6.1. Demostración en todos los mundos
@@ -277,7 +279,8 @@ este paso lo regenera (unos 2 minutos).
 `tools/experiments/` guarda las colas que produjeron los resultados de `docs/resultados*.md`,
 tal como se corrieron, para poder repetirlas: `run_experiments_abc.sh` (A/B/C),
 `run_e1.sh` (CNN contra MLP), `run_night.sh` y `run_arms_stuck.sh` (brazos H, L, HL, S, SL),
-`train_gl_geo_10m.sh` (brazo GL geodésico, 10M pasos), `plot_e1.py` y `plot_run.py`.
+`train_gl_geo_10m.sh` (brazo GL geodésico, 10M pasos), `run_e2.sh` (el primer E2, a 1×),
+`plot_e1.py` y `plot_run.py`.
 
 ```bash
 ./tools/experiments/run_e1.sh

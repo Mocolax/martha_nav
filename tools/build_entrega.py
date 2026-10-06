@@ -3,7 +3,7 @@
     ./tools/ct_ros python3 tools/build_entrega.py [--out entrega_tesis]
 
 Reads runs/<run>/{config.yaml, best_model.zip, vecnormalize.pkl, evals.csv, episodes.csv} and the
-evaluations in runs/<run>/v5/ (tools/evaluate_gazebo_fast.sh, evaluate_2d --out).
+evaluations in runs/<run>/v5/ (tools/evaluate_run_gazebo.sh, evaluate_2d --out).
 """
 import argparse
 import csv
@@ -132,7 +132,7 @@ def commands(run, gazebo, commit):
     ]
     if gazebo:
         lines += ['# Gazebo (3 simulaciones en paralelo; Gazebo no es determinista: ~±4 puntos):',
-                  f'./tools/evaluate_gazebo_fast.sh runs/{run} "" 3 runs/{run}/v5']
+                  f'./tools/evaluate_run_gazebo.sh runs/{run} "" 3 runs/{run}/v5']
     return '\n'.join(lines) + '\n'
 
 
