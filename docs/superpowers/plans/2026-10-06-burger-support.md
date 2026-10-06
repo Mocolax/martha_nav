@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Martha no cambia: `runs/_fingerprint.py` debe imprimir `97d9d95e7d871807d29028effd741f1c0458971374a85d5483046a70f08018d7`, y la evaluación 2D de `wide_dyn_s0` debe repetir sus CSV.
+- Martha no cambia: `runs/_fingerprint.py` (con las variantes que fija la Tarea 3) da siempre el mismo hash, y la evaluación 2D de `wide_dyn_s0` repite sus CSV (salvo las columnas `r_proximity`, `r_turn` y `r_stalled`, que desaparecen en la Tarea 3).
 - Los runs sin campo `robot` en su `config.yaml` son `martha`.
 - El lado del robot (`ppo_local_planner` con `.npz`, `policy_core`, `numpy_policy`, `robots`) no importa `torch`, `stable_baselines3` ni `gymnasium`.
 - Código en inglés con el estilo del repo (docstrings cortos, sin comentarios obvios); documentación en español.
@@ -28,15 +28,16 @@
 |---|---|---|
 | `martha_nav/learning/policy.py`, `train.py` | solo CNN | 1 |
 | `tools/experiments/`, `tools/plot_report_legacy.py` (borrados), `tools/plot_2d_vs_gazebo.py`, comentarios, `docs/*.md` | código sin historia ni E1/E2 | 2 |
-| `martha_nav/robots.py` (nuevo) | `Robot`, `ROBOTS`, `checkpoint_robot()` | 3 |
-| `martha_nav/sim2d/geometry.py`, `observation.py` | contorno, scan y escalas del perfil | 4 |
-| `martha_nav/sim2d/env.py`, `learning/train.py`, `learning/evaluate.py` | `EnvConfig.robot`, LiDAR a 5 Hz, `--robot` | 5 |
-| `martha_nav/ros/policy_core.py`, `global_planner.py`, `slam.py` | nodos con perfil | 6 |
-| `martha_nav/learning/__init__.py`, `ros/numpy_policy.py` (nuevo), `learning/export.py` (nuevo) | política en numpy | 7 |
-| `martha_nav/ros/ppo_local_planner.py` | `.npz`, chequeo de robot, `speed_scale`, latencia | 8 |
-| `urdf/burger.urdf.xacro` (nuevo), `launch/sim.launch.py`, `ros/evaluate_gazebo.py`, `ros/gazebo_ground_truth_tf.py`, `tools/evaluate_run_gazebo.sh` | Burger en Gazebo | 9 |
-| `launch/burger.launch.py` (nuevo), `tools/deploy_burger.sh` (nuevo), `docs/comandos.md` | Burger real | 10 |
-| `runs/burger_s0/`, `docs/resultados.md` | entrenar y evaluar | 11 |
+| `sim2d/observation.py`, `reward.py`, `env.py`, `learning/train.py`, `evaluate.py`, `ros/policy_core.py`, `ppo_local_planner.py` | sin LiDAR `linear`, señal ni castigo de atasco, proximidad ni giro | 3 |
+| `martha_nav/robots.py` (nuevo) | `Robot`, `ROBOTS`, `checkpoint_robot()` | 4 |
+| `martha_nav/sim2d/geometry.py`, `observation.py` | contorno, scan y escalas del perfil | 5 |
+| `martha_nav/sim2d/env.py`, `learning/train.py`, `learning/evaluate.py` | `EnvConfig.robot`, LiDAR a 5 Hz, `--robot` | 6 |
+| `martha_nav/ros/policy_core.py`, `global_planner.py`, `slam.py` | nodos con perfil | 7 |
+| `martha_nav/learning/__init__.py`, `ros/numpy_policy.py` (nuevo), `learning/export.py` (nuevo) | política en numpy | 8 |
+| `martha_nav/ros/ppo_local_planner.py` | `.npz`, chequeo de robot, `speed_scale`, latencia | 9 |
+| `urdf/burger.urdf.xacro` (nuevo), `launch/sim.launch.py`, `ros/evaluate_gazebo.py`, `ros/gazebo_ground_truth_tf.py`, `tools/evaluate_run_gazebo.sh` | Burger en Gazebo | 10 |
+| `launch/burger.launch.py` (nuevo), `tools/deploy_burger.sh` (nuevo), `docs/comandos.md` | Burger real | 11 |
+| `runs/burger_s0/`, `docs/resultados.md` | entrenar y evaluar | 12 |
 
 ---
 
@@ -224,7 +225,313 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 3: El perfil del robot
+### Task 3: Quitar las opciones que ya no se usan
+
+Salen la codificación `linear` del LiDAR, la señal de atasco en la observación, el castigo de
+atasco y los términos de proximidad y giro brusco de la recompensa (siempre en 0). El progreso
+geodésico se queda. Los runs que usaron lo que sale (el primer run y A/B, los brazos S y SL) dejan
+de poder evaluarse; ninguno está en la tesis.
+
+**Files:**
+- Modify: `martha_nav/sim2d/observation.py` (`obs_dim`, `encode_lidar`, `build_observation`, `LIDAR_ENCODINGS`)
+- Modify: `martha_nav/sim2d/reward.py` (todo el archivo)
+- Modify: `martha_nav/sim2d/env.py` (`EnvConfig`, espacio de observación, `step`, `_obs`)
+- Modify: `martha_nav/sim2d/planner.py:50` (docstring de `RouteProgress`)
+- Modify: `martha_nav/learning/train.py` (`build_config`, flags), `martha_nav/learning/evaluate.py` (`trained_env_config`)
+- Modify: `martha_nav/ros/policy_core.py`, `martha_nav/ros/ppo_local_planner.py`
+- Modify: `docs/comandos.md:49,51` (filas de flags)
+- Modify (local, fuera de git): `runs/_fingerprint.py`
+- Test: `test/test_observation.py`, `test/test_reward.py`, `test/test_env.py`, `test/test_train.py`, `test/test_evaluate.py`, `test/test_policy_core.py`
+
+**Interfaces:**
+- Produces:
+  - `obs_dim(action_dim=2)`; `encode_lidar(sectors)` = `d / (d + 1)`.
+  - `build_observation(ranges, angles, velocity, waypoint_rel, prev_action, waypoint_max=WAYPOINT_MAX)`.
+  - `RewardConfig(progress, progress_mode, goal, collision, step)`; `compute_reward(progress_gain, reached, collided, cfg=RewardConfig())` → términos `progress`, `goal`, `collision`, `step`.
+  - `EnvConfig` sin `lidar_encoding` ni `stuck_signal`; un estancamiento siempre trunca el episodio.
+  - `build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route', wide_dynamics=False)`.
+  - `trained_env_config()` lanza `ValueError` ("no longer") con `lidar_encoding: linear` o `stuck_signal: true`.
+  - `PolicyCore(model, lookahead=1.5, carrot_clearance=0.4, action_dim=2, target='carrot', action_delay=0)`; su `info` ya no trae `'stuck'`.
+
+- [ ] **Step 1: Fijar la huella nueva con el código de hoy (antes de tocar nada)**
+
+La huella vieja usaba variantes con señal y castigo de atasco. Reemplazar `runs/_fingerprint.py`
+completo por:
+
+```python
+import hashlib
+import numpy as np
+from martha_nav.sim2d.env import EnvConfig, NavEnv
+from martha_nav.sim2d.reward import RewardConfig
+# Only options that stay; the reward terms removed in Task 3 are left out of the hash.
+VARIANTS = [EnvConfig(), EnvConfig(action_dim=3),
+            EnvConfig(target='goal', reward=RewardConfig(progress_mode='geodesic'))]
+GONE = ('r_proximity', 'r_turn', 'r_stalled')
+h = hashlib.sha256()
+for cfg in VARIANTS:
+    env = NavEnv(cfg)
+    rng = np.random.default_rng(0)
+    for ep in range(6):
+        obs, _ = env.reset(seed=100 + ep)
+        h.update(obs.tobytes())
+        for t in range(400):
+            a = rng.uniform(-1, 1, cfg.action_dim) * (0.2 if t > 150 else 1.0)
+            obs, r, term, trunc, info = env.step(a)
+            h.update(obs.tobytes()); h.update(np.float64(r).tobytes())
+            h.update(bytes([term, trunc]))
+            if term or trunc:
+                h.update(repr(sorted((k, v) for k, v in info.items() if k not in GONE)).encode())
+                break
+print(h.hexdigest())
+```
+
+Run: `./tools/ct_ros python3 runs/_fingerprint.py </dev/null` y agregar el hash impreso como
+última línea del archivo: `# expected: <hash>`. Ese es el hash que todas las tareas siguientes
+deben reproducir.
+
+- [ ] **Step 2: Tests**
+
+`test/test_reward.py` completo:
+
+```python
+from dataclasses import replace
+
+from martha_nav.sim2d.reward import RewardConfig, compute_reward
+
+
+def test_default_terms():
+    total, t = compute_reward(0.1, False, False)
+    assert t == {'progress': 0.1, 'goal': 0.0, 'collision': 0.0, 'step': -0.005}
+    assert abs(total - 0.095) < 1e-12
+
+
+def test_terminal_values():
+    assert compute_reward(0.0, True, False)[1]['goal'] == 20.0
+    assert compute_reward(0.0, False, True)[1]['collision'] == -20.0
+
+
+def test_negative_progress_is_not_paid():
+    assert compute_reward(-0.5, False, False)[1]['progress'] == 0.0
+
+
+def test_geodesic_progress_can_be_negative_and_route_progress_cannot():
+    geo = replace(RewardConfig(), progress_mode='geodesic')
+    assert compute_reward(-0.3, False, False, geo)[1]['progress'] == -0.3
+    assert compute_reward(-0.3, False, False, RewardConfig())[1]['progress'] == 0.0
+```
+
+`test/test_observation.py`:
+- En `test_observation_layout_and_bounds`, borrar las tres líneas de `linear = build_observation(...)` (dos líneas) y `assert np.allclose(linear[:90], 0.5)`.
+- En `test_inverse_lidar_encoding_gives_more_resolution_up_close`, quitar los argumentos `, lidar_encoding='inverse'` (tres llamadas; la tercera queda `empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0))`) y el comentario `# linear /8 m gives only 0.025`.
+- Borrar `test_unknown_lidar_encoding_is_rejected` y `test_stuck_signal_adds_one_value_at_the_end`.
+
+`test/test_env.py`: borrar `test_stall_penalty_turns_stalls_into_terminal_episodes`,
+`test_lidar_encoding_reaches_the_observation` y `test_stuck_signal_grows_while_the_robot_does_not_advance`.
+
+`test/test_train.py`: `test_experiment_flags_reach_the_env_config` pasa a:
+
+```python
+def test_experiment_flags_reach_the_env_config():
+    from martha_nav.learning.train import build_config
+    assert build_config('full').reward.collision == -20.0
+    cfg = build_config('full', collision=-10.0, progress_mode='geodesic')
+    assert cfg.reward.collision == -10.0 and cfg.reward.progress_mode == 'geodesic'
+```
+
+`test/test_evaluate.py`: `test_evaluation_uses_the_env_the_model_was_trained_with` pasa a estos dos:
+
+```python
+def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
+    from martha_nav.learning.evaluate import trained_env_config
+    model = tmp_path / 'best_model.zip'
+    assert trained_env_config(model) == EnvConfig()                             # no config: defaults
+    (tmp_path / 'config.yaml').write_text('env:\n  action_dim: 3\n  target: goal\n')
+    cfg = trained_env_config(model)
+    assert (cfg.action_dim, cfg.target) == (3, 'goal')
+
+
+def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
+    import pytest
+
+    from martha_nav.learning.evaluate import trained_env_config
+    model = tmp_path / 'best_model.zip'
+    for env in ('lidar_encoding: linear', 'lidar_encoding: inverse\n  stuck_signal: true'):
+        (tmp_path / 'config.yaml').write_text(f'env:\n  {env}\n')
+        with pytest.raises(ValueError, match='no longer'):
+            trained_env_config(model)
+```
+
+`test/test_policy_core.py`:
+- `test_progress_along_a_replanned_route_counts`: `PolicyCore(FakeModel(), stuck_signal=True)` → `PolicyCore(FakeModel())`, y la última línea `assert info['stuck'] == 0.0` → `assert np.isclose(info['s'], 0.5)` (medio metro sobre el desvío).
+- Borrar `test_stuck_time_survives_a_replan_to_the_same_goal` (el reloj de atasco ya no lo usa el núcleo; `test_planner.py` cubre `RouteProgress.reroute`).
+
+- [ ] **Step 3: Ver fallar**
+
+Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test/test_reward.py test/test_train.py test/test_evaluate.py test/test_policy_core.py </dev/null`
+Expected: FAIL (`compute_reward() missing 2 required positional arguments`, `unexpected keyword 'progress_mode'`, no se lanza `ValueError`, `info['s']`).
+
+- [ ] **Step 4: Implementar**
+
+`martha_nav/sim2d/reward.py` completo:
+
+```python
+"""Reward terms. Every term is logged apart."""
+from dataclasses import dataclass
+
+
+@dataclass
+class RewardConfig:
+    progress: float = 1.0        # per metre of progress, measured as progress_mode says
+    # 'route': new-record arc length along the A* route (never negative).
+    # 'geodesic': drop in geodesic distance to the goal on the map with the obstacles,
+    # potential-based shaping (Ng et al. 1999), so moving away costs what coming back pays.
+    progress_mode: str = 'route'
+    goal: float = 20.0
+    collision: float = -20.0
+    step: float = -0.005
+
+
+def compute_reward(progress_gain, reached, collided, cfg=RewardConfig()):
+    """Return (total, terms). progress_gain is in metres; see RewardConfig.progress_mode."""
+    gain = progress_gain if cfg.progress_mode == 'geodesic' else max(progress_gain, 0.0)
+    terms = {
+        'progress': cfg.progress * gain,
+        'goal': cfg.goal if reached else 0.0,
+        'collision': cfg.collision if collided else 0.0,
+        'step': cfg.step,
+    }
+    return sum(terms.values()), terms
+```
+
+`martha_nav/sim2d/observation.py`:
+
+```python
+def obs_dim(action_dim=2):
+    """90 LiDAR sectors, the waypoint, the measured velocity and the previous action."""
+    return N_SECTORS + 2 + 2 * action_dim
+```
+
+Borrar `LIDAR_ENCODINGS`;
+
+```python
+def encode_lidar(sectors):
+    """Metres -> [0, 1) as d / (d + 1 m): finer up close, where it matters."""
+    return sectors / (sectors + 1.0)
+```
+
+En `build_observation`: firma `def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, waypoint_max=WAYPOINT_MAX):`; el docstring pierde las líneas de `stuck` y dice `96-value observation in [-1, 1] (98 with the holonomic action space).`; en el cuerpo `lidar = encode_lidar(reduce_scan(ranges, angles))`, y se borran `if stuck is not None: parts.append([float(stuck)])`. El comentario de `LIDAR_MAX` queda `# m, RPLIDAR A2M8 range`.
+
+`martha_nav/sim2d/env.py`:
+- En `EnvConfig`, borrar `lidar_encoding` y `stuck_signal` con sus comentarios.
+- `spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)`.
+- En `step`:
+
+```python
+        reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
+                                       self.cfg.reward)
+        for k, v in terms.items():
+            self.terms[k] += v
+        self.prev_action = action
+        # A stall truncates the episode: its value is bootstrapped, not punished.
+        terminated = collided or reached
+        truncated = not terminated and (self.steps >= self.max_steps or stalled)
+```
+
+- En `_obs`, borrar las dos líneas de `stuck = ...` y llamar
+  `build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action, scale)`.
+
+`martha_nav/sim2d/planner.py:50`: `One rule for the 2D environment's stall, the policy's stuck signal and the end` →
+`One rule for the 2D environment's stall and the end`, y la línea siguiente `of a Gazebo episode, so the three measure the same thing.` → `of a Gazebo episode, so the two measure the same thing.`
+
+`martha_nav/learning/train.py`:
+
+```python
+def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
+                 wide_dynamics=False):
+    """EnvConfig for a preset; the optional arguments are experiment overrides."""
+    p = PRESETS[preset]
+    cfg = EnvConfig()
+    reward = replace(cfg.reward, progress_mode=progress_mode)
+    if collision is not None:
+        reward = replace(reward, collision=collision)
+    if wide_dynamics:
+        cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
+    return replace(cfg, reward=reward, action_dim=action_dim, target=target,
+                   scenario=replace(cfg.scenario, sources=tuple(p['sources']),
+                                    obstacle_mode=p['obstacle_mode']))
+```
+
+En `main`: borrar `--reward-stalled`, `--lidar-encoding` y `--stuck-signal`, y
+`env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target, args.reward_progress, args.wide_dynamics)`.
+
+`martha_nav/learning/evaluate.py`:
+
+```python
+def trained_env_config(model_path):
+    """The EnvConfig the model was trained with: its observation must match."""
+    config = _run_config(model_path)
+    if not config:
+        return EnvConfig()
+    saved = config['env']
+    if saved.get('lidar_encoding') == 'linear' or saved.get('stuck_signal'):
+        raise ValueError(f'{model_path} was trained with options this code no longer has')
+    dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})
+    # Defaults for configs that do not record an option.
+    return EnvConfig(dynamics=dynamics, action_dim=saved.get('action_dim', 2),
+                     target=saved.get('target', 'carrot'))
+```
+
+`martha_nav/ros/policy_core.py`:
+- `def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, action_dim=2, target='carrot', action_delay=0):` y borrar `self.lidar_encoding`, `self.stuck_signal`, `self.no_progress_time`.
+- En `compute`: el comentario `# Same rule as the 2D environment, so the stuck signal means the same thing.` pasa a `# The progress along the route places the carrot.`; borrar las dos líneas de `stuck = ...`; `obs = build_observation(ranges, angles, velocity, rel, self.prev_action, scale)`; en el `return`, el diccionario queda `{'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point}`.
+
+`martha_nav/ros/ppo_local_planner.py`: el `PolicyCore(...)` pierde `lidar_encoding=...`,
+`stuck_signal=...` y `no_progress_time=...`; el log queda
+`self.get_logger().info(f'action space: {self.action_dim}D, action delay {self.core.action_delay}')`.
+
+`docs/comandos.md`: borrar las filas de `--lidar-encoding inverse\|linear` y `--reward-stalled -5`
+de la tabla de opciones de `train_policy`.
+
+- [ ] **Step 5: Ver pasar**
+
+Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test </dev/null` → todo PASS.
+Run: `grep -rn "stuck_signal\|lidar_encoding\|LIDAR_ENCODINGS\|proximity\|'turn'\|reward_stalled\|stuck=" martha_nav test` → sin resultados.
+
+- [ ] **Step 6: La huella no cambió**
+
+Run: `./tools/ct_ros python3 runs/_fingerprint.py </dev/null` → el mismo hash del Step 1.
+
+- [ ] **Step 7: La evaluación 2D de `wide_dyn_s0` no cambió**
+
+```bash
+./tools/ct_ros ros2 run martha_nav evaluate_2d --model runs/wide_dyn_s0/best_model.zip --episodes 200 --condition obstacles --sources lab --out runs/_check/eval_obstacles_lab.csv </dev/null
+./tools/ct python3 -c "
+import pandas as pd
+a = pd.read_csv('runs/wide_dyn_s0/v5/eval_obstacles_lab.csv')
+b = pd.read_csv('runs/_check/eval_obstacles_lab.csv')
+pd.testing.assert_frame_equal(a[b.columns], b)
+print('igual')"
+```
+
+Expected: `igual`.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add martha_nav test docs/comandos.md
+git commit -m "Remove the options no run in the thesis uses
+
+The linear LiDAR encoding, the stuck signal, the stall penalty and the
+proximity and turn reward terms go; geodesic progress stays. A model trained
+with a removed option is refused instead of being misread. Martha's episodes
+are unchanged (same fingerprint, same wide_dyn_s0 evaluation).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 4: El perfil del robot
 
 **Files:**
 - Create: `martha_nav/robots.py`
@@ -352,22 +659,21 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 4: Geometría y observación con el perfil
+### Task 5: Geometría y observación con el perfil
 
 **Files:**
 - Modify: `martha_nav/sim2d/geometry.py:6-9,105-125`
-- Modify: `martha_nav/sim2d/observation.py:4-12,22-37,44-50,52-89`
+- Modify: `martha_nav/sim2d/observation.py` (constantes, `reduce_scan`, `build_observation`, `action_to_cmd`)
 - Test: `test/test_geometry.py`, `test/test_observation.py`, `test/test_scan_adapter.py`, `test/test_urdf.py:5`
 
 **Interfaces:**
-- Consumes: `ROBOTS`, `Robot` (Task 3).
+- Consumes: `ROBOTS`, `Robot` (Task 4).
 - Produces:
   - `footprint_points(robot, spacing=RESOLUTION / 2) -> np.ndarray (n, 2)` en `base_link`.
   - `footprint_collides(grid, x, y, theta, footprint) -> bool` (`footprint` obligatorio).
   - `reduce_scan(ranges, angles, max_range=8.0)`.
-  - `build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='inverse', stuck=None, waypoint_max=WAYPOINT_MAX, robot=ROBOTS['martha'])`.
+  - `build_observation(ranges, angles, velocity, waypoint_rel, prev_action, waypoint_max=WAYPOINT_MAX, robot=ROBOTS['martha'])`.
   - `action_to_cmd(action, robot=ROBOTS['martha'])`.
-  - `LINEAR_RANGE = 8.0` (escala de la codificación `'linear'`).
   - Desaparecen: `ROBOT_LENGTH`, `ROBOT_WIDTH`, `LIDAR_OFFSET_X`, `FOOTPRINT`, `LIDAR_MAX`, `V_MAX`, `V_REVERSE`, `V_LATERAL`, `W_MAX`.
 
 - [ ] **Step 1: Tests nuevos y alias en los viejos**
@@ -460,7 +766,6 @@ def footprint_collides(grid, x, y, theta, footprint):
 
 ```python
 N_SECTORS = 90
-LINEAR_RANGE = 8.0  # m, scale of the 'linear' LiDAR encoding
 WAYPOINT_MAX = 3.0  # m, carrot distance scale
 GOAL_MAX = 12.0     # m, goal distance scale when the policy sees the goal instead (longest route)
 OBS_DIM = N_SECTORS + 6          # the default (vx, w) action space
@@ -468,19 +773,17 @@ OBS_DIM = N_SECTORS + 6          # the default (vx, w) action space
 
 `reduce_scan`: firma `def reduce_scan(ranges, angles, max_range=8.0):`, docstring `... Invalid readings (inf, NaN, <= 0) and empty sectors count as max_range.` y en el cuerpo `LIDAR_MAX` → `max_range` (tres veces).
 
-`encode_lidar`: `return sectors / LINEAR_RANGE` y docstring `'linear': d / 8 m`.
-
 `build_observation`: firma
 
 ```python
-def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='inverse',
-                      stuck=None, waypoint_max=WAYPOINT_MAX, robot=ROBOTS['martha']):
+def build_observation(ranges, angles, velocity, waypoint_rel, prev_action,
+                      waypoint_max=WAYPOINT_MAX, robot=ROBOTS['martha']):
 ```
 
 docstring: agregar `robot: the profile whose LiDAR range and velocity limits scale the values.`; cuerpo:
 
 ```python
-    lidar = encode_lidar(reduce_scan(ranges, angles, robot.lidar_range), lidar_encoding)
+    lidar = encode_lidar(reduce_scan(ranges, angles, robot.lidar_range))
     ...
     vel = ([velocity[0] / robot.v_max, velocity[1] / robot.v_lateral, velocity[2] / robot.w_max]
            if len(velocity) == 3 else [velocity[0] / robot.v_max, velocity[1] / robot.w_max])
@@ -503,11 +806,11 @@ def action_to_cmd(action, robot=ROBOTS['martha']):
 
 Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test/test_geometry.py test/test_observation.py test/test_urdf.py </dev/null` → PASS.
 
-- [ ] **Step 5: Commit** (junto con la Tarea 5, que deja el paquete importable de nuevo; no commitear aquí solo)
+- [ ] **Step 5: Commit** (junto con la Tarea 6, que deja el paquete importable de nuevo; no commitear aquí solo)
 
 ---
 
-### Task 5: Simulador 2D y entrenamiento con el perfil
+### Task 6: Simulador 2D y entrenamiento con el perfil
 
 **Files:**
 - Modify: `martha_nav/sim2d/env.py` (imports 9-15; `episode_steps` 25-27; `EnvConfig`; `__init__`; `reset`; `step`; `_scan`; `_obs`)
@@ -516,7 +819,7 @@ Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test/test_geometry
 - Test: `test/test_env.py`, `test/test_train.py`, `test/test_evaluate.py`
 
 **Interfaces:**
-- Consumes: Task 3 y 4.
+- Consumes: Task 4 y 5.
 - Produces: `EnvConfig.robot: str = 'martha'`; `episode_steps(route_length, robot=ROBOTS['martha'])`; `build_config(..., robot='martha')`; `train_policy --robot {martha,burger}`; `trained_env_config()` devuelve `robot` y `scenario.inflation` del perfil.
 
 - [ ] **Step 1: Tests**
@@ -658,16 +961,15 @@ y reemplazar el `self._scan()` de `step` por:
 
 ```python
         return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
-                                 self.cfg.lidar_encoding, stuck, scale, robot=self.robot)
+                                 scale, robot=self.robot)
 ```
 
 - [ ] **Step 4: Implementar `train.py` y `evaluate.py`**
 
-`train.py`: `from martha_nav.robots import ROBOTS`; `build_config(preset, collision=None, stalled=None, lidar_encoding='inverse', action_dim=2, stuck_signal=False, target='carrot', progress_mode='route', wide_dynamics=False, robot='martha')` y su `return`:
+`train.py`: `from martha_nav.robots import ROBOTS`; `build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route', wide_dynamics=False, robot='martha')` y su `return`:
 
 ```python
-    return replace(cfg, reward=reward, lidar_encoding=lidar_encoding, action_dim=action_dim,
-                   stuck_signal=stuck_signal, target=target, robot=robot,
+    return replace(cfg, reward=reward, action_dim=action_dim, target=target, robot=robot,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
                                     obstacle_mode=p['obstacle_mode'],
                                     inflation=ROBOTS[robot].inflation))
@@ -679,22 +981,20 @@ En `main`: `ap.add_argument('--robot', choices=list(ROBOTS), default='martha', h
 
 ```python
     robot = saved.get('robot', 'martha')
-    return EnvConfig(dynamics=dynamics, lidar_encoding=saved.get('lidar_encoding', 'linear'),
-                     action_dim=saved.get('action_dim', 2),
-                     stuck_signal=saved.get('stuck_signal', False),
+    return EnvConfig(dynamics=dynamics, action_dim=saved.get('action_dim', 2),
                      target=saved.get('target', 'carrot'), robot=robot,
                      scenario=ScenarioConfig(inflation=ROBOTS[robot].inflation))
 ```
 
-`evaluate_gazebo.py` no cambia en esta tarea: `episode_steps(length)` sin perfil sigue siendo el de Martha (la Tarea 9 le pasa el robot).
+`evaluate_gazebo.py` no cambia en esta tarea: `episode_steps(length)` sin perfil sigue siendo el de Martha (la Tarea 10 le pasa el robot).
 
 - [ ] **Step 5: Ver pasar y verificar que Martha no cambió**
 
 Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test/test_env.py test/test_train.py test/test_evaluate.py test/test_geometry.py test/test_observation.py test/test_urdf.py </dev/null` → PASS.
 Run: `./tools/ct_ros python3 runs/_fingerprint.py </dev/null`
-Expected: `97d9d95e7d871807d29028effd741f1c0458971374a85d5483046a70f08018d7`. Si difiere, algo cambió para Martha: buscarlo antes de seguir.
+Expected: el hash que la Tarea 3 anotó como comentario en `runs/_fingerprint.py`. Si difiere, algo cambió para Martha: buscarlo antes de seguir. Repetir también la comparación de `eval_obstacles_lab.csv` de la Tarea 3 (Step 7): debe imprimir `igual`.
 
-- [ ] **Step 6: Commit (Tareas 4 y 5)**
+- [ ] **Step 6: Commit (Tareas 5 y 6)**
 
 ```bash
 git add martha_nav/sim2d martha_nav/learning test
@@ -708,11 +1008,11 @@ episodes are bit-identical (same fingerprint).
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
-(Si `test_policy_core.py` falla en este punto porque `policy_core.py` importa los nombres viejos, es la Tarea 6: hacerla antes de correr la suite completa.)
+(Si `test_policy_core.py` falla en este punto porque `policy_core.py` importa los nombres viejos, es la Tarea 7: hacerla antes de correr la suite completa.)
 
 ---
 
-### Task 6: Nodos ROS con el perfil
+### Task 7: Nodos ROS con el perfil
 
 **Files:**
 - Modify: `martha_nav/ros/policy_core.py` (imports 1-8, `footprint_blocked`, `PolicyCore.__init__`, `compute`, `_scan_points`)
@@ -721,7 +1021,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `test/test_policy_core.py`, `test/test_global_planner.py`
 
 **Interfaces:**
-- Consumes: Tasks 3-4.
+- Consumes: Tasks 4-5.
 - Produces: `footprint_blocked(ranges, angles, robot=ROBOTS['martha'], margin=0.05)`; `PolicyCore(model, ..., robot=ROBOTS['martha'])` (atributo `core.robot`); parámetro `robot` de `global_planner` (inflado por defecto del perfil); `slam_toolbox(..., max_range=8.0)`.
 
 - [ ] **Step 1: Tests**
@@ -787,7 +1087,7 @@ from martha_nav.sim2d.observation import GOAL_MAX, WAYPOINT_MAX, action_to_cmd, 
 from martha_nav.sim2d.planner import RouteProgress, carrot
 ```
 
-(`is_recurrent` cambia de origen en la Tarea 7.)
+(`is_recurrent` cambia de origen en la Tarea 8.)
 
 ```python
 def footprint_blocked(ranges, angles, robot=ROBOTS['martha'], margin=0.05):
@@ -809,7 +1109,7 @@ def footprint_blocked(ranges, angles, robot=ROBOTS['martha'], margin=0.05):
 ```
 
 `PolicyCore.__init__`: agregar el parámetro final `robot=ROBOTS['martha']` y `self.robot = robot`.
-En `compute`: `blocked = footprint_blocked(ranges, angles, self.robot)`; `build_observation(ranges, angles, velocity, rel, self.prev_action, self.lidar_encoding, stuck, scale, robot=self.robot)`; `self.pending.append(action_to_cmd(action, self.robot))`.
+En `compute`: `blocked = footprint_blocked(ranges, angles, self.robot)`; `build_observation(ranges, angles, velocity, rel, self.prev_action, scale, robot=self.robot)`; `self.pending.append(action_to_cmd(action, self.robot))`.
 En `_scan_points`: `hit = np.isfinite(ranges) & (ranges > 0) & (ranges < self.robot.lidar_range)` y `ox = x + self.robot.lidar_offset_x * np.cos(yaw)`, `oy = y + self.robot.lidar_offset_x * np.sin(yaw)`.
 
 `global_planner.py` (importar `from martha_nav.robots import ROBOTS`):
@@ -848,7 +1148,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: La política en numpy
+### Task 8: La política en numpy
 
 **Files:**
 - Modify: `martha_nav/learning/__init__.py`, `martha_nav/learning/policy.py:31-33`, `martha_nav/learning/evaluate.py:11`, `martha_nav/ros/policy_core.py` (import de `is_recurrent`)
@@ -860,7 +1160,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `trained_env_config`, `load_model` (evaluate.py), `policy_kwargs()` (Task 1).
 - Produces:
   - `martha_nav.learning.is_recurrent(model) -> bool` (sin importar torch).
-  - `SETTINGS = ('robot', 'lidar_encoding', 'action_dim', 'stuck_signal', 'target', 'no_progress_time')` y `settings_of(cfg) -> dict` en `martha_nav/ros/numpy_policy.py`.
+  - `SETTINGS = ('robot', 'action_dim', 'target')` y `settings_of(cfg) -> dict` en `martha_nav/ros/numpy_policy.py`.
   - `NumpyPolicy(path)`: `.settings: dict`, `.predict(obs, deterministic=True) -> (np.ndarray, None)`.
   - `export(model_path, out=None) -> Path` y CLI `export_policy --model ... [--out ...]`, por defecto `policy.npz` junto al modelo.
 
@@ -932,7 +1232,7 @@ def test_the_robot_side_never_imports_pytorch():
 - [ ] **Step 2: Ver fallar**
 
 Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test/test_export.py </dev/null`
-Expected: FAIL (`No module named 'martha_nav.learning.export'`; el tercer test falla porque `ppo_local_planner` importa torch; ese lo termina de arreglar la Tarea 8).
+Expected: FAIL (`No module named 'martha_nav.learning.export'`; el tercer test falla porque `ppo_local_planner` importa torch; ese lo termina de arreglar la Tarea 9).
 
 - [ ] **Step 3: Implementar**
 
@@ -963,7 +1263,7 @@ import numpy as np
 
 from martha_nav.sim2d.observation import N_SECTORS
 
-SETTINGS = ('robot', 'lidar_encoding', 'action_dim', 'stuck_signal', 'target', 'no_progress_time')
+SETTINGS = ('robot', 'action_dim', 'target')
 CONVS = ((0, 1, 2), (2, 2, 2), (4, 2, 1))    # LidarCnnExtractor.cnn: (index, stride, padding)
 
 
@@ -1064,14 +1364,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: `ppo_local_planner`: `.npz`, robot correcto, `speed_scale`, latencia
+### Task 9: `ppo_local_planner`: `.npz`, robot correcto, `speed_scale`, latencia
 
 **Files:**
 - Modify: `martha_nav/ros/ppo_local_planner.py`
 - Test: `test/test_ppo_local_planner.py`
 
 **Interfaces:**
-- Consumes: `NumpyPolicy`, `settings_of` (Task 7), `ROBOTS` (Task 3), `PolicyCore(robot=...)` (Task 6).
+- Consumes: `NumpyPolicy`, `settings_of` (Task 8), `ROBOTS` (Task 4), `PolicyCore(robot=...)` (Task 7).
 - Produces: `load_policy(checkpoint) -> (model, settings)`; `to_twist(velocities, scale=1.0) -> Twist`; parámetros `robot` (`''` = el del modelo) y `speed_scale` (1.0).
 
 - [ ] **Step 1: Tests**
@@ -1168,17 +1468,13 @@ En `__init__`, reemplazar desde `torch.set_num_threads(1)` hasta el primer `get_
         self.core = PolicyCore(
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
-            lidar_encoding=settings['lidar_encoding'],
             action_dim=settings['action_dim'],
-            stuck_signal=settings['stuck_signal'],
-            no_progress_time=settings['no_progress_time'],
             target=settings['target'],
             action_delay=self.declare_parameter('action_delay', 0).value,
             robot=ROBOTS[settings['robot']])
         self.speed_scale = self.declare_parameter('speed_scale', 1.0).value
         self.action_dim = self.core.action_dim
         self.get_logger().info(f"robot {settings['robot']}, action space {self.action_dim}D, "
-                               f"lidar {settings['lidar_encoding']}, "
                                f'action delay {self.core.action_delay}, speed x{self.speed_scale}')
 ```
 
@@ -1217,7 +1513,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: El Burger en Gazebo
+### Task 10: El Burger en Gazebo
 
 **Files:**
 - Create: `urdf/burger.urdf.xacro`
@@ -1225,7 +1521,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `test/test_urdf.py`, `test/test_evaluate_gazebo.py`
 
 **Interfaces:**
-- Consumes: `ROBOTS`, `checkpoint_robot` (Task 3), `episode_steps(length, robot)` (Task 5), `slam_toolbox(max_range=...)` (Task 6).
+- Consumes: `ROBOTS`, `checkpoint_robot` (Task 4), `episode_steps(length, robot)` (Task 6), `slam_toolbox(max_range=...)` (Task 7).
 - Produces: entidad de Gazebo `robot` para los dos robots; `sim.launch.py robot:=martha|burger` (por defecto el del checkpoint); parámetro `robot` de `evaluate_gazebo`.
 
 - [ ] **Step 1: Tests**
@@ -1542,7 +1838,7 @@ Run: `./tools/ct_ros python3 -m pytest -q -p no:cacheprovider test </dev/null` �
 
 Prueba de humo con Martha (que nada se rompió): `EPISODES=6 ./tools/evaluate_run_gazebo.sh runs/wide_dyn_s0 _smoke 3`. Expected: termina con 6 semillas y 90 puntos y las líneas `done:`; borrar después `rm runs/wide_dyn_s0/*_smoke*`.
 
-Prueba con el Burger, con un modelo cualquiera de Burger (el de la Tarea 11 o uno de 50k pasos: `./tools/ct_ros ros2 run martha_nav train_policy --preset full --robot burger --wide-dynamics --steps 50000 --name burger_smoke </dev/null`):
+Prueba con el Burger, con un modelo cualquiera de Burger (el de la Tarea 12 o uno de 50k pasos: `./tools/ct_ros ros2 run martha_nav train_policy --preset full --robot burger --wide-dynamics --steps 50000 --name burger_smoke </dev/null`):
 
 ```bash
 ./tools/ct_ros ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.95 y:=1.35 checkpoint:=/home/ros/ros2_ws/src/martha_nav/runs/burger_smoke/best_model.zip
@@ -1564,7 +1860,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 10: El Burger real: launch, despliegue y documentación
+### Task 11: El Burger real: launch, despliegue y documentación
 
 **Files:**
 - Create: `launch/burger.launch.py`, `tools/deploy_burger.sh`
@@ -1760,9 +2056,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 11: Entrenar y evaluar el Burger
+### Task 12: Entrenar y evaluar el Burger
 
-Operativa; requiere la Tarea 9 completa y el `range_max` del LiDAR real.
+Operativa; requiere la Tarea 10 completa y el `range_max` del LiDAR real.
 
 - [ ] **Step 1: Confirmar el LiDAR.** Pedir al usuario el resultado de `ros2 topic echo /scan --once --field range_max`. Si es `8.0`, aplicar el cambio de perfil y de URDF que describe `docs/comandos.md`, correr `test/test_urdf.py` y commitear (`Use the LDS-02 numbers for the Burger's LiDAR`).
 
@@ -1795,6 +2091,6 @@ Expected: `runs/burger_s0/evals.csv` sube; el mejor éxito de la evaluación per
 
 ## Self-review
 
-- Cobertura del spec: Parte 0 (solo CNN, código sin historia) → Tareas 1-2; Parte 1 → 3-6; Parte 2 → 5, 9, 11; Parte 3 → 7, 8, 10; pruebas del spec → tests de cada tarea más la huella (Tarea 5).
+- Cobertura del spec: Parte 0 (solo CNN, código sin historia, opciones sin uso) → Tareas 1-3; Parte 1 → 4-7; Parte 2 → 6, 10, 12; Parte 3 → 8, 9, 11; pruebas del spec → tests de cada tarea más la huella (Tareas 3 y 6).
 - Nombres consistentes: `ROBOTS`, `Robot`, `checkpoint_robot`, `footprint_points`, `settings_of`, `SETTINGS`, `NumpyPolicy`, `load_policy`, `to_twist`, `export`, entidad `robot`.
 - Desviación respecto del spec, ya reflejada en él: el URDF del Burger usa geometría propia y no los paquetes `turtlebot3_*`.
