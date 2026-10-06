@@ -409,3 +409,70 @@ la respuesta (`ready` o `reset_blocked`) sale en el log de `esp32_bridge`:
 Los eventos se mandan una sola vez: si el robot no se mueve y no viste ninguno,
 puede haber quedado latcheado antes de que el bridge conectara; llama igual al
 reset y mira el log del bridge (`ready` o `reset_blocked`).
+
+## 10. TurtleBot3 Burger
+
+El Burger usa el mismo paquete con su perfil (`martha_nav/robots.py`). Su bringup oficial corre
+en la Raspberry Pi; la navegación (slam_toolbox, planificadores y política) también, con
+`burger.launch.py`. El PC solo mira y manda metas con RViz.
+
+**Antes de entrenar, una vez:** con el bringup corriendo, medir el LiDAR.
+
+```bash
+ros2 topic echo /scan --once --field range_max
+```
+
+`3.5` es un LDS-01 (el perfil ya lo tiene). `8.0` es un LDS-02: cambiar en `ROBOTS['burger']`
+`lidar_range=8.0, lidar_min=0.16`, y en `urdf/burger.urdf.xacro` los `default` de `lidar_range` y
+`lidar_min` (`test/test_urdf.py` exige que coincidan).
+
+**Entrenar y evaluar** (como cualquier run):
+
+```bash
+./tools/ct_ros ros2 run martha_nav train_policy --preset full --seed 0 --robot burger --wide-dynamics --name burger_s0
+./tools/evaluate_run.sh runs/burger_s0
+./tools/evaluate_run_gazebo.sh runs/burger_s0 ""
+./tools/ct_ros ros2 run martha_nav export_policy --model runs/burger_s0/best_model.zip
+```
+
+**Red:** el PC y el robot con el mismo `ROS_DOMAIN_ID` (el del TurtleBot, por defecto 30):
+`export ROS_DOMAIN_ID=30` en las dos máquinas antes de lanzar nada.
+
+**Desplegar** (en la Pi, una vez:
+`sudo apt install ros-humble-slam-toolbox ros-humble-nav2-map-server ros-humble-teleop-twist-keyboard python3-scipy`):
+
+```bash
+./tools/deploy_burger.sh ubuntu@<ip-del-robot> runs/burger_s0/policy.npz
+```
+
+Copia el paquete a `~/martha_ws` de la Pi y lo compila. No toca los `maps/` ni las `policies/`
+que ya estén allí.
+
+**Demo, en la Pi** (cada comando en su terminal SSH):
+
+```bash
+ros2 launch turtlebot3_bringup robot.launch.py
+```
+
+**La primera vez**, con solo ese bringup corriendo y antes de lanzar `burger.launch.py`,
+comprobar a mano que
+`ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.1}}"` avanza y
+`"{angular: {z: 0.5}}"` gira a la izquierda. Con `map:=`, `ppo_local_planner` publica ceros en
+`/cmd_vel` a 10 Hz y el comando a mano no mueve el robot. Y arrancar con `speed_scale:=0.5`.
+
+Mapear (sin `map:=`), manejando con `ros2 run teleop_twist_keyboard teleop_twist_keyboard`:
+
+```bash
+source ~/martha_ws/install/setup.bash && ros2 launch martha_nav burger.launch.py
+```
+
+Guardar el mapa con el mapeo corriendo, pararlo con Ctrl+C y relanzar navegando en él:
+
+```bash
+~/martha_ws/src/martha_nav/tools/save_map.sh ~/martha_ws/src/martha_nav/maps/sala
+ros2 launch martha_nav burger.launch.py map:=$HOME/martha_ws/src/martha_nav/maps/sala checkpoint:=$HOME/martha_ws/src/martha_nav/policies/policy.npz speed_scale:=0.5
+```
+
+En el PC, `rviz2 -d rviz/nav.rviz` para la pose inicial y las metas. Cada 10 s el planificador
+local registra la latencia scan → `/cmd_vel`. Para depurar desde el PC, el mismo
+`burger.launch.py` corre allí sin cambios.

@@ -34,7 +34,7 @@ def test_executables_say_what_they_do():
 
 def test_the_launch_files_run_installed_executables():
     import re
-    for launch in ('sim.launch.py', 'real.launch.py'):
+    for launch in ('sim.launch.py', 'real.launch.py', 'burger.launch.py'):
         launched = re.findall(r"package='martha_nav', executable='(\w+)'",
                               (REPO / 'launch' / launch).read_text())
         assert launched and set(launched) <= set(entry_points()), launch
