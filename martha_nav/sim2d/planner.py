@@ -47,8 +47,8 @@ class Path:
 class RouteProgress:
     """New-record progress along a route and the time since the last record.
 
-    One rule for the 2D environment's stall, the policy's stuck signal and the end
-    of a Gazebo episode, so the three measure the same thing. update() is called
+    One rule for the 2D environment's stall and the end
+    of a Gazebo episode, so the two measure the same thing. update() is called
     once per control period (DT).
     """
 

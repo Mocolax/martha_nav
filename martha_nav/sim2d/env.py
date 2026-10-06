@@ -40,12 +40,8 @@ class EnvConfig:
     lidar_noise: tuple = (0.01, 0.02)
     lidar_dropout: float = 0.01
     vel_noise: float = 0.05
-    lidar_encoding: str = 'inverse'  # see observation.encode_lidar
     # 2 -> (v, w); 3 -> (vx, vy, w), which uses Martha's mecanum wheels sideways.
     action_dim: int = 2
-    # Adds the time without advancing to the observation, so a memoryless policy can
-    # tell that it is blocked instead of rediscovering the same dead end every step.
-    stuck_signal: bool = False
     # 'carrot': a point on the A* route ahead of the robot. 'goal': the goal itself, so the
     # deployed policy needs no global planner. The route still shapes the reward in training.
     target: str = 'carrot'
@@ -58,8 +54,7 @@ class NavEnv(gym.Env):
 
     def __init__(self, cfg=None):
         self.cfg = cfg or EnvConfig()
-        self.observation_space = spaces.Box(
-            -1.0, 1.0, (obs_dim(self.cfg.action_dim, self.cfg.stuck_signal),), np.float32)
+        self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
         self._seed_index = 0
@@ -115,14 +110,12 @@ class NavEnv(gym.Env):
                    and self.progress.seconds_without_progress >= self.cfg.no_progress_time)
         self._scan()
         reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
-                                       float(self.ranges.min()),
-                                       action[-1] - self.prev_action[-1], self.cfg.reward, stalled)
+                                       self.cfg.reward)
         for k, v in terms.items():
             self.terms[k] += v
         self.prev_action = action
-        # A stall is free (truncated, bootstrapped) unless it is penalised; then it is terminal.
-        stall_ends = stalled and self.cfg.reward.stalled != 0.0
-        terminated = collided or reached or stall_ends
+        # A stall truncates the episode: its value is bootstrapped, not punished.
+        terminated = collided or reached
         truncated = not terminated and (self.steps >= self.max_steps or stalled)
         info = {}
         if terminated or truncated:
@@ -172,10 +165,7 @@ class NavEnv(gym.Env):
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
         vel = ((self.dyn.v * noise[0], self.dyn.vy * noise[1], self.dyn.w * noise[2])
                if self.cfg.action_dim == 3 else (self.dyn.v * noise[0], self.dyn.w * noise[2]))
-        stuck = (min(self.progress.seconds_without_progress / self.cfg.no_progress_time, 1.0)
-                 if self.cfg.stuck_signal else None)
-        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
-                                 self.cfg.lidar_encoding, stuck, scale)
+        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action, scale)
 
     def _summary(self, outcome):
         success = outcome == 'success'

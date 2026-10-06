@@ -45,9 +45,7 @@ Opciones útiles de `train_policy`:
 | `--n-envs 16` | entornos en paralelo |
 | `--action-dim 3` | añade `vy` (mecanum holonómico) |
 | `--recurrent` | política LSTM (usar con `--device cpu`) |
-| `--lidar-encoding inverse\|linear` | `inverse` = `d/(d+1)`, el que funciona |
 | `--reward-collision -20` | penalización de choque |
-| `--reward-stalled -5` | hace terminal el atasco (empeoró, no usar) |
 | `--eval-every 250000` | cada cuánto evalúa y guarda `best_model.zip` |
 
 Lanzarlo en segundo plano y seguir el avance:

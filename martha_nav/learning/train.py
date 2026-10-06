@@ -117,22 +117,17 @@ def build_model(venv, recurrent, seed, device, tensorboard_log):
     return RecurrentPPO('MlpLstmPolicy', venv, **kwargs)
 
 
-def build_config(preset, collision=None, stalled=None, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, target='carrot', progress_mode='route',
+def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
                  wide_dynamics=False):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
-    reward = cfg.reward
+    reward = replace(cfg.reward, progress_mode=progress_mode)
     if collision is not None:
         reward = replace(reward, collision=collision)
-    if stalled is not None:
-        reward = replace(reward, stalled=stalled)
-    reward = replace(reward, progress_mode=progress_mode)
     if wide_dynamics:
         cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
-    return replace(cfg, reward=reward, lidar_encoding=lidar_encoding, action_dim=action_dim,
-                   stuck_signal=stuck_signal, target=target,
+    return replace(cfg, reward=reward, action_dim=action_dim, target=target,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
                                     obstacle_mode=p['obstacle_mode']))
 
@@ -149,17 +144,12 @@ def main(argv=None):
     ap.add_argument('--runs-dir', default=str(RUNS_DIR))
     ap.add_argument('--name', default=None)
     ap.add_argument('--reward-collision', type=float, default=None, help='override RewardConfig.collision')
-    ap.add_argument('--reward-stalled', type=float, default=None,
-                    help='override RewardConfig.stalled (non-zero makes stalls terminal)')
-    ap.add_argument('--lidar-encoding', choices=['linear', 'inverse'], default='inverse')
     ap.add_argument('--action-dim', type=int, choices=[2, 3], default=2,
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
     ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
                     help="what the policy steers to: the route's carrot, or the goal alone")
     ap.add_argument('--reward-progress', choices=['route', 'geodesic'], default='route',
                     help='progress along the A* route, or drop in geodesic distance to the goal')
-    ap.add_argument('--stuck-signal', action='store_true',
-                    help='add the time without advancing to the observation')
     ap.add_argument('--wide-dynamics', action='store_true',
                     help='delay 0-2 periods and faster responses, which cover the Gazebo mecanum')
     ap.add_argument('--recurrent', action='store_true',
@@ -170,9 +160,8 @@ def main(argv=None):
     name = args.name or f'{args.preset}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
-    env_cfg = build_config(args.preset, args.reward_collision, args.reward_stalled,
-                           args.lidar_encoding, args.action_dim, args.stuck_signal,
-                           args.target, args.reward_progress, args.wide_dynamics)
+    env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
+                           args.reward_progress, args.wide_dynamics)
     config = {'preset': args.preset, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,

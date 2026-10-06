@@ -38,9 +38,6 @@ def test_observation_layout_and_bounds():
                             velocity=(0.35, -0.8), waypoint_rel=(0.0, 1.5), prev_action=(0.5, -1.0))
     assert obs.shape == (OBS_DIM,) and obs.dtype == np.float32
     assert np.allclose(obs[:90], 0.8)                               # default encoding: 4 / (4 + 1)
-    linear = build_observation(np.full(180, 4.0), np.linspace(-np.pi, np.pi, 180, endpoint=False),
-                               (0.35, -0.8), (0.0, 1.5), (0.5, -1.0), lidar_encoding='linear')
-    assert np.allclose(linear[:90], 0.5)                            # 4 / 8 m
     assert np.isclose(obs[90], 0.5) and np.isclose(obs[91], 0.5)   # 1.5/3 m, +90 deg
     assert np.allclose(obs[92:94], [1.0, -1.0])
     assert np.allclose(obs[94:], [0.5, -1.0])
@@ -56,19 +53,12 @@ def test_action_mapping_is_asymmetric():
 
 def test_inverse_lidar_encoding_gives_more_resolution_up_close():
     angles = np.zeros(2)
-    near = build_observation(np.array([0.3, 0.3]), angles, (0, 0), (1, 0), (0, 0), lidar_encoding='inverse')
-    far = build_observation(np.array([0.5, 0.5]), angles, (0, 0), (1, 0), (0, 0), lidar_encoding='inverse')
+    near = build_observation(np.array([0.3, 0.3]), angles, (0, 0), (1, 0), (0, 0))
+    far = build_observation(np.array([0.5, 0.5]), angles, (0, 0), (1, 0), (0, 0))
     assert np.isclose(near[0], 0.3 / 1.3) and np.isclose(far[0], 0.5 / 1.5)
-    assert far[0] - near[0] > 0.1                        # linear /8 m gives only 0.025
-    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0),
-                              lidar_encoding='inverse')
+    assert far[0] - near[0] > 0.1
+    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0))
     assert np.isclose(empty[45], 8.0 / 9.0)
-
-
-def test_unknown_lidar_encoding_is_rejected():
-    import pytest
-    with pytest.raises(ValueError):
-        build_observation(np.ones(1), np.zeros(1), (0, 0), (1, 0), (0, 0), lidar_encoding='log')
 
 
 def test_holonomic_action_adds_a_lateral_command():
@@ -86,15 +76,3 @@ def test_holonomic_observation_carries_three_velocities_and_actions():
     assert obs.shape == (obs_dim(3),)
     assert np.allclose(obs[92:95], [1.0, 1.0, -1.0])                 # vx, vy, w normalised
     assert np.allclose(obs[95:], [0.1, 0.2, 0.3])
-
-
-def test_stuck_signal_adds_one_value_at_the_end():
-    from martha_nav.sim2d.observation import obs_dim
-    ranges = np.full(180, 4.0)
-    angles = np.linspace(-np.pi, np.pi, 180, endpoint=False)
-    plain = build_observation(ranges, angles, (0.1, 0.0), (1.0, 0.0), np.zeros(2))
-    with_stuck = build_observation(ranges, angles, (0.1, 0.0), (1.0, 0.0), np.zeros(2), stuck=0.4)
-    assert plain.shape == (obs_dim(2),)
-    assert with_stuck.shape == (obs_dim(2, stuck_signal=True),)
-    assert np.allclose(with_stuck[:-1], plain)
-    assert abs(with_stuck[-1] - 0.4) < 1e-6

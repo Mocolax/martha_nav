@@ -21,14 +21,9 @@ def test_train_smoke(tmp_path):
 
 def test_experiment_flags_reach_the_env_config():
     from martha_nav.learning.train import build_config
-    cfg = build_config('full', collision=-20.0, stalled=-5.0, lidar_encoding='inverse')
-    assert cfg.reward.collision == -20.0 and cfg.reward.stalled == -5.0
-    assert cfg.lidar_encoding == 'inverse'
-    default = build_config('full')
-    assert default.reward.collision == -20.0 and default.reward.stalled == 0.0
-    assert default.lidar_encoding == 'inverse'
-    base = build_config('full', collision=-10.0, lidar_encoding='linear')   # reproduces full_cnn_s0
-    assert base.reward.collision == -10.0 and base.lidar_encoding == 'linear'
+    assert build_config('full').reward.collision == -20.0
+    cfg = build_config('full', collision=-10.0, progress_mode='geodesic')
+    assert cfg.reward.collision == -10.0 and cfg.reward.progress_mode == 'geodesic'
 
 
 def test_ppo_updates_are_kl_limited():

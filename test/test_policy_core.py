@@ -193,7 +193,7 @@ def test_a_new_goal_starts_a_new_episode():
 
 def test_progress_along_a_replanned_route_counts():
     """After a replan the arc length restarts on the new route; progress on it is progress."""
-    core = PolicyCore(FakeModel(), stuck_signal=True)
+    core = PolicyCore(FakeModel())
     ranges, angles = clear_scan()
     first = Path([[0.0, 0.0], [10.0, 0.0]])
     for x in (0.0, 1.0, 2.0):
@@ -201,19 +201,7 @@ def test_progress_along_a_replanned_route_counts():
     detour = Path([[2.0, 0.0], [2.0, 2.0], [10.0, 2.0], [10.0, 0.0]])
     core.compute(detour, (2.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     *_, info = core.compute(detour, (2.0, 0.5, 0.0), ranges, angles, (0.0, 0.0))
-    assert info['stuck'] == 0.0
-
-
-def test_stuck_time_survives_a_replan_to_the_same_goal():
-    core = PolicyCore(FakeModel(), stuck_signal=True)
-    ranges, angles = clear_scan()
-    first = Path([[0.0, 0.0], [10.0, 0.0]])
-    for _ in range(5):
-        core.compute(first, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
-    *_, before = core.compute(first, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
-    replanned = Path([[1.0, 0.0], [10.0, 0.0]])
-    *_, after = core.compute(replanned, (1.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
-    assert after['stuck'] > before['stuck'] > 0.0
+    assert np.isclose(info['s'], 0.5)
 
 
 def test_action_delay_holds_each_command_that_many_ticks():

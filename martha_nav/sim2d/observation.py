@@ -2,7 +2,7 @@
 import numpy as np
 
 N_SECTORS = 90
-LIDAR_MAX = 8.0     # m, RPLIDAR A2M8 (clip range; encoding in encode_lidar)
+LIDAR_MAX = 8.0     # m, RPLIDAR A2M8
 WAYPOINT_MAX = 3.0  # m, carrot distance scale
 GOAL_MAX = 12.0     # m, goal distance scale when the policy sees the goal instead (longest route)
 V_MAX = 0.35        # m/s forward
@@ -12,12 +12,9 @@ W_MAX = 0.8         # rad/s
 OBS_DIM = N_SECTORS + 6          # the default (vx, w) action space
 
 
-def obs_dim(action_dim=2, stuck_signal=False):
-    """90 LiDAR sectors, the waypoint, the measured velocity and the previous action.
-
-    stuck_signal adds one more value: how long the robot has gone without advancing.
-    """
-    return N_SECTORS + 2 + 2 * action_dim + int(stuck_signal)
+def obs_dim(action_dim=2):
+    """90 LiDAR sectors, the waypoint, the measured velocity and the previous action."""
+    return N_SECTORS + 2 + 2 * action_dim
 
 
 def reduce_scan(ranges, angles):
@@ -38,38 +35,26 @@ def reduce_scan(ranges, angles):
     return out
 
 
-LIDAR_ENCODINGS = ('linear', 'inverse')
+def encode_lidar(sectors):
+    """Metres -> [0, 1) as d / (d + 1 m): finer up close, where it matters."""
+    return sectors / (sectors + 1.0)
 
 
-def encode_lidar(sectors, encoding='inverse'):
-    """Metres -> [0, 1]. 'linear': d / 8 m. 'inverse': d / (d + 1 m), finer up close."""
-    if encoding == 'linear':
-        return sectors / LIDAR_MAX
-    if encoding == 'inverse':
-        return sectors / (sectors + 1.0)
-    raise ValueError(f'unknown lidar encoding {encoding!r}; use one of {LIDAR_ENCODINGS}')
-
-
-def build_observation(ranges, angles, velocity, waypoint_rel, prev_action, lidar_encoding='inverse',
-                      stuck=None, waypoint_max=WAYPOINT_MAX):
-    """96-value observation in [-1, 1], 97 with the stuck signal.
+def build_observation(ranges, angles, velocity, waypoint_rel, prev_action,
+                      waypoint_max=WAYPOINT_MAX):
+    """96-value observation in [-1, 1] (98 with the holonomic action space).
 
     ranges/angles: raw scan, angles relative to the robot's forward axis.
     velocity: measured (v, w). waypoint_rel: (dx, dy) in the robot frame.
     prev_action: last action sent, already in [-1, 1].
-    stuck: time without advancing along the route, as a fraction of the stall limit.
-    A policy without memory cannot tell "blocked" from "just started" on its own.
     waypoint_max: distance scale, WAYPOINT_MAX for the carrot or GOAL_MAX for the goal.
     """
-    lidar = encode_lidar(reduce_scan(ranges, angles), lidar_encoding)
+    lidar = encode_lidar(reduce_scan(ranges, angles))
     dx, dy = waypoint_rel
     wp = [min(np.hypot(dx, dy), waypoint_max) / waypoint_max, np.arctan2(dy, dx) / np.pi]
     vel = ([velocity[0] / V_MAX, velocity[1] / V_LATERAL, velocity[2] / W_MAX]
            if len(velocity) == 3 else [velocity[0] / V_MAX, velocity[1] / W_MAX])
-    parts = [lidar, wp, vel, np.asarray(prev_action, dtype=float)]
-    if stuck is not None:
-        parts.append([float(stuck)])
-    obs = np.concatenate(parts)
+    obs = np.concatenate([lidar, wp, vel, np.asarray(prev_action, dtype=float)])
     return np.clip(obs, -1.0, 1.0).astype(np.float32)
 
 

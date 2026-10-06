@@ -38,16 +38,12 @@ def footprint_blocked(ranges, angles, margin=0.05):
 class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
-    def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, lidar_encoding='inverse',
-                 action_dim=2, stuck_signal=False, no_progress_time=15.0, target='carrot',
+    def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, action_dim=2, target='carrot',
                  action_delay=0):
         self.model = model
         self.lookahead = lookahead
         self.carrot_clearance = carrot_clearance
-        self.lidar_encoding = lidar_encoding
         self.action_dim = action_dim
-        self.stuck_signal = stuck_signal
-        self.no_progress_time = no_progress_time
         self.target = target
         # Ticks each command is held back: a robot that obeys at once (Gazebo's mecanum)
         # gets the lag of the one the policy was trained on.
@@ -81,7 +77,7 @@ class PolicyCore:
         x, y, yaw = pose
         blocked = footprint_blocked(ranges, angles)
         self._follow(path)
-        # Same rule as the 2D environment, so the stuck signal means the same thing.
+        # The progress along the route places the carrot.
         self.progress.update(x, y)
         if self.target == 'goal':
             point, scale = path.points[-1], GOAL_MAX
@@ -91,10 +87,7 @@ class PolicyCore:
             scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(yaw) * dx + np.sin(yaw) * dy, -np.sin(yaw) * dx + np.cos(yaw) * dy)
-        stuck = (min(self.progress.seconds_without_progress / self.no_progress_time, 1.0)
-                 if self.stuck_signal else None)
-        obs = build_observation(ranges, angles, velocity, rel, self.prev_action,
-                                self.lidar_encoding, stuck, scale)
+        obs = build_observation(ranges, angles, velocity, rel, self.prev_action, scale)
         if self.recurrent:
             action, self.lstm_state = self.model.predict(
                 obs, state=self.lstm_state, episode_start=np.array([self.episode_start]),
@@ -116,8 +109,7 @@ class PolicyCore:
                 commands[1] = min(commands[1], 0.0)
             if 'right' in blocked:
                 commands[1] = max(commands[1], 0.0)
-        return (*commands, {'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point,
-                            'stuck': stuck})
+        return (*commands, {'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point})
 
     def _scan_points(self, ranges, angles, pose):
         """Scan hits in map coordinates, for the carrot's obstacle skipping."""

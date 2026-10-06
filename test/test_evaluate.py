@@ -37,15 +37,20 @@ def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
     from martha_nav.learning.evaluate import trained_env_config
     model = tmp_path / 'best_model.zip'
     assert trained_env_config(model) == EnvConfig()                             # no config: defaults
-    (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
-    old = trained_env_config(model)                                             # before the options
-    assert (old.lidar_encoding, old.action_dim, old.stuck_signal, old.target) == (
-        'linear', 2, False, 'carrot')
-    (tmp_path / 'config.yaml').write_text(
-        'env:\n  lidar_encoding: inverse\n  action_dim: 3\n  stuck_signal: true\n  target: goal\n')
-    new = trained_env_config(model)
-    assert (new.lidar_encoding, new.action_dim, new.stuck_signal, new.target) == (
-        'inverse', 3, True, 'goal')
+    (tmp_path / 'config.yaml').write_text('env:\n  action_dim: 3\n  target: goal\n')
+    cfg = trained_env_config(model)
+    assert (cfg.action_dim, cfg.target) == (3, 'goal')
+
+
+def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
+    import pytest
+
+    from martha_nav.learning.evaluate import trained_env_config
+    model = tmp_path / 'best_model.zip'
+    for env in ('lidar_encoding: linear', 'lidar_encoding: inverse\n  stuck_signal: true'):
+        (tmp_path / 'config.yaml').write_text(f'env:\n  {env}\n')
+        with pytest.raises(ValueError, match='no longer'):
+            trained_env_config(model)
 
 
 def test_point_mode_builds_one_episode_per_pair():

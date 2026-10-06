@@ -87,24 +87,6 @@ def test_standing_still_is_truncated_as_stalled():
     assert trunc and info['outcome'] == 'stalled' and steps == 150
 
 
-def test_stall_penalty_turns_stalls_into_terminal_episodes():
-    from martha_nav.sim2d.reward import RewardConfig
-    env = NavEnv(replace(OPEN, reward=RewardConfig(stalled=-5.0)))
-    env.reset(seed=3)
-    while True:
-        _, r, term, trunc, info = env.step(np.zeros(2))
-        if term or trunc:
-            break
-    assert term and not trunc and info['outcome'] == 'stalled'
-    assert info['r_stalled'] == -5.0
-
-
-def test_lidar_encoding_reaches_the_observation():
-    a, _ = NavEnv(OPEN).reset(seed=4)
-    b, _ = NavEnv(replace(OPEN, lidar_encoding='linear')).reset(seed=4)
-    assert not np.allclose(a[:90], b[:90]) and np.allclose(a[90:], b[90:])
-
-
 def test_holonomic_env_matches_the_contract():
     from martha_nav.sim2d.observation import obs_dim
     env = NavEnv(replace(OPEN, action_dim=3))
@@ -118,24 +100,6 @@ def test_holonomic_env_matches_the_contract():
 def test_the_default_env_stays_two_dimensional():
     env = NavEnv()
     assert env.action_space.shape == (2,) and env.observation_space.shape == (96,)
-
-
-def test_stuck_signal_grows_while_the_robot_does_not_advance():
-    from martha_nav.sim2d.observation import obs_dim
-    cfg = EnvConfig(stuck_signal=True, episode_seeds=(1000007,),
-                    scenario=ScenarioConfig(sources=('lab',), obstacle_mode='always'))
-    env = NavEnv(cfg)
-    obs, _ = env.reset()
-    assert obs.shape == (obs_dim(2, stuck_signal=True),)
-    assert obs[-1] == 0.0
-    # Spinning in place makes no progress along the route, so the signal must rise.
-    signals = []
-    for _ in range(10):
-        obs, _, term, trunc, _ = env.step(np.array([0.0, 1.0]))
-        signals.append(float(obs[-1]))
-        if term or trunc:
-            break
-    assert signals == sorted(signals) and signals[-1] > 0.0
 
 
 def test_goal_target_points_the_observation_at_the_goal_not_the_carrot():

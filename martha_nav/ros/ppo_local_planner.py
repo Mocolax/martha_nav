@@ -33,15 +33,11 @@ class PpoLocalPlanner(Node):
         self.core = PolicyCore(
             model,
             lookahead=self.declare_parameter('lookahead', 1.5).value,
-            lidar_encoding=trained.lidar_encoding,
             action_dim=trained.action_dim,
-            stuck_signal=trained.stuck_signal,
-            no_progress_time=trained.no_progress_time,
             target=trained.target,
             action_delay=self.declare_parameter('action_delay', 0).value)
         self.action_dim = self.core.action_dim
-        self.get_logger().info(f'action space: {self.action_dim}D, lidar {trained.lidar_encoding}, '
-                               f'action delay {self.core.action_delay}')
+        self.get_logger().info(f'action space: {self.action_dim}D, action delay {self.core.action_delay}')
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()

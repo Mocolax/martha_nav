@@ -1,44 +1,24 @@
+from dataclasses import replace
+
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 
 
 def test_default_terms():
-    total, t = compute_reward(0.1, False, False, 2.0, 0.0)
-    assert t['progress'] == 0.1 and t['step'] == -0.005
-    assert t['proximity'] == 0.0 and t['turn'] == 0.0
+    total, t = compute_reward(0.1, False, False)
+    assert t == {'progress': 0.1, 'goal': 0.0, 'collision': 0.0, 'step': -0.005}
     assert abs(total - 0.095) < 1e-12
 
 
 def test_terminal_values():
-    _, t = compute_reward(0.0, True, False, 2.0, 0.0)
-    assert t['goal'] == 20.0
-    _, t = compute_reward(0.0, False, True, 0.1, 0.0)
-    assert t['collision'] == -20.0
+    assert compute_reward(0.0, True, False)[1]['goal'] == 20.0
+    assert compute_reward(0.0, False, True)[1]['collision'] == -20.0
 
 
 def test_negative_progress_is_not_paid():
-    _, t = compute_reward(-0.5, False, False, 2.0, 0.0)
-    assert t['progress'] == 0.0
-
-
-def test_optional_terms_when_enabled():
-    cfg = RewardConfig(proximity=0.1, turn=0.02)
-    _, t = compute_reward(0.0, False, False, 0.25, 1.0, cfg)
-    assert abs(t['proximity'] + 0.05) < 1e-12      # half of proximity_dist
-    assert abs(t['turn'] + 0.02) < 1e-12
-
-
-def test_stall_penalty_is_off_by_default_and_paid_only_on_stall():
-    _, t = compute_reward(0.0, False, False, 2.0, 0.0)
-    assert t['stalled'] == 0.0
-    cfg = RewardConfig(stalled=-5.0)
-    _, t = compute_reward(0.0, False, False, 2.0, 0.0, cfg, stalled=True)
-    assert t['stalled'] == -5.0
-    _, t = compute_reward(0.0, False, False, 2.0, 0.0, cfg)
-    assert t['stalled'] == 0.0
+    assert compute_reward(-0.5, False, False)[1]['progress'] == 0.0
 
 
 def test_geodesic_progress_can_be_negative_and_route_progress_cannot():
-    from dataclasses import replace
     geo = replace(RewardConfig(), progress_mode='geodesic')
-    assert compute_reward(-0.3, False, False, 5.0, 0.0, geo)[1]['progress'] == -0.3
-    assert compute_reward(-0.3, False, False, 5.0, 0.0, RewardConfig())[1]['progress'] == 0.0
+    assert compute_reward(-0.3, False, False, geo)[1]['progress'] == -0.3
+    assert compute_reward(-0.3, False, False, RewardConfig())[1]['progress'] == 0.0
