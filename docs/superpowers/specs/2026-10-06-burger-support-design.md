@@ -11,7 +11,17 @@ Martha en la demo; no se presenta como un resultado de generalización.
 `martha_nav` sigue siendo un solo paquete: cada mejora del método vale para los dos robots. Lo que
 hoy supone "el robot es Martha" pasa a leerse de un perfil de robot.
 
-## Parte 0: limpieza de nombres (commit aparte, antes de todo)
+## Parte 0: limpieza (commits aparte, antes de todo)
+
+**Solo la arquitectura CNN.** La MLP solo existía para E1 y no se va a usar: se quitan el flag
+`--arch` de `train_policy` y la rama `mlp` de `policy_kwargs()`. Los runs `e1_mlp_*` siguen
+cargándose (el zip guarda su arquitectura).
+
+**Código sin historia.** Se borran `tools/experiments/` (guiones de experimentos ya corridos) y
+`tools/plot_report_legacy.py`, y los comentarios que nombran runs viejos o el "paquete anterior".
+`docs/comandos.md` explica cómo recuperar esos guiones del historial de git.
+
+**Nombres.**
 
 Los nombres E1/E2 ya no dicen nada. Lo que queda tras la limpieza del 2026-10-06 (`9a61050`):
 
@@ -20,7 +30,6 @@ Los nombres E1/E2 ya no dicen nada. Lo que queda tras la limpieza del 2026-10-06
   de `docs/comandos.md`: sin "E2".
 - `docs/resultados.md`: los títulos con "E2" pasan a "Brecha 2D → Gazebo"; cifras e historia no
   cambian.
-- `tools/experiments/` no se toca: es el registro histórico de cómo se corrió cada cosa.
 
 ## Parte 1: el perfil del robot
 
@@ -35,7 +44,7 @@ perfiles en Python (no YAML: son dos y se versionan con el código).
 | `lidar_range` (máx.), `lidar_min` | 8.0, 0.0 m | según `range_max`: 3.5 / 0.12 (LDS-01) o 8.0 / 0.16 (LDS-02) |
 | `lidar_rate` | 10 Hz | 5 Hz |
 | `v_max`, `v_reverse`, `v_lateral` | 0.35, 0.15, 0.25 m/s | 0.22, 0.22, — |
-| `w_max` | 0.8 rad/s | 2.84 rad/s, acotado a 1.5 si el entrenamiento lo pide |
+| `w_max` | 0.8 rad/s | 1.5 rad/s (el robot da 2.84; más rango haría la acción más gruesa) |
 | `holonomic` (acepta `action_dim` 3) | sí | no |
 | `inflation` del planificador | 0.40 m | 0.20 m |
 
@@ -87,10 +96,11 @@ cambios (el robot sale del `config.yaml`).
 
 **Gazebo:**
 
-- `Dockerfile`: `ros-humble-turtlebot3-description` (mallas) y `ros-humble-turtlebot3-gazebo`.
-- `urdf/burger.urdf.xacro`: las mallas oficiales, `libgazebo_ros_diff_drive` (`/cmd_vel`, `/odom`,
-  TF `odom → base_footprint`), un sensor de rayos con el alcance, el mínimo y la frecuencia del
-  perfil, y un sensor de contacto que publica en `/bumper_states` como el de Martha.
+- `urdf/burger.urdf.xacro`, propio y con geometría simple (sin depender de los paquetes
+  `turtlebot3_*`): las medidas del URDF oficial, `libgazebo_ros_diff_drive` (`/cmd_vel`, `/odom`,
+  TF `odom → base_footprint`, ruedas a 0.160 m, radio 0.033 m), un sensor de rayos con el alcance,
+  el mínimo y la frecuencia del perfil, y un sensor de contacto que publica en `/bumper_states`
+  como el de Martha.
 - `sim.launch.py robot:=martha|burger`, por defecto el del `config.yaml` del checkpoint; si se pasan
   los dos y no coinciden, falla. Con `burger` no se lanzan `ros2_control` ni
   `mecanum_cmd_vel_bridge`.
@@ -104,7 +114,8 @@ significativa frente a su 2D (McNemar, p > 0.05), como con Martha.
 ## Parte 3: el Burger real
 
 **Un solo launch que corre en cualquier máquina**, `launch/burger.launch.py`:
-slam_toolbox (`slam:=mapping|localization`, mismo módulo `martha_nav/ros/slam.py` que Martha),
+slam_toolbox (`slam:=mapping|localization`, mismo módulo `martha_nav/ros/slam.py` que Martha, con
+`max_laser_range` del perfil),
 `world_map_publisher`, `global_planner` y `ppo_local_planner` con la política exportada. Se corre
 en la Pi 4 (4 GB) del Burger para la demo; en el PC es el mismo comando, para depurar con los logs
 a mano. El bringup oficial del TurtleBot (`turtlebot3_bringup robot.launch.py`) sigue aparte, en la
