@@ -28,11 +28,6 @@ class LidarCnnExtractor(BaseFeaturesExtractor):
         return torch.cat([self.lidar_head(lidar), self.rest_head(obs[:, N_SECTORS:])], dim=1)
 
 
-def is_recurrent(model):
-    """RecurrentPPO's policy has an LSTM; its predict() takes and returns the state."""
-    return hasattr(getattr(model, 'policy', None), 'lstm_actor')
-
-
 def policy_kwargs():
     """SB3 policy_kwargs: the CNN extractor, separate for the actor and the critic."""
     return dict(net_arch=dict(pi=[256, 256], vf=[256, 256]), share_features_extractor=False,

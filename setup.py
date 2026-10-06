@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'train_policy = martha_nav.learning.train:main',
+            'export_policy = martha_nav.learning.export:main',
             'evaluate_2d = martha_nav.learning.evaluate:main',
             'world_map_publisher = martha_nav.ros.world_map_publisher:main',
             'gazebo_ground_truth_tf = martha_nav.ros.gazebo_ground_truth_tf:main',

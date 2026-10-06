@@ -8,7 +8,7 @@ import numpy as np
 import yaml
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from martha_nav.learning.policy import is_recurrent
+from martha_nav.learning import is_recurrent
 from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import DynamicsRanges
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds

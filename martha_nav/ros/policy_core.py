@@ -1,7 +1,7 @@
 """Local-planner logic, without ROS: carrot, observation, action and safety stop."""
 import numpy as np
 
-from martha_nav.learning.policy import is_recurrent
+from martha_nav.learning import is_recurrent
 from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.observation import GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation
 from martha_nav.sim2d.planner import RouteProgress, carrot
