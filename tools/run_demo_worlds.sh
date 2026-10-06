@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 source /opt/ros/humble/setup.bash
 source /home/ros/ros2_ws/install/setup.bash
 
-MODEL=${MODEL:-runs/long_c_kl_s0/best_model.zip}
+MODEL=${MODEL:-runs/wide_dyn_s0/best_model.zip}
 EPISODES=${EPISODES:-10}
 GUI=${GUI:-false}
 RVIZ=${RVIZ:-$GUI}

@@ -1,7 +1,7 @@
 """Compare runs side by side.
 
-python3 tools/compare_runs.py --out docs/figures/exp_abc.png \
-    base=runs/full_cnn_s0 A=runs/expA_col20 B=runs/expB_col20_stall5 C=runs/expC_col20_inverse
+python3 tools/compare_runs.py --out docs/figures/comparacion.png \
+    final=runs/wide_dyn_s0 base=runs/long_c_kl_s0 H=runs/armH_holonomic_s0
 
 A: periodic-evaluation success.  B: periodic-evaluation collision.  C: deterministic
 evaluation of each best model (success) in three conditions.

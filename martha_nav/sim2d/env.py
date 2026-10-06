@@ -40,7 +40,7 @@ class EnvConfig:
     lidar_noise: tuple = (0.01, 0.02)
     lidar_dropout: float = 0.01
     vel_noise: float = 0.05
-    lidar_encoding: str = 'inverse'  # see observation.encode_lidar; 'linear' in full_cnn_s0
+    lidar_encoding: str = 'inverse'  # see observation.encode_lidar
     # 2 -> (v, w); 3 -> (vx, vy, w), which uses Martha's mecanum wheels sideways.
     action_dim: int = 2
     # Adds the time without advancing to the observation, so a memoryless policy can

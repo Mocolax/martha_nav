@@ -5,7 +5,7 @@ ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p out:=/tmp/eva
 ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p out:=/tmp/eval_points.csv
 
 mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
-"points" plays the hand-placed start/goal pairs of the previous package. Both build
+"points" plays the hand-placed start/goal pairs of config/training_points.yaml. Both build
 the episode with scenarios.generate, so the same seed is the same episode as in the
 2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
 in simulated time (the "seconds" column too).

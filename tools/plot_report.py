@@ -1,6 +1,6 @@
-"""Per-run report: the panels of the old ppo_plot, drawn for print.
+"""Per-run report: learning curves and PPO diagnostics, drawn for print.
 
-python3 tools/plot_report.py runs/e1_cnn_s0
+python3 tools/plot_report.py runs/wide_dyn_s0
 python3 tools/plot_report.py --all
 
 Writes <run>/learning_report.png (3x2: reward, outcomes, episode length, SPL,
@@ -9,7 +9,6 @@ losses, exploration, update size, critic).
 
 The x axis is the episode, with a second axis in millions of steps on top. Rates
 are lines, one per outcome; spread is a percentile band, never a raw cloud.
-For the exact look of the previous package, use tools/plot_report_legacy.py.
 """
 import argparse
 import glob

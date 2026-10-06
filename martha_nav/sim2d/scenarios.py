@@ -117,7 +117,7 @@ POINTS_FILE = Path(__file__).resolve().parents[2] / 'config' / 'training_points.
 
 @lru_cache(maxsize=None)
 def load_points(world, path=None):
-    """The hand-placed start/goal points of a world, from the previous package."""
+    """The hand-placed start/goal points of a world (config/training_points.yaml)."""
     data = yaml.safe_load(Path(path or POINTS_FILE).read_text())['worlds']
     if world not in data:
         raise KeyError(f'{world} has no points in {path or POINTS_FILE}')

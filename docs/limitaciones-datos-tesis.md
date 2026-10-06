@@ -18,7 +18,7 @@
 4. **Versión del código aproximada.** Los runs no guardaron el commit: `commit.txt` es el último
    commit anterior al inicio del entrenamiento. Si en ese momento había cambios sin commitear, no
    quedaron registrados. `config.yaml` sí tiene todos los parámetros. Los comandos de entrenamiento
-   exactos están en `tools/experiments/` del repositorio, para E1, A/B/C y los brazos.
+   exactos están en el historial de git (`git log --diff-filter=D -- tools/experiments`).
 5. **Métricas de recuperación del seguimiento.** No hay una métrica calculada de "cuánto se aleja
    de la ruta y cuánto tarda en volver". Se puede calcular con los archivos `_traj` y `_route`:
    distancia de cada pose a la ruta y tiempo hasta volver a menos de un umbral.

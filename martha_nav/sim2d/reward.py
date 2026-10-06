@@ -10,7 +10,7 @@ class RewardConfig:
     # potential-based shaping (Ng et al. 1999), so moving away costs what coming back pays.
     progress_mode: str = 'route'
     goal: float = 20.0
-    collision: float = -20.0     # -10 in full_cnn_s0; see docs/resultados.md (A/B/C)
+    collision: float = -20.0
     step: float = -0.005
     proximity: float = 0.0       # optional, off by default
     proximity_dist: float = 0.5  # m

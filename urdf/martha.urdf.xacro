@@ -140,8 +140,7 @@
         </gazebo>
     </xacro:macro>
 
-    <!-- Mecanum roller. The contact parameters come from the previous package:
-         without maxVel and minDepth the rollers chatter and the robot hops. -->
+    <!-- Mecanum roller. Without maxVel and minDepth the rollers chatter and the robot hops. -->
     <xacro:macro name="mecanum_roller" params="wheel_name index x y yaw pitch">
         <link name="${wheel_name}_roller_${index}">
             <visual>

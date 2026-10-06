@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# The standard Gazebo evaluation (E2) of a run's best model, as evaluate_run.sh is for 2D:
+# The standard Gazebo evaluation of a run's best model, as evaluate_run.sh is for 2D:
 # launches N Gazebos side by side (each with its own ROS domain and Gazebo port) and runs the
 # evaluate_gazebo node in each, with the physics unthrottled (~3x real time each; checked
 # against 1x in docs/resultados.md).
 # shard:=i/N splits the seeds between them; the parts are merged at the end.
-#   [EPISODES=100] ./tools/evaluate_run_gazebo.sh runs/wide_dyn_s0 _v5 [instances] [out_dir]
-# -> <out_dir, default the run>/eval_gazebo_lab_v5.csv, eval_gazebo_lab_points_v5.csv
+#   [EPISODES=100] ./tools/evaluate_run_gazebo.sh runs/wide_dyn_s0 "" [instances] [out_dir]
+# -> <out_dir, default the run>/eval_gazebo_lab<suffix>.csv, eval_gazebo_lab_points<suffix>.csv
 #    (+ _traj/_route/_obstacles beside each)
 set -e
 cd "$(dirname "$0")/.."

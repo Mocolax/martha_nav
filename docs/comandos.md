@@ -105,12 +105,6 @@ Informe por run (`learning_report.png` y `ppo_diagnostics.png` dentro de la carp
 ./tools/ct python3 tools/plot_report.py --all
 ```
 
-Mismo contenido con el formato exacto del `ppo_plot` anterior:
-
-```bash
-./tools/ct python3 tools/plot_report_legacy.py runs/mi_run
-```
-
 Comparación entre runs y figuras de los experimentos:
 
 ```bash
@@ -118,11 +112,7 @@ Comparación entre runs y figuras de los experimentos:
 ```
 
 ```bash
-./tools/ct python3 tools/experiments/plot_e1.py --out docs/figures/e1_cnn_vs_mlp.png
-```
-
-```bash
-./tools/ct python3 tools/plot_e2.py --run runs/long_c_kl_s0 --out docs/figures/e2_2d_vs_gazebo.png
+./tools/ct python3 tools/plot_2d_vs_gazebo.py --dir runs/wide_dyn_s0/v5 --out docs/figures/2d_vs_gazebo.png
 ```
 
 TensorBoard, si se quiere mirar en vivo:
@@ -172,7 +162,7 @@ RViz por separado, contra una simulación ya levantada:
 ./tools/ct_ros ros2 run rviz2 rviz2 -d /home/ros/ros2_ws/src/martha_nav/rviz/nav.rviz --ros-args -p use_sim_time:=true
 ```
 
-## 6. Evaluación en Gazebo (E2)
+## 6. Evaluación en Gazebo
 
 Con `sim.launch.py` ya corriendo (conviene `gui:=false` para que vaya más rápido),
 en **otra terminal**. Las mismas semillas que en 2D, así que la comparación es pareada:
@@ -273,16 +263,14 @@ este paso lo regenera (unos 2 minutos).
 ./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/long_c_kl_s0/eval_gazebo_lab_slam.csv
 ```
 
-## 7. Guiones de experimentos ya hechos
+## 7. Experimentos ya corridos
 
-`tools/experiments/` guarda las colas que produjeron los resultados de `docs/resultados*.md`,
-tal como se corrieron, para poder repetirlas: `run_experiments_abc.sh` (A/B/C),
-`run_e1.sh` (CNN contra MLP), `run_night.sh` y `run_arms_stuck.sh` (brazos H, L, HL, S, SL),
-`train_gl_geo_10m.sh` (brazo GL geodésico, 10M pasos), `run_e2.sh` (el primer E2, a 1×),
-`plot_e1.py` y `plot_run.py`.
+Los guiones que lanzaron los experimentos de la bitácora (A/B/C, CNN contra MLP, los brazos y la
+primera evaluación en Gazebo) ya no están en el repositorio. Los parámetros completos de cada run
+están en su `config.yaml`, y los guiones en el historial de git:
 
 ```bash
-./tools/experiments/run_e1.sh
+git log --diff-filter=D --name-only -- tools/experiments
 ```
 
 ## 8. Limpieza cuando algo queda colgado

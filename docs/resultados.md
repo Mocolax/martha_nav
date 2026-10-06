@@ -125,7 +125,7 @@ base 0.37 → C 0.71 → **C + `target_kl` 0.87**. En `lab`: 0.39 → 0.59 → *
   por evaluación importa. **Modelo candidato para Gazebo: `runs/long_c_kl_s0/best_model.zip`.**
 - El fallo restante dominante es el **estancamiento** (~0.1), no el choque.
 
-## E2: brecha 2D → Gazebo en `lab.world`
+## Brecha 2D → Gazebo en `lab.world`
 
 Modelo `runs/long_c_kl_s0/best_model.zip`, tracción **mecanum** con ruedas y rodillos
 simulados, física a 1 ms y tiempo real 1×. Los episodios son **los mismos en los dos
@@ -159,7 +159,7 @@ fallo.
 > pérdida de 4 a 12 puntos** de éxito, sin aumentar las colisiones. El fallo dominante en ambos
 > simuladores es quedarse bloqueado, no chocar.
 
-### Corrección de E2: la brecha era nuestra propia parada de seguridad
+### Corrección: la brecha era nuestra propia parada de seguridad
 
 Los 1 276 avisos de "obstáculo dentro de la huella" registrados durante E2 revelaron un fallo de
 diseño: la protección del `policy_node` publicaba velocidad cero **en todas las direcciones**, así
@@ -186,7 +186,7 @@ resulta ser una colisión real. El tiempo medio por episodio baja de 46 a 36 s.
 > La brecha de 12 puntos que medimos primero no era del simulador: era un guardia de seguridad mal
 > diseñado por nuestra parte. Queda pendiente repetir también la condición de puntos fijos.
 
-### E2 final, con la regla de estancamiento activa
+### Brecha 2D → Gazebo, con la regla de estancamiento activa
 
 Segundo fallo encontrado al revisar los CSV: `gazebo_eval` tomaba la posición de `/odom`, que la
 tracción mecanum **no publica** (su odometría va en `/mecanum_drive_controller/odometry`). La
@@ -215,7 +215,7 @@ repeticiones, del orden de la brecha que queremos medir.
 Queda un 7–18% de episodios que agotan el tiempo sin ser estancamiento: el robot se mueve, pero
 avanza demasiado poco para llegar. Es el mismo fallo que en 2D, visto con otro reloj.
 
-### E2 v4 (2026-09-29): las mismas reglas que el 2D y sin arrastre de la meta anterior
+### Brecha 2D → Gazebo v4 (2026-09-29): las mismas reglas que el 2D y sin arrastre de la meta anterior
 
 La revisión de código del 29/09 encontró tres diferencias entre las dos columnas de E2, ya
 corregidas (commit `5bcf412`):
@@ -286,7 +286,7 @@ arranca con menos de 0.45 m de holgura y ninguna por debajo del inflado de 0.40 
 > pero una política sin estado no puede encadenar esa evidencia entre pasos. Es el argumento para el
 > brazo S, que añade la señal de atasco explícita a la observación.
 
-## Causa de la brecha de E2: la actuación, no la percepción (2026-09-30)
+## Causa de la brecha 2D → Gazebo: la actuación, no la percepción (2026-09-30)
 
 Los fallos extra de Gazebo en E2 v4 eran atascos. El 2D siempre aplicaba el comando **un periodo
 tarde** y con una dinámica lenta; el `mecanum_drive_controller` de Gazebo obedece en el mismo periodo

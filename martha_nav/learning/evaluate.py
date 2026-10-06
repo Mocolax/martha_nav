@@ -106,7 +106,7 @@ def trained_env_config(model_path):
         return EnvConfig()
     saved = config['env']
     dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})
-    # Runs trained before these options existed used the linear encoding and (v, w).
+    # Defaults for configs that do not record an option.
     return EnvConfig(dynamics=dynamics, lidar_encoding=saved.get('lidar_encoding', 'linear'),
                      action_dim=saved.get('action_dim', 2),
                      stuck_signal=saved.get('stuck_signal', False),

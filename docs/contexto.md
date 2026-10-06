@@ -36,8 +36,8 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 | `urdf/martha.urdf.xacro` | reusado del paquete anterior; `drive:=mecanum\|planar` |
 | `launch/sim.launch.py` | Gazebo + controladores + nodos + RViz opcional |
 | `launch/real.launch.py` | robot real: sin `map:=` mapea con slam_toolbox, con `map:=` navega |
-| `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `evaluate_run_gazebo.sh`, gráficas; `experiments/` guarda las colas ya corridas |
-| `docs/resultados.md` | bitácora citable (puerta, A/B/C, `target_kl`, E1, E2) |
+| `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `evaluate_run_gazebo.sh`, gráficas |
+| `docs/resultados.md` | bitácora citable (puerta, A/B/C, `target_kl`, CNN contra MLP, brecha 2D → Gazebo) |
 | `docs/resultados-noche.md` | brazos H (holonómico) y L (LSTM) |
 
 Todo lo de Python corre **dentro del contenedor** `ros2_humble` con `./tools/ct`;

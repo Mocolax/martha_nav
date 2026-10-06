@@ -117,7 +117,7 @@ def commands(run, gazebo, commit):
         '# Entrenamiento: el código de la época (commit aproximado, por la fecha de inicio);',
         '# config.yaml tiene todos los parámetros con que corrió.',
         f'git checkout {commit.split()[0]}',
-        f'#   y el comando de entrenamiento de tools/experiments/ o docs/comandos.md con --name {run}',
+        f'#   train_policy con los flags de su config.yaml y --name {run} (docs/comandos.md)',
         'git checkout -',
         '# Evaluación 2D (código actual; determinista: repite los mismos números):',
         f'm=runs/{run}/best_model.zip; o=runs/{run}/v5',

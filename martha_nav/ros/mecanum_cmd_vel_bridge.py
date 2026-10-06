@@ -1,7 +1,7 @@
 """/cmd_vel (Twist) -> the TwistStamped reference the mecanum controller expects.
 
 The Humble mecanum_drive_controller does not subscribe to /cmd_vel: it takes a
-TwistStamped on <controller>/reference. Reused from the previous package.
+TwistStamped on <controller>/reference.
 """
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node

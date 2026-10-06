@@ -1,8 +1,8 @@
-"""E2 figure: the same episodes in the 2D simulator and in Gazebo.
+"""The same episodes in the 2D simulator and in Gazebo: outcome shares side by side.
 
-python3 tools/plot_e2.py --run runs/long_c_kl_s0 --tag v4 --out docs/figures/e2_2d_vs_gazebo.png
+python3 tools/plot_2d_vs_gazebo.py --dir runs/wide_dyn_s0/v5 --out docs/figures/2d_vs_gazebo.png
 
---tag picks the Gazebo evaluation: eval_gazebo_lab_<tag>.csv and eval_gazebo_lab_points_<tag>.csv.
+--dir holds a run's evaluations: eval_obstacles_lab{,-points}.csv and eval_gazebo_lab{,_points}.csv.
 """
 import argparse
 from pathlib import Path
@@ -16,9 +16,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 OUTCOMES = [('success', 'éxito', '#2a78d6'), ('collision', 'colisión', '#eb6834'),
             ('stuck', 'estancado / timeout', '#1baf7a'), ('failed', 'sin ruta', '#eda100')]
 INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
-CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab_{tag}.csv'),
-              ('puntos fijos del\npaquete anterior', 'eval_obstacles_lab-points.csv',
-               'eval_gazebo_lab_points_{tag}.csv')]
+CONDITIONS = [('semillas generadas', 'eval_obstacles_lab.csv', 'eval_gazebo_lab.csv'),
+              ('puntos fijos', 'eval_obstacles_lab-points.csv', 'eval_gazebo_lab_points.csv')]
 
 
 def shares(path, seeds=None):
@@ -31,16 +30,14 @@ def shares(path, seeds=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--run', default='runs/long_c_kl_s0')
-    ap.add_argument('--tag', default='v4')
+    ap.add_argument('--dir', default='runs/wide_dyn_s0/v5')
     ap.add_argument('--out', required=True)
     args = ap.parse_args()
-    run = Path(args.run)
+    run = Path(args.dir)
 
     fig, ax = plt.subplots(figsize=(10, 5.6), facecolor=SURFACE)
     labels, positions, legend = [], [], set()
     for i, (name, f2d, fgz) in enumerate(CONDITIONS):
-        fgz = fgz.format(tag=args.tag)
         _, s2d = shares(run / f2d)
         _, sgz = shares(run / fgz)
         common = s2d & sgz
@@ -75,7 +72,7 @@ def main():
         ax.spines[side].set_visible(False)
     ax.spines['bottom'].set_color(MUTED)
     ax.tick_params(colors=MUTED, labelsize=9, length=0)
-    fig.suptitle('E2 · los mismos episodios en el simulador 2D y en Gazebo (lab.world)',
+    fig.suptitle('Los mismos episodios en el simulador 2D y en Gazebo (lab.world)',
                  x=0.01, ha='left', color=INK, fontsize=12, fontweight='bold')
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.28), ncol=4, frameon=False, fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 0.94))
