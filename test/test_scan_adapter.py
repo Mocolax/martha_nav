@@ -1,9 +1,12 @@
 import numpy as np
 from sensor_msgs.msg import LaserScan
 
+from martha_nav.robots import ROBOTS
 from martha_nav.ros.scan_adapter import scan_to_arrays
 from martha_nav.sim2d.geometry import draw_box, empty_grid, raycast
-from martha_nav.sim2d.observation import LIDAR_MAX, build_observation
+from martha_nav.sim2d.observation import build_observation
+
+LIDAR_MAX = ROBOTS['martha'].lidar_range
 
 
 def make_scan(ranges, angle_min=-np.pi, angle_max=np.pi):

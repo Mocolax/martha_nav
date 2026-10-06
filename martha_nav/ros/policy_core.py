@@ -2,26 +2,26 @@
 import numpy as np
 
 from martha_nav.learning.policy import is_recurrent
-from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
-from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, WAYPOINT_MAX, action_to_cmd,
-                                          build_observation)
+from martha_nav.robots import ROBOTS
+from martha_nav.sim2d.observation import GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation
 from martha_nav.sim2d.planner import RouteProgress, carrot
 
 
-def footprint_blocked(ranges, angles, margin=0.05):
+def footprint_blocked(ranges, angles, robot=ROBOTS['martha'], margin=0.05):
     """Which sides of the footprint a scan point has entered.
 
-    Returns a set from {'front', 'rear', 'left', 'right'}, empty when clear. Ranges
-    are measured from the LiDAR, which sits LIDAR_OFFSET_X ahead of the footprint
-    centre, so the rectangle is shifted by that amount. The side matters because a
-    guard that blocks every motion leaves the robot frozen against the obstacle.
+    Returns a set from {'front', 'rear', 'left', 'right'}, empty when clear. Ranges are
+    measured from the LiDAR, so the points are moved into the footprint's frame first.
+    The side matters because a guard that blocks every motion leaves the robot frozen
+    against the obstacle.
     """
     ranges = np.asarray(ranges, dtype=float)
     angles = np.asarray(angles, dtype=float)
     valid = np.isfinite(ranges) & (ranges > 0)
-    x = ranges[valid] * np.cos(angles[valid]) + LIDAR_OFFSET_X
+    x = (ranges[valid] * np.cos(angles[valid]) + robot.lidar_offset_x
+         - robot.footprint_offset_x)
     y = ranges[valid] * np.sin(angles[valid])
-    half_x, half_y = ROBOT_LENGTH / 2 + margin, ROBOT_WIDTH / 2 + margin
+    half_x, half_y = robot.length / 2 + margin, robot.width / 2 + margin
     inside = (np.abs(x) <= half_x) & (np.abs(y) <= half_y)
     # Classify by the dominant axis of the intrusion, in units of the half extents:
     # a point dead ahead blocks driving forward, not sliding sideways.
@@ -39,8 +39,9 @@ class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
     def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, action_dim=2, target='carrot',
-                 action_delay=0):
+                 action_delay=0, robot=ROBOTS['martha']):
         self.model = model
+        self.robot = robot
         self.lookahead = lookahead
         self.carrot_clearance = carrot_clearance
         self.action_dim = action_dim
@@ -75,7 +76,7 @@ class PolicyCore:
         Returns (v, w, info), or (vx, vy, w, info) with the holonomic action space.
         """
         x, y, yaw = pose
-        blocked = footprint_blocked(ranges, angles)
+        blocked = footprint_blocked(ranges, angles, self.robot)
         self._follow(path)
         # The progress along the route places the carrot.
         self.progress.update(x, y)
@@ -87,7 +88,8 @@ class PolicyCore:
             scale = WAYPOINT_MAX
         dx, dy = point[0] - x, point[1] - y
         rel = (np.cos(yaw) * dx + np.sin(yaw) * dy, -np.sin(yaw) * dx + np.cos(yaw) * dy)
-        obs = build_observation(ranges, angles, velocity, rel, self.prev_action, scale)
+        obs = build_observation(ranges, angles, velocity, rel, self.prev_action, scale,
+                                robot=self.robot)
         if self.recurrent:
             action, self.lstm_state = self.model.predict(
                 obs, state=self.lstm_state, episode_start=np.array([self.episode_start]),
@@ -97,7 +99,7 @@ class PolicyCore:
             action, _ = self.model.predict(obs, deterministic=True)
         action = np.clip(np.asarray(action, dtype=float).reshape(-1), -1.0, 1.0)
         self.prev_action = action
-        self.pending.append(action_to_cmd(action))
+        self.pending.append(action_to_cmd(action, self.robot))
         commands = list(self.pending.pop(0))
         # Directional guard: stop the motion that would hit, keep the one that escapes.
         if 'front' in blocked:
@@ -116,10 +118,10 @@ class PolicyCore:
         x, y, yaw = pose
         ranges = np.asarray(ranges, dtype=float)
         angles = np.asarray(angles, dtype=float)
-        hit = np.isfinite(ranges) & (ranges > 0) & (ranges < LIDAR_MAX)
+        hit = np.isfinite(ranges) & (ranges > 0) & (ranges < self.robot.lidar_range)
         if not hit.any():
             return np.empty((0, 2))
-        ox = x + LIDAR_OFFSET_X * np.cos(yaw)
-        oy = y + LIDAR_OFFSET_X * np.sin(yaw)
+        ox = x + self.robot.lidar_offset_x * np.cos(yaw)
+        oy = y + self.robot.lidar_offset_x * np.sin(yaw)
         world = yaw + angles[hit]
         return np.stack([ox + ranges[hit] * np.cos(world), oy + ranges[hit] * np.sin(world)], axis=1)

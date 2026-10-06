@@ -9,9 +9,11 @@ import yaml
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from martha_nav.learning.policy import is_recurrent
+from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import DynamicsRanges
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
-from martha_nav.sim2d.scenarios import CONDITIONS, TRAIN_SOURCES, generate, point_pairs
+from martha_nav.sim2d.scenarios import (CONDITIONS, TRAIN_SOURCES, ScenarioConfig, generate,
+                                        point_pairs)
 
 
 def make_vec_env(cfgs):
@@ -111,8 +113,10 @@ def trained_env_config(model_path):
         raise ValueError(f'{model_path} was trained with {removed}, which this code no longer has')
     dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})
     # Defaults for configs that do not record an option.
+    robot = saved.get('robot', 'martha')
     return EnvConfig(dynamics=dynamics, action_dim=saved.get('action_dim', 2),
-                     target=saved.get('target', 'carrot'))
+                     target=saved.get('target', 'carrot'), robot=robot,
+                     scenario=ScenarioConfig(inflation=ROBOTS[robot].inflation))
 
 
 def load_model(path):

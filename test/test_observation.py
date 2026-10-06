@@ -1,8 +1,11 @@
 import numpy as np
 
+from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.geometry import draw_box, empty_grid, raycast
-from martha_nav.sim2d.observation import (LIDAR_MAX, OBS_DIM, V_MAX, W_MAX, action_to_cmd,
-                                          build_observation, reduce_scan)
+from martha_nav.sim2d.observation import OBS_DIM, action_to_cmd, build_observation, reduce_scan
+
+MARTHA, BURGER = ROBOTS['martha'], ROBOTS['burger']
+LIDAR_MAX, V_MAX, W_MAX, V_LATERAL = MARTHA.lidar_range, MARTHA.v_max, MARTHA.w_max, MARTHA.v_lateral
 
 
 def test_sector_zero_is_front_and_sectors_grow_counter_clockwise():
@@ -62,7 +65,7 @@ def test_inverse_lidar_encoding_gives_more_resolution_up_close():
 
 
 def test_holonomic_action_adds_a_lateral_command():
-    from martha_nav.sim2d.observation import V_LATERAL, obs_dim
+    from martha_nav.sim2d.observation import obs_dim
     assert action_to_cmd([1.0, 0.0]) == (V_MAX, 0.0)                 # (v, w)
     vx, vy, w = action_to_cmd([1.0, -1.0, 0.5])                      # (vx, vy, w)
     assert (vx, vy) == (V_MAX, -V_LATERAL) and np.isclose(w, 0.5 * W_MAX)
@@ -76,3 +79,15 @@ def test_holonomic_observation_carries_three_velocities_and_actions():
     assert obs.shape == (obs_dim(3),)
     assert np.allclose(obs[92:95], [1.0, 1.0, -1.0])                 # vx, vy, w normalised
     assert np.allclose(obs[95:], [0.1, 0.2, 0.3])
+
+
+def test_the_burger_scales_actions_and_velocities_to_its_own_limits():
+    assert action_to_cmd([1.0, -1.0], BURGER) == (0.22, -1.5)
+    assert action_to_cmd([-1.0, 0.0], BURGER) == (-0.22, 0.0)
+    obs = build_observation(np.full(4, 2.0), np.zeros(4), (0.11, 0.75), (1.0, 0.0), (0, 0),
+                            robot=BURGER)
+    assert np.allclose(obs[92:94], [0.5, 0.5])
+
+
+def test_an_empty_sector_reads_the_robots_range():
+    assert reduce_scan(np.array([np.inf]), np.zeros(1), max_range=3.5)[0] == 3.5

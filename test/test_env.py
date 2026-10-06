@@ -157,3 +157,27 @@ def test_an_evaluation_episode_records_its_trajectory():
     while 'outcome' not in info:
         *_, info = env.step(np.array([0.5, 0.3]))
     assert 'trajectory' not in info
+
+
+def test_the_burger_episode_uses_its_profile():
+    from martha_nav.robots import ROBOTS
+    from martha_nav.sim2d.env import episode_steps
+    env = NavEnv(EnvConfig(robot='burger',
+                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
+    env.reset(seed=3)
+    assert env.robot is ROBOTS['burger']
+    assert env.max_steps == episode_steps(env.sc.path.length, ROBOTS['burger'])
+    assert episode_steps(10.0, ROBOTS['burger']) > episode_steps(10.0)      # slower robot, more time
+    # Its LiDAR scans at 5 Hz: the scan changes every other control step.
+    scans = []
+    for _ in range(6):
+        env.step(np.array([1.0, 0.0]))
+        scans.append(env.ranges.copy())
+    changed = [not np.array_equal(a, b) for a, b in zip(scans, scans[1:])]
+    assert changed in ([True, False, True, False, True], [False, True, False, True, False])
+    assert env.ranges.max() <= 3.5 and (env.ranges >= 0.12).all()
+
+
+def test_a_holonomic_action_space_needs_a_holonomic_robot():
+    with pytest.raises(ValueError, match='burger'):
+        NavEnv(EnvConfig(robot='burger', action_dim=3))

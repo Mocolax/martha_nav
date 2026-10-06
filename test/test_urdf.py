@@ -2,7 +2,10 @@ from pathlib import Path
 
 import xacro
 
-from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH
+from martha_nav.robots import ROBOTS
+
+MARTHA = ROBOTS['martha']
+LIDAR_OFFSET_X, ROBOT_LENGTH, ROBOT_WIDTH = MARTHA.lidar_offset_x, MARTHA.length, MARTHA.width
 
 URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'martha.urdf.xacro'
 

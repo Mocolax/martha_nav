@@ -59,3 +59,13 @@ def test_every_cancel_is_acknowledged(node):
     node.on_cancel(Empty())
     node.on_cancel(Empty())
     assert [msg.data for name, msg in node.log if name == 'status'] == ['idle', 'idle']
+
+
+def test_the_inflation_comes_from_the_robot():
+    rclpy.init(args=['--ros-args', '-p', 'robot:=burger'])
+    try:
+        node = GlobalPlanner()
+        assert node.core.inflation == 0.20
+        node.destroy_node()
+    finally:
+        rclpy.try_shutdown()

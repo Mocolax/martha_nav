@@ -1,8 +1,11 @@
 import numpy as np
 
+from martha_nav.robots import ROBOTS
 from martha_nav.ros.policy_core import PolicyCore, footprint_blocked
-from martha_nav.sim2d.observation import LIDAR_MAX, V_MAX, W_MAX
 from martha_nav.sim2d.planner import Path
+
+LIDAR_MAX, V_MAX, W_MAX = (ROBOTS['martha'].lidar_range, ROBOTS['martha'].v_max,
+                           ROBOTS['martha'].w_max)
 
 
 class FakeModel:
@@ -99,6 +102,23 @@ def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     assert beside == {'left'}
 
 
+def test_the_burger_guard_uses_its_footprint_and_lidar():
+    burger = ROBOTS['burger']
+    angles = np.array([0.0, np.pi])
+    # LiDAR and footprint centre coincide: 0.07 m to the front and to the back.
+    assert 'front' in footprint_blocked(np.array([0.10, 3.5]), angles, burger)
+    assert footprint_blocked(np.array([0.15, 3.5]), angles, burger) == set()
+    assert 'rear' in footprint_blocked(np.array([3.5, 0.10]), angles, burger)
+
+
+def test_the_burger_core_commands_its_own_speeds():
+    burger = ROBOTS['burger']
+    core = PolicyCore(FakeModel((1.0, -1.0)), robot=burger)
+    angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
+    v, w, _ = core.compute(straight_path(), (0.0, 0.0, 0.0), np.full(360, 3.5), angles, (0.0, 0.0))
+    assert (v, w) == (burger.v_max, -burger.w_max)
+
+
 def test_the_carrot_skips_a_scanned_obstacle():
     """A box on the route pushes the carrot past it instead of into it."""
     model = FakeModel()
@@ -110,7 +130,7 @@ def test_the_carrot_skips_a_scanned_obstacle():
 
 
 def test_holonomic_core_returns_three_velocities_and_guards_the_sides():
-    from martha_nav.sim2d.observation import V_LATERAL
+    V_LATERAL = ROBOTS['martha'].v_lateral
     core = PolicyCore(FakeModel((0.0, 1.0, 0.0)), action_dim=3)   # wants to slide left
     ranges, angles = clear_scan()
     vx, vy, w, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0, 0.0))

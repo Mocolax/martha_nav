@@ -1,4 +1,4 @@
-"""Gymnasium environment: Martha following a carrot along an A* route."""
+"""Gymnasium environment: a robot following a carrot along an A* route."""
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -6,10 +6,11 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_params
-from martha_nav.sim2d.geometry import LIDAR_OFFSET_X, footprint_collides, raycast
-from martha_nav.sim2d.observation import (GOAL_MAX, LIDAR_MAX, V_MAX, WAYPOINT_MAX, action_to_cmd,
-                                          build_observation, obs_dim)
+from martha_nav.sim2d.geometry import footprint_collides, footprint_points, raycast
+from martha_nav.sim2d.observation import (GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation,
+                                          obs_dim)
 from martha_nav.sim2d.planner import DistanceField, RouteProgress, carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
@@ -22,9 +23,9 @@ def eval_seeds(n, offset=0):
     return [TRAIN_SEED_LIMIT + offset + i for i in range(n)]
 
 
-def episode_steps(route_length):
+def episode_steps(route_length, robot=ROBOTS['martha']):
     """Control steps before a timeout: three times the route at full speed, plus 10 s."""
-    return int(np.ceil((3 * route_length / V_MAX + 10) / DT))
+    return int(np.ceil((3 * route_length / robot.v_max + 10) / DT))
 
 
 @dataclass
@@ -45,6 +46,7 @@ class EnvConfig:
     # 'carrot': a point on the A* route ahead of the robot. 'goal': the goal itself, so the
     # deployed policy needs no global planner. The route still shapes the reward in training.
     target: str = 'carrot'
+    robot: str = 'martha'        # a key of martha_nav.robots.ROBOTS
     episode_seeds: tuple = ()    # evaluation: play exactly these seeds, in order
     record_trajectory: bool = False  # evaluation: the pose every step, in the episode's info
 
@@ -54,6 +56,10 @@ class NavEnv(gym.Env):
 
     def __init__(self, cfg=None):
         self.cfg = cfg or EnvConfig()
+        self.robot = ROBOTS[self.cfg.robot]
+        if self.cfg.action_dim == 3 and not self.robot.holonomic:
+            raise ValueError(f'{self.robot.name} cannot slide sideways: use action_dim 2')
+        self.footprint = footprint_points(self.robot)
         self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
@@ -74,9 +80,12 @@ class NavEnv(gym.Env):
         self.dyn.reset(self.sc.start)
         self.lookahead = self.rng.uniform(*self.cfg.carrot_range)
         self.lidar_sigma = self.rng.uniform(*self.cfg.lidar_noise)
+        # A LiDAR slower than the control loop repeats its last scan in between (random phase).
+        self.scan_every = max(1, round(1 / (self.robot.lidar_rate * DT)))
+        self.scan_phase = int(self.rng.integers(self.scan_every)) if self.scan_every > 1 else 0
         self.progress = RouteProgress(self.sc.path)
         self.steps = 0
-        self.max_steps = episode_steps(self.sc.path.length)
+        self.max_steps = episode_steps(self.sc.path.length, self.robot)
         self.prev_action = np.zeros(self.cfg.action_dim)
         self.travelled = 0.0
         self.terms = defaultdict(float)
@@ -96,9 +105,10 @@ class NavEnv(gym.Env):
     def step(self, action):
         action = np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
         before = self.dyn.pose[:2].copy()
-        commands = action_to_cmd(action)
+        commands = action_to_cmd(action, self.robot)
         step = self.dyn.step_holonomic if len(commands) == 3 else self.dyn.step
-        collided = step(*commands, lambda x, y, t: footprint_collides(self.sc.full, x, y, t))
+        collided = step(*commands,
+                        lambda x, y, t: footprint_collides(self.sc.full, x, y, t, self.footprint))
         x, y, _ = self.dyn.pose
         self.travelled += float(np.hypot(*(self.dyn.pose[:2] - before)))
         self.steps += 1
@@ -108,7 +118,8 @@ class NavEnv(gym.Env):
         reached = not collided and to_goal < self.cfg.goal_tolerance
         stalled = (not (collided or reached)
                    and self.progress.seconds_without_progress >= self.cfg.no_progress_time)
-        self._scan()
+        if (self.steps + self.scan_phase) % self.scan_every == 0:
+            self._scan()
         reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
                                        self.cfg.reward)
         for k, v in terms.items():
@@ -142,12 +153,15 @@ class NavEnv(gym.Env):
     # ---- sensing ---------------------------------------------------------
     def _scan(self):
         x, y, th = self.dyn.pose
-        ox, oy = x + LIDAR_OFFSET_X * np.cos(th), y + LIDAR_OFFSET_X * np.sin(th)
-        r = raycast(self.sc.full, ox, oy, th + self.ray_angles, LIDAR_MAX)
+        reach, offset = self.robot.lidar_range, self.robot.lidar_offset_x
+        ox, oy = x + offset * np.cos(th), y + offset * np.sin(th)
+        r = raycast(self.sc.full, ox, oy, th + self.ray_angles, reach)
         r = r + self.rng.normal(0.0, self.lidar_sigma, r.shape)
-        r[self.rng.random(r.shape) < self.cfg.lidar_dropout] = LIDAR_MAX
-        self.ranges = np.clip(r, 0.0, LIDAR_MAX)
-        hit = self.ranges < LIDAR_MAX
+        r[self.rng.random(r.shape) < self.cfg.lidar_dropout] = reach
+        if self.robot.lidar_min > 0:
+            r[r < self.robot.lidar_min] = reach        # too close to measure, as the real sensor
+        self.ranges = np.clip(r, 0.0, reach)
+        hit = self.ranges < reach
         a = th + self.ray_angles[hit]
         self.scan_points = np.stack([ox + self.ranges[hit] * np.cos(a),
                                      oy + self.ranges[hit] * np.sin(a)], axis=1)
@@ -165,7 +179,8 @@ class NavEnv(gym.Env):
         noise = 1.0 + self.rng.normal(0.0, self.cfg.vel_noise, 3)
         vel = ((self.dyn.v * noise[0], self.dyn.vy * noise[1], self.dyn.w * noise[2])
                if self.cfg.action_dim == 3 else (self.dyn.v * noise[0], self.dyn.w * noise[2]))
-        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action, scale)
+        return build_observation(self.ranges, self.ray_angles, vel, rel, self.prev_action,
+                                 scale, robot=self.robot)
 
     def _summary(self, outcome):
         success = outcome == 'success'

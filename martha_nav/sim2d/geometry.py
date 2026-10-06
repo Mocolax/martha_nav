@@ -4,9 +4,6 @@ from dataclasses import dataclass, field
 import numpy as np
 
 RESOLUTION = 0.05          # m per cell
-ROBOT_LENGTH = 0.56        # m, along x of base_link
-ROBOT_WIDTH = 0.41         # m, along y of base_link
-LIDAR_OFFSET_X = 0.2325    # m, LiDAR position in base_link
 
 
 @dataclass
@@ -103,23 +100,23 @@ def raycast(grid, ox, oy, angles, max_range):
     return np.where(hits.any(axis=1), np.minimum(ts[first], max_range), max_range)
 
 
-def _footprint_points(length=ROBOT_LENGTH, width=ROBOT_WIDTH, spacing=RESOLUTION / 2):
-    hx, hy = length / 2, width / 2
-    xs = np.linspace(-hx, hx, int(np.ceil(length / spacing)) + 1)
-    ys = np.linspace(-hy, hy, int(np.ceil(width / spacing)) + 1)
+def footprint_points(robot, spacing=RESOLUTION / 2):
+    """Points on the perimeter of the robot's contact rectangle, in base_link."""
+    hx, hy = robot.length / 2, robot.width / 2
+    xs = np.linspace(-hx, hx, int(np.ceil(robot.length / spacing)) + 1)
+    ys = np.linspace(-hy, hy, int(np.ceil(robot.width / spacing)) + 1)
     top = np.stack([xs, np.full_like(xs, hy)], axis=1)
     bottom = np.stack([xs, np.full_like(xs, -hy)], axis=1)
     left = np.stack([np.full_like(ys, -hx), ys], axis=1)
     right = np.stack([np.full_like(ys, hx), ys], axis=1)
-    return np.concatenate([top, bottom, left, right])
+    points = np.concatenate([top, bottom, left, right])
+    points[:, 0] += robot.footprint_offset_x
+    return points
 
 
-FOOTPRINT = _footprint_points()
-
-
-def footprint_collides(grid, x, y, theta):
+def footprint_collides(grid, x, y, theta, footprint):
     """True when the robot rectangle's perimeter touches an occupied cell."""
     c, s = np.cos(theta), np.sin(theta)
-    px = x + c * FOOTPRINT[:, 0] - s * FOOTPRINT[:, 1]
-    py = y + s * FOOTPRINT[:, 0] + c * FOOTPRINT[:, 1]
+    px = x + c * footprint[:, 0] - s * footprint[:, 1]
+    py = y + s * footprint[:, 0] + c * footprint[:, 1]
     return bool(grid.occupied(px, py).any())

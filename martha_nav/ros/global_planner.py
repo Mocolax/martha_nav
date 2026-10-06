@@ -11,6 +11,7 @@ from rclpy.node import Node
 from std_msgs.msg import Empty, String
 from tf2_ros import Buffer, TransformListener
 
+from martha_nav.robots import ROBOTS
 from martha_nav.ros.common import LATCHED, run_node
 from martha_nav.ros.occupancy import msg_to_grid
 from martha_nav.ros.planner_core import PlannerCore
@@ -19,8 +20,9 @@ from martha_nav.ros.planner_core import PlannerCore
 class GlobalPlanner(Node):
     def __init__(self):
         super().__init__('global_planner')
+        robot = ROBOTS[self.declare_parameter('robot', 'martha').value]
         self.core = PlannerCore(
-            inflation=self.declare_parameter('inflation', 0.40).value,
+            inflation=self.declare_parameter('inflation', robot.inflation).value,
             replan_distance=self.declare_parameter('replan_distance', 1.0).value,
             goal_tolerance=self.declare_parameter('goal_tolerance', 0.3).value,
             snap_distance=self.declare_parameter('snap_distance', 0.5).value)

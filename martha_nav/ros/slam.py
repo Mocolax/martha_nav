@@ -9,11 +9,12 @@ from launch_ros.actions import Node
 
 
 def slam_toolbox(mode, scan_topic, use_sim_time, publish_tf=True, map_file='',
-                 start_pose=(0.0, 0.0, 0.0)):
-    """mode 'mapping' or 'localization'; map_file is the saved posegraph without extension."""
+                 start_pose=(0.0, 0.0, 0.0), max_range=8.0):
+    """mode 'mapping' or 'localization'; map_file is the saved posegraph without extension;
+    max_range is the LiDAR's (ROBOTS[...].lidar_range)."""
     config = Path(get_package_share_directory('slam_toolbox')) / 'config'
     params = {'use_sim_time': use_sim_time, 'mode': mode, 'base_frame': 'base_link',
-              'scan_topic': scan_topic, 'max_laser_range': 8.0}
+              'scan_topic': scan_topic, 'max_laser_range': max_range}
     if mode == 'mapping':
         executable, defaults = 'sync_slam_toolbox_node', 'mapper_params_online_sync.yaml'
         if not publish_tf:

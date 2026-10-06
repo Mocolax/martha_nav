@@ -1,6 +1,8 @@
 import numpy as np
 
-from martha_nav.sim2d.geometry import draw_box, draw_circle, empty_grid, footprint_collides, raycast
+from martha_nav.robots import ROBOTS
+from martha_nav.sim2d.geometry import (draw_box, draw_circle, empty_grid, footprint_collides,
+                                       footprint_points, raycast)
 
 
 def test_grid_cells_and_outside_is_occupied():
@@ -42,8 +44,15 @@ def test_raycast_returns_max_range_when_nothing_is_hit():
 def test_footprint_collision_respects_orientation():
     g = empty_grid(4.0, 4.0)
     draw_box(g, 2.0, 2.0 + 0.30, 2.0, 0.05)          # thin wall 0.30 m above the centre
-    assert not footprint_collides(g, 2.0, 2.0, 0.0)          # half-width 0.205 < 0.30
-    assert footprint_collides(g, 2.0, 2.0, np.pi / 2)        # half-length 0.28 reaches the wall cells
+    martha = footprint_points(ROBOTS['martha'])
+    assert not footprint_collides(g, 2.0, 2.0, 0.0, martha)          # half-width 0.205 < 0.30
+    assert footprint_collides(g, 2.0, 2.0, np.pi / 2, martha)        # half-length 0.28 reaches the wall cells
+
+
+def test_the_burger_footprint_sits_behind_its_axle():
+    pts = footprint_points(ROBOTS['burger'])
+    assert np.isclose(pts[:, 0].min(), -0.032 - 0.07) and np.isclose(pts[:, 0].max(), -0.032 + 0.07)
+    assert np.isclose(pts[:, 1].max(), 0.089)
 
 
 def test_crop_keeps_world_coordinates():

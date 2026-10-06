@@ -19,6 +19,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNorma
 
 from martha_nav.learning.evaluate import run_episodes, summarize
 from martha_nav.learning.policy import policy_kwargs
+from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import WIDE_DYNAMICS
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
 from martha_nav.sim2d.scenarios import TRAIN_SOURCES
@@ -118,7 +119,7 @@ def build_model(venv, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
-                 wide_dynamics=False):
+                 wide_dynamics=False, robot='martha'):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     cfg = EnvConfig()
@@ -127,9 +128,10 @@ def build_config(preset, collision=None, action_dim=2, target='carrot', progress
         reward = replace(reward, collision=collision)
     if wide_dynamics:
         cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
-    return replace(cfg, reward=reward, action_dim=action_dim, target=target,
+    return replace(cfg, reward=reward, action_dim=action_dim, target=target, robot=robot,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']),
-                                    obstacle_mode=p['obstacle_mode']))
+                                    obstacle_mode=p['obstacle_mode'],
+                                    inflation=ROBOTS[robot].inflation))
 
 
 def main(argv=None):
@@ -148,6 +150,8 @@ def main(argv=None):
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
     ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
                     help="what the policy steers to: the route's carrot, or the goal alone")
+    ap.add_argument('--robot', choices=list(ROBOTS), default='martha',
+                    help='the robot to train for (martha_nav/robots.py)')
     ap.add_argument('--reward-progress', choices=['route', 'geodesic'], default='route',
                     help='progress along the A* route, or drop in geodesic distance to the goal')
     ap.add_argument('--wide-dynamics', action='store_true',
@@ -161,7 +165,7 @@ def main(argv=None):
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
-                           args.reward_progress, args.wide_dynamics)
+                           args.reward_progress, args.wide_dynamics, args.robot)
     config = {'preset': args.preset, 'recurrent': args.recurrent,
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,

@@ -42,6 +42,16 @@ def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
     assert (cfg.action_dim, cfg.target) == (3, 'goal')
 
 
+def test_evaluation_drives_the_robot_the_model_was_trained_for(tmp_path):
+    from martha_nav.learning.evaluate import trained_env_config
+    model = tmp_path / 'best_model.zip'
+    (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
+    assert trained_env_config(model).robot == 'martha'
+    (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
+    cfg = trained_env_config(model)
+    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.20
+
+
 def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
     import pytest
 

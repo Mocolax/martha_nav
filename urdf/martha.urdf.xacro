@@ -3,7 +3,7 @@
      robot (no namespaces or frame prefixes) and no IMU. The drive argument below swaps
      the mecanum wheels for planar_move.
 
-     Geometry must match martha_nav/sim2d/geometry.py, with a footprint of
+     Geometry must match ROBOTS['martha'] in martha_nav/robots.py, with a footprint of
      0.56 x 0.41 m and the LiDAR 0.2325 m ahead of base_link.
 
      IMPORTANT. Do not write a colon followed by a space anywhere in this file, not
@@ -51,7 +51,7 @@
     <xacro:property name="wheel_pos_z" value="0.08" />
     <xacro:property name="lidar_length" value="0.04" />
     <xacro:property name="lidar_radius" value="0.0475" />
-    <!-- LIDAR_OFFSET_X in martha_nav/sim2d/geometry.py, and where it sits on the robot. -->
+    <!-- lidar_offset_x of ROBOTS['martha'] in martha_nav/robots.py, and where it sits on the robot. -->
     <xacro:property name="lidar_x" value="0.2325" />
     <!-- Collision envelope used for contacts, 0.56 x 0.41 m, held above the floor
          so wheel support never counts as a collision. -->
@@ -107,7 +107,7 @@
     <joint name="base_lidar" type="fixed">
         <parent link="base_link" />
         <child link="lidar" />
-        <!-- x = 0.2325 m, the value LIDAR_OFFSET_X uses. The scan plane sits above
+        <!-- x = 0.2325 m, the value lidar_offset_x uses. The scan plane sits above
              the contact shell so the robot never sees itself. -->
         <origin xyz="${lidar_x} 0 ${contact_shell_center_z + contact_shell_height/2 + lidar_length/2 + lidar_shell_clearance}"/>
     </joint>
