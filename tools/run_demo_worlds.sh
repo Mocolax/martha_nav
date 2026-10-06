@@ -26,6 +26,7 @@ say () { echo "[$(date +%H:%M:%S)] $*"; }
 mkdir -p "$OUT"
 # Absolutas, para aceptar tanto rutas relativas al repo como completas.
 MODEL=$(realpath "$MODEL")
+ROBOT=$(python3 -c "from martha_nav.robots import checkpoint_robot; print(checkpoint_robot('$MODEL'))")
 OUT=$(realpath "$OUT")
 
 stop_sim () {
@@ -61,8 +62,9 @@ print(f'{s.start[0]:.3f} {s.start[1]:.3f}')" 2>/dev/null | tail -1)
   sleep 5                                  # let the first scan and the map arrive
 
   say "$world: $EPISODES episodios"
-  ros2 run martha_nav evaluate_gazebo --ros-args -p world:="$world" -p mode:=seeds \
-    -p condition:="$CONDITION" -p episodes:="$EPISODES" -p out:="$OUT/demo_$world.csv" \
+  ros2 run martha_nav evaluate_gazebo --ros-args -p world:="$world" -p robot:="$ROBOT" \
+    -p mode:=seeds -p condition:="$CONDITION" -p episodes:="$EPISODES" \
+    -p out:="$OUT/demo_$world.csv" \
     2>&1 | grep -E 'seed |done:'
   stop_sim
 }

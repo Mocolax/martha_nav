@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # The standard Gazebo evaluation of a run's best model, as evaluate_run.sh is for 2D:
 # launches N Gazebos side by side (each with its own ROS domain and Gazebo port) and runs the
-# evaluate_gazebo node in each, with the physics unthrottled (~3x real time each; checked
-# against 1x in docs/resultados.md).
+# evaluate_gazebo node in each, with the physics capped at 3x real time (checked against 1x
+# in docs/resultados.md).
 # shard:=i/N splits the seeds between them; the parts are merged at the end.
 #   [EPISODES=100] ./tools/evaluate_run_gazebo.sh runs/wide_dyn_s0 "" [instances] [out_dir]
 # -> <out_dir, default the run>/eval_gazebo_lab<suffix>.csv, eval_gazebo_lab_points<suffix>.csv
@@ -35,7 +35,7 @@ for i in $(seq 0 $((n - 1))); do
 done
 for i in $(seq 0 $((n - 1))); do
   timeout 180 bash -c "until docker exec ros2_humble grep -qs 'action space' /tmp/sim$i.log; do sleep 3; done"
-  docker exec ros2_humble bash -c "$ros; GAZEBO_MASTER_URI=http://localhost:$((11360 + i)) gz physics -u 0"
+  docker exec ros2_humble bash -c "$ros; GAZEBO_MASTER_URI=http://localhost:$((11360 + i)) gz physics -u 3000"
 done
 
 for mode in seeds points; do

@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
-<!-- TurtleBot3 Burger for Gazebo: the measures of turtlebot3_burger.urdf (ROBOTIS) in simple
+<!-- TurtleBot3 Burger for Gazebo, with the measures of turtlebot3_burger.urdf (ROBOTIS) in simple
      shapes, plus the contact sensor evaluate_gazebo needs. The 2D simulator uses the same
      numbers, ROBOTS['burger'] in martha_nav/robots.py; test/test_urdf.py checks they agree.
-     No ":=" anywhere: see the note at the top of martha.urdf.xacro. -->
+     Same rule as martha.urdf.xacro (see the note at its top), no remapping rule and no colon
+     followed by a space anywhere in this file, comments included. -->
 <robot name="burger" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:arg name="lidar_samples" default="360"/>
   <xacro:arg name="lidar_range" default="3.5"/>

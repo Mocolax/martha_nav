@@ -109,6 +109,13 @@ def burger():
     return xacro.process_file(str(BURGER_URDF)).toprettyxml()
 
 
+def test_burger_urdf_parses_as_a_parameter_override_rule():
+    """Martha's rule: the URDF can travel inside a "robot_description:=<urdf>" override."""
+    doc = burger()
+    assert ': ' not in doc
+    assert ':=' not in doc
+
+
 def test_burger_contact_shell_is_the_2d_footprint():
     doc = burger()
     size = doc.split('name="contact_shell_collision"', 1)[1].split('size="', 1)[1].split('"', 1)[0]
@@ -135,4 +142,5 @@ def test_burger_contact_sensor_watches_a_collision_gazebo_keeps(tmp_path):
     sdf = subprocess.run(['gz', 'sdf', '-p', str(path)], capture_output=True, text=True,
                          check=True).stdout
     watched = sdf.split('<contact>', 1)[1].split('<collision>', 1)[1].split('</collision>', 1)[0]
+    assert 'contact_shell' in watched
     assert f"<collision name='{watched}'>" in sdf or f'<collision name="{watched}">' in sdf

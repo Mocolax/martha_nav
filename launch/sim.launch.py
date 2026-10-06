@@ -1,12 +1,14 @@
-"""Gazebo + Martha + map + ground-truth TF + the two navigation nodes.
+"""Gazebo + Martha or the Burger + map + ground-truth TF + the two navigation nodes.
 
 ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip
 
-drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
-drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
-dynamics. sim_speed_factor and physics_step_size rewrite the world's physics.
 robot:=burger simulates the TurtleBot3 Burger (urdf/burger.urdf.xacro); by default the robot
 is the one the checkpoint was trained for.
+
+For Martha, drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
+drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
+dynamics. The Burger ignores drive:=. sim_speed_factor and physics_step_size rewrite the
+world's physics.
 
 Localization is Gazebo's true pose unless slam:=localization slam_map:=/abs/maps/lab,
 where slam_toolbox localizes in a map made with slam:=mapping (tools/map_world.py).
@@ -61,7 +63,7 @@ def launch_setup(context, *args, **kwargs):
     checkpoint = LaunchConfiguration('checkpoint').perform(context)
     trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
     name = LaunchConfiguration('robot').perform(context) or trained
-    if name != trained:
+    if checkpoint and name != trained:
         raise RuntimeError(f'{checkpoint} drives {trained}, not {name}')
     robot = ROBOTS[name]
     drive = LaunchConfiguration('drive').perform(context) if name == 'martha' else 'diff'
