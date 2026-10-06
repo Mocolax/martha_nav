@@ -1,5 +1,5 @@
-# ros2_control for the mecanum drive in Gazebo. Adapted from martha/config/controllers.yaml:
-# no namespaces, and this controller owns odom -> base_link because there is no EKF here.
+# ros2_control for the mecanum drive in Gazebo. No namespaces, and this controller owns
+# odom -> base_link because there is no EKF here.
 controller_manager:
   ros__parameters:
     update_rate: 100
@@ -24,8 +24,8 @@ mecanum_drive_controller:
         y: 0.0
         theta: 0.0
       wheels_radius: 0.075
-      # lx + ly with the wheels at x = 0.20 and y = 0.175 (0.21 in the old package,
-      # moved inside the contact shell so a wall touches the shell first).
+      # lx + ly with the wheels at x = 0.20 and y = 0.175, inside the contact shell
+      # so a wall touches the shell first.
       sum_of_robot_center_projection_on_X_Y_axis: 0.375
 
     base_frame_id: base_link

@@ -100,7 +100,7 @@ ni la memoria ni la recompensa reemplazan al A*: sin él, el mejor resultado en 
 
 El de 5M seguía mejorando al final (`std` 0.39, éxito en entrenamiento 0.62 → 0.76), así que se
 reentrenó desde cero con el doble de pasos (la tasa de aprendizaje llega a cero al final, no se
-puede continuar). Corrido en otra máquina con `tools/train_gl_geo_10m.sh`.
+puede continuar). Corrido en otra máquina con `tools/train_gl_geo_10m.sh` (en el historial de git; ver `docs/comandos.md`, sección 7).
 
 | | limpio | obstáculos | `lab` | `lab` puntos | colisión `lab` | estancado `lab` |
 |---|---|---|---|---|---|---|

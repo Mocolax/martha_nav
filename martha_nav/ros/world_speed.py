@@ -1,7 +1,7 @@
 """Copy a .world and set its physics step and real-time target.
 
-Ported from martha/martha/simulation_speed.py: Gazebo runs faster than real time
-when real_time_update_rate is raised above 1 / max_step_size.
+Gazebo runs faster than real time when real_time_update_rate is raised above
+1 / max_step_size.
 """
 import tempfile
 import xml.etree.ElementTree as ET

@@ -21,7 +21,7 @@ import pandas as pd
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402
 
-WINDOW = 50             # episodes in the rolling mean, like REPORT_WINDOW in the old package
+WINDOW = 50             # episodes in the rolling mean
 OUTCOMES = ('success', 'collision', 'stalled', 'timeout')
 COLORS = {'success': '#2a78d6', 'collision': '#eb6834', 'stalled': '#1baf7a', 'timeout': '#eda100'}
 LABELS = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado', 'timeout': 'timeout'}

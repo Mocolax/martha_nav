@@ -54,7 +54,7 @@ recompensa antes de E1.
 
 ## Experimentos A / B / C (2M pasos cada uno, semilla 0)
 
-Script: `tools/run_experiments_abc.sh`. Figura: `docs/figures/exp_abc.png`
+Script: `tools/run_experiments_abc.sh` (en el historial de git; ver `docs/comandos.md`, sección 7). Figura: `docs/figures/exp_abc.png`
 (`tools/compare_runs.py`). Perfil `performance`, ~1 150 pasos/s.
 
 | run | cambio frente al base | limpio | obstáculos | obstáculos, `lab` | colisión (obst.) | estancado (obst.) |

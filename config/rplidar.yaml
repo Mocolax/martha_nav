@@ -1,4 +1,4 @@
-# RPLIDAR A2M8, from martha/config/rplidar_a2m8.yaml. serial_port comes from the launch.
+# RPLIDAR A2M8. serial_port comes from the launch.
 # flip_x_axis: true if the scan shows up rotated 180 degrees in RViz.
 rplidar_node:
   ros__parameters:

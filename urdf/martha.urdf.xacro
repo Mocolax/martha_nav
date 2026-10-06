@@ -1,8 +1,7 @@
 <?xml version="1.0"?>
-<!-- Martha for martha_nav. Derived from martha/urdf/learning.xacro, keeping its
-     geometry, its mecanum wheels with rollers and its ros2_control stack, and dropping
-     what this package does not use, namely namespaces and frame prefixes (one robot)
-     and the IMU. The drive argument below swaps the mecanum wheels for planar_move.
+<!-- Martha for martha_nav. Mecanum wheels with rollers and a ros2_control stack, one
+     robot (no namespaces or frame prefixes) and no IMU. The drive argument below swaps
+     the mecanum wheels for planar_move.
 
      Geometry must match martha_nav/sim2d/geometry.py, with a footprint of
      0.56 x 0.41 m and the LiDAR 0.2325 m ahead of base_link.

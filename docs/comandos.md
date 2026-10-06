@@ -182,7 +182,7 @@ O las dos de una vez (de ~1.5 h a ~13 min), sin levantar la simulación antes:
 y les reparte las semillas (`shard:=i/3`). Deja los CSV en el run, o en `out_dir` si se da:
 
 ```bash
-./tools/evaluate_run_gazebo.sh runs/mi_run _v5
+./tools/evaluate_run_gazebo.sh runs/mi_run ""
 ```
 
 ## 6.1. Demostración en todos los mundos
