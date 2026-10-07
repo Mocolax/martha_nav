@@ -20,7 +20,8 @@ ARGUMENTS = [
                           description='saved map without extension; empty maps the place'),
     DeclareLaunchArgument('checkpoint', default_value='',
                           description='policy.npz from export_policy (or a .zip, with PyTorch)'),
-    DeclareLaunchArgument('speed_scale', default_value='1.0'),
+    DeclareLaunchArgument('speed_scale', default_value='1.0',
+                          description='fraction of the trained speeds to command, in (0, 1]'),
 ]
 
 

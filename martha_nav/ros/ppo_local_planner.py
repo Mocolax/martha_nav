@@ -50,6 +50,9 @@ class PpoLocalPlanner(Node):
         checkpoint = self.declare_parameter('checkpoint', '').value
         if not checkpoint:
             raise RuntimeError('parameter "checkpoint" is required')
+        self.speed_scale = self.declare_parameter('speed_scale', 1.0).value
+        if not 0 < self.speed_scale <= 1:
+            raise RuntimeError(f'speed_scale must be in (0, 1], not {self.speed_scale}')
         model, settings = load_policy(checkpoint)
         wanted = self.declare_parameter('robot', '').value
         if wanted and wanted != settings['robot']:
@@ -61,7 +64,6 @@ class PpoLocalPlanner(Node):
             target=settings['target'],
             action_delay=self.declare_parameter('action_delay', 0).value,
             robot=ROBOTS[settings['robot']])
-        self.speed_scale = self.declare_parameter('speed_scale', 1.0).value
         self.action_dim = self.core.action_dim
         self.get_logger().info(f"robot {settings['robot']}, action space {self.action_dim}D, "
                                f'action delay {self.core.action_delay}, speed x{self.speed_scale}')

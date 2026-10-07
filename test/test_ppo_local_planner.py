@@ -83,3 +83,16 @@ def test_speed_scale_slows_every_velocity():
     assert (cmd.linear.x, cmd.linear.y, cmd.angular.z) == (0.1, 0.0, 0.5)
     cmd = ppo_local_planner.to_twist((0.2, -0.1, 1.0))
     assert (cmd.linear.x, cmd.linear.y, cmd.angular.z) == (0.2, -0.1, 1.0)
+
+
+@pytest.mark.parametrize('scale', ['-0.5', '0.0', '1.5'])
+def test_a_speed_scale_outside_zero_to_one_is_refused(monkeypatch, scale):
+    monkeypatch.setattr(ppo_local_planner, 'load_policy',
+                        lambda path: (FakeModel(), settings_of(EnvConfig())))
+    rclpy.init(args=['--ros-args', '-p', 'checkpoint:=/fake/best_model.zip',
+                     '-p', f'speed_scale:={scale}'])
+    try:
+        with pytest.raises(RuntimeError, match='speed_scale'):
+            ppo_local_planner.PpoLocalPlanner()
+    finally:
+        rclpy.try_shutdown()

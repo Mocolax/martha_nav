@@ -55,9 +55,10 @@ def launch_setup(context, *args, **kwargs):
         slam_toolbox('localization', '/scan', use_sim_time=False, map_file=saved_map),
         Node(package='martha_nav', executable='world_map_publisher', output='screen',
              parameters=[{'map_yaml': saved_map + '.yaml'}]),
-        Node(package='martha_nav', executable='global_planner', output='screen'),
+        Node(package='martha_nav', executable='global_planner', output='screen',
+             parameters=[{'robot': 'martha'}]),
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
-             parameters=[{'checkpoint': LaunchConfiguration('checkpoint')}]),
+             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': 'martha'}]),
     ]
 
 
