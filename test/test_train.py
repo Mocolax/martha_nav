@@ -1,7 +1,11 @@
+from dataclasses import asdict
+
 import numpy as np
+import yaml
 from stable_baselines3 import PPO
 
 from martha_nav.learning.train import main as train_main
+from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.observation import OBS_DIM
 
 
@@ -14,6 +18,9 @@ def test_train_smoke(tmp_path):
     for f in ('config.yaml', 'episodes.csv', 'evals.csv', 'best_model.zip', 'last_model.zip',
               'vecnormalize.pkl'):
         assert (run_dir / f).exists(), f
+    config = yaml.safe_load((run_dir / 'config.yaml').read_text())
+    assert config['env']['robot'] == 'martha'
+    assert config['robot_profile'] == asdict(ROBOTS['martha'])      # what the policy was trained for
     model = PPO.load(run_dir / 'last_model.zip', device='cpu')
     action, _ = model.predict(np.zeros(OBS_DIM, np.float32), deterministic=True)
     assert action.shape == (2,)

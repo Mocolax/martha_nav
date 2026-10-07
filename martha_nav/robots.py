@@ -1,6 +1,6 @@
 """The robots the policy can drive: everything the code assumes about the body and the LiDAR."""
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -55,3 +55,14 @@ def checkpoint_robot(path):
     if not config.exists():
         return 'martha'
     return yaml.safe_load(config.read_text())['env'].get('robot', 'martha')
+
+
+def check_profile(recorded, name, path):
+    """Refuse a checkpoint trained for another version of robot `name` (None: not recorded)."""
+    if recorded is None:
+        return
+    current = asdict(ROBOTS[name])
+    changed = [k for k in {**current, **recorded} if recorded.get(k) != current.get(k)]
+    if changed:
+        raise ValueError(f"{path} was trained for a different {name} profile (changed: "
+                         f"{', '.join(changed)}): retrain and re-export")

@@ -31,7 +31,8 @@ def load_policy(checkpoint):
 
     from martha_nav.learning.evaluate import load_model, trained_env_config
     torch.set_num_threads(1)
-    return load_model(checkpoint), settings_of(trained_env_config(checkpoint))
+    settings = settings_of(trained_env_config(checkpoint))
+    return load_model(checkpoint), settings
 
 
 def to_twist(velocities, scale=1.0):

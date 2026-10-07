@@ -1,12 +1,16 @@
 """The exported numpy policy must act exactly as the PyTorch one, without importing it."""
+import json
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
 import pytest
 import yaml
 
+from martha_nav.robots import ROBOTS
+from martha_nav.ros.ppo_local_planner import load_policy
 from martha_nav.sim2d.env import EnvConfig, NavEnv
 
 WIDE = Path(__file__).resolve().parents[1] / 'runs' / 'wide_dyn_s0' / 'best_model.zip'
@@ -30,16 +34,60 @@ def same_actions(model_path, env, steps=40):
     return policy
 
 
-def test_a_fresh_burger_policy_exports_exactly(tmp_path):
+def save_fresh_burger_policy(folder):
+    """A policy nobody trained, with the config.yaml of a Burger run; returns its model path."""
     from stable_baselines3 import PPO
 
     from martha_nav.learning.policy import policy_kwargs
-    env = NavEnv(EnvConfig(robot='burger'))
-    PPO('MlpPolicy', env, policy_kwargs=policy_kwargs(), seed=0,
-        device='cpu').save(tmp_path / 'best_model.zip')
-    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'}}))
-    policy = same_actions(tmp_path / 'best_model.zip', env)
+    PPO('MlpPolicy', NavEnv(EnvConfig(robot='burger')), policy_kwargs=policy_kwargs(), seed=0,
+        device='cpu').save(folder / 'best_model.zip')
+    (folder / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'}}))
+    return folder / 'best_model.zip'
+
+
+@pytest.fixture(scope='module')
+def burger_npz(tmp_path_factory):
+    from martha_nav.learning.export import export
+    return export(save_fresh_burger_policy(tmp_path_factory.mktemp('burger')))
+
+
+def rewritten(source, target, **settings):
+    """A copy of an exported policy with these settings replaced (None removes one)."""
+    data = dict(np.load(source))
+    merged = {**json.loads(str(data['settings'])), **settings}
+    np.savez(target, **{**data, 'settings': json.dumps({k: v for k, v in merged.items()
+                                                        if v is not None})})
+    return str(target)
+
+
+def test_a_fresh_burger_policy_exports_exactly(tmp_path):
+    policy = same_actions(save_fresh_burger_policy(tmp_path), NavEnv(EnvConfig(robot='burger')))
     assert policy.settings['robot'] == 'burger' and policy.settings['action_dim'] == 2
+
+
+def test_the_export_carries_the_robot_profile(burger_npz):
+    from martha_nav.ros.numpy_policy import NumpyPolicy
+    assert NumpyPolicy(burger_npz).settings['robot_profile'] == asdict(ROBOTS['burger'])
+
+
+def test_an_exported_policy_for_another_profile_of_its_robot_is_refused(burger_npz, tmp_path):
+    profile = asdict(ROBOTS['burger'])
+    same = rewritten(burger_npz, tmp_path / 'same.npz', robot_profile=profile)
+    assert load_policy(same)[1]['robot'] == 'burger'
+    unrecorded = rewritten(burger_npz, tmp_path / 'unrecorded.npz', robot_profile=None)
+    assert load_policy(unrecorded)[1]['robot'] == 'burger'
+    other = rewritten(burger_npz, tmp_path / 'other.npz',
+                      robot_profile={**profile, 'lidar_min': 0.16})
+    with pytest.raises(ValueError, match=r'different burger profile \(changed: lidar_min\)'):
+        load_policy(other)
+
+
+def test_a_zip_trained_for_another_profile_is_refused_before_it_is_loaded(tmp_path):
+    other = {**asdict(ROBOTS['burger']), 'inflation': 0.30}
+    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'},
+                                                          'robot_profile': other}))
+    with pytest.raises(ValueError, match=r'different burger profile \(changed: inflation\)'):
+        load_policy(str(tmp_path / 'best_model.zip'))
 
 
 @pytest.mark.skipif(not WIDE.exists(), reason='needs runs/wide_dyn_s0')

@@ -52,6 +52,28 @@ def test_evaluation_drives_the_robot_the_model_was_trained_for(tmp_path):
     assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.20
 
 
+def test_a_model_trained_for_another_profile_of_its_robot_is_refused(tmp_path):
+    from dataclasses import asdict
+
+    import yaml
+
+    from martha_nav.learning.evaluate import trained_env_config
+    from martha_nav.robots import ROBOTS
+    model = tmp_path / 'best_model.zip'
+    profile = asdict(ROBOTS['burger'])
+
+    def write(**extra):
+        (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'}, **extra}))
+
+    write(robot_profile=profile)
+    assert trained_env_config(model).robot == 'burger'
+    write()                                                        # run from before profiles
+    assert trained_env_config(model).robot == 'burger'
+    write(robot_profile={**profile, 'guard_margin': 0.15})
+    with pytest.raises(ValueError, match=r'different burger profile \(changed: guard_margin\)'):
+        trained_env_config(model)
+
+
 def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
     import pytest
 

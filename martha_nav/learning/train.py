@@ -172,7 +172,8 @@ def main(argv=None):
               'seed': args.seed, 'steps': steps,
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,
-              'env': json.loads(json.dumps(asdict(env_cfg)))}
+              'env': json.loads(json.dumps(asdict(env_cfg))),
+              'robot_profile': asdict(ROBOTS[args.robot])}
     (run_dir / 'config.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
 
     torch.set_num_threads(4)

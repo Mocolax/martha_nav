@@ -1,12 +1,14 @@
 """The trained policy's deterministic action in numpy, so the robot needs no PyTorch.
 
 export_policy (martha_nav/learning/export.py) writes the .npz read here: the weights of the
-actor (CNN extractor, policy MLP, action layer) and the settings the observation needs.
+actor (CNN extractor, policy MLP, action layer), the settings the observation needs and the
+profile of the robot it was trained for, which must still be the current one.
 """
 import json
 
 import numpy as np
 
+from martha_nav.robots import check_profile
 from martha_nav.sim2d.observation import N_SECTORS
 
 SETTINGS = ('robot', 'action_dim', 'target')
@@ -33,6 +35,7 @@ class NumpyPolicy:
     def __init__(self, path):
         data = np.load(path)
         self.settings = json.loads(str(data['settings']))
+        check_profile(self.settings.get('robot_profile'), self.settings['robot'], path)
         self.w = {k: data[k].astype(np.float64) for k in data.files if k != 'settings'}
 
     def _linear(self, name, x):
