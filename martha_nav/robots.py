@@ -41,7 +41,7 @@ ROBOTS = {
     # 8.0 m and 0.16 m). Its guard reaches 0.17 m ahead of the LiDAR, past the 0.12 m blind zone.
     'burger': Robot('burger', length=0.14, width=0.178, footprint_offset_x=-0.032,
                     lidar_offset_x=-0.032, lidar_range=3.5, lidar_min=0.12, lidar_rate=5.0,
-                    v_max=0.22, v_reverse=0.22, v_lateral=0.0, w_max=1.5, inflation=0.20,
+                    v_max=0.22, v_reverse=0.22, v_lateral=0.0, w_max=1.5, inflation=0.30,
                     guard_margin=0.10),
 }
 

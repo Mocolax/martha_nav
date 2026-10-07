@@ -21,7 +21,7 @@ def test_martha_keeps_the_numbers_the_code_used_before_the_profiles():
 def test_burger_is_a_small_differential_robot():
     b = ROBOTS['burger']
     assert (b.length, b.width, b.footprint_offset_x, b.lidar_offset_x) == (0.14, 0.178, -0.032, -0.032)
-    assert (b.v_max, b.w_max, b.inflation, b.lidar_rate) == (0.22, 1.5, 0.20, 5.0)
+    assert (b.v_max, b.w_max, b.inflation, b.lidar_rate) == (0.22, 1.5, 0.30, 5.0)
     assert b.guard_margin == 0.10
     assert not b.holonomic
 

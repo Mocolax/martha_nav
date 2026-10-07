@@ -74,7 +74,7 @@ def test_the_burger_episode_gets_its_time_and_inflation():
     rclpy.init(args=['--ros-args', '-p', 'robot:=burger'])
     try:
         node = EvaluateGazebo()
-        assert node.robot.name == 'burger' and node.cfg.inflation == 0.20
+        assert node.robot.name == 'burger' and node.cfg.inflation == 0.30
         node.destroy_node()
     finally:
         rclpy.try_shutdown()
@@ -98,7 +98,7 @@ def test_the_point_pairs_are_built_with_the_robots_inflation(monkeypatch):
         node.destroy_node()
     finally:
         rclpy.try_shutdown()
-    assert inflations == [0.20]
+    assert inflations == [0.30]
 
 
 @pytest.fixture

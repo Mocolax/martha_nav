@@ -36,7 +36,7 @@ def test_experiment_flags_reach_the_env_config():
 def test_build_config_takes_the_robot_and_its_inflation():
     from martha_nav.learning.train import build_config
     cfg = build_config('full', robot='burger')
-    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.20
+    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.30
     assert build_config('full').scenario.inflation == 0.40
 
 

@@ -65,7 +65,7 @@ def test_the_inflation_comes_from_the_robot():
     rclpy.init(args=['--ros-args', '-p', 'robot:=burger'])
     try:
         node = GlobalPlanner()
-        assert node.core.inflation == 0.20
+        assert node.core.inflation == 0.30
         node.destroy_node()
     finally:
         rclpy.try_shutdown()
