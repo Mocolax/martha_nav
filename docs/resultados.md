@@ -408,20 +408,28 @@ oscila entre 0.86 y 0.92 sin colapsar. El máximo es **0.920 a 2.5M** (colisión
 | puntos fijos de `lab` | 90 | 0.644 [0.541, 0.736] | 0.000 | 0.344 | 0.011 | 0.636 |
 
 **Comparación pareada 2D → Gazebo** (McNemar exacto, mismas semillas; `eval_obstacles_lab.csv`
-frente a `eval_gazebo_lab.csv`, y los puntos):
+frente a `eval_gazebo_lab.csv`, y los puntos). Martha con el mismo `evaluate_run_gazebo.sh`
+(`runs/wide_dyn_s0/v5/`):
 
 | comparación | semillas (100) | puntos (90) |
 |---|---|---|
-| 2D → Gazebo, `burger_s0` | 74 → 55 % (22 vs 3, p < 0.001) | 74 → 64 % (15 vs 6, p = 0.078) |
+| 2D → Gazebo, `burger_s0` | 74 → 55 % (22 vs 3, p = 0.0002) | 74 → 64 % (15 vs 6, p = 0.078) |
+| 2D → Gazebo, `wide_dyn_s0` | 84 → 87 % (4 vs 7, p = 0.55) | 77 → 82 % (4 vs 9, p = 0.27) |
 
-(Las 100 semillas compartidas dan 74 % en 2D; las 200 de `lab` completas, 69 %.)
+(Las 100 semillas compartidas dan 74 % en 2D para el Burger; las 200 de `lab` completas, 69 %.)
+En Gazebo `wide_dyn_s0` llega a 87 % (semillas) y 91 % (puntos, 82/90).
+
+El criterio del spec (p > 0.05) **no se cumple en las semillas** del Burger (22 vs 3, p = 0.0002) y se
+cumple por poco en los puntos (15 vs 6, p = 0.078, con poca potencia). `wide_dyn_s0` lo cumple en
+ambos.
 
 > **Lectura:** en las fuentes de entrenamiento el Burger rinde como Martha (95.8 % limpio, 88.8 % con
 > obstáculos), pero en `lab`, que nunca vio, baja a 69 % en 2D (`wide_dyn_s0`: 85.5 %) y en Gazebo a
-> 55 % (semillas) y 64 % (puntos). Falla casi siempre por atasco, no por choque (0 colisiones en
-> Gazebo), y los atascos no crecen con el número de cajas (13, 10, 11 y 11 con 1, 2, 3 y 4), así
-> que no vienen de los obstáculos; 23 de los 26 episodios que fallan en 2D también fallan en
-> Gazebo. La brecha 2D → Gazebo es significativa en las semillas y no en los puntos, de modo que
-> el criterio p > 0.05 no se cumple del todo. Para la demo: el Burger no choca, pero en `lab` solo
-> llega a la meta en ~55–65 % de los intentos, lejos del 83–88 % de Martha; la causa de los
-> atascos no está diagnosticada.
+> 55 % (semillas) y 64 % (puntos), frente al 87 % y 91 % de `wide_dyn_s0`. Falla casi siempre por
+> atasco: ninguna colisión en los 190 episodios de Gazebo (en 2D choca un 7 % en `lab`), con la
+> suposición de un LDS-01 y sin que Gazebo sea el robot real. Los atascos en Gazebo no crecen con el
+> número de cajas (13/26, 10/23, 11/23 y 11/28 con 1, 2, 3 y 4), así que no parecen venir solo de las
+> cajas; no hay una corrida del Burger en `lab` sin cajas para comprobarlo. De los 26 fallos de 2D
+> entre las 100 semillas compartidas, 23 también fallan en Gazebo. Para la demo: en `lab` el Burger
+> llega a la meta en ~55–65 % de los intentos, lejos de Martha; la causa de los atascos no está
+> diagnosticada.
