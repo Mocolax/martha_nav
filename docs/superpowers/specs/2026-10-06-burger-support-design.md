@@ -68,10 +68,9 @@ modela un alcance mínimo; así sus episodios no cambian.
   `ROBOT_LENGTH`, `ROBOT_WIDTH`, `LIDAR_OFFSET_X`, `FOOTPRINT`, `INFLATION`. `N_SECTORS` (90) y
   `DT` (0.1 s) no son del robot y se quedan.
 
-**Garantía.** La huella de episodios 2D (hash
-`97d9d95e7d871807d29028effd741f1c0458971374a85d5483046a70f08018d7`, `runs/_fingerprint.py`) debe
-salir idéntica con `robot: martha`, y las evaluaciones 2D de `wide_dyn_s0` deben repetir sus
-cifras. Con eso, nada de lo ya entrenado ni reportado cambia.
+**Garantía.** La huella de episodios 2D (`runs/_fingerprint.py`; el hash esperado está en su
+línea `# expected:`) debe salir idéntica con `robot: martha`, y las evaluaciones 2D de
+`wide_dyn_s0` deben repetir sus cifras. Con eso, nada de lo ya entrenado ni reportado cambia.
 
 Los mapas de entrenamiento no cambian: hechos para Martha, son holgados para el Burger.
 
@@ -80,7 +79,7 @@ Los mapas de entrenamiento no cambian: hechos para Martha, son holgados para el 
 **Entrenamiento 2D**, misma receta que el modelo final:
 
 ```bash
-train_policy --preset full --arch cnn --seed 0 --robot burger --wide-dynamics --name burger_s0
+train_policy --preset full --seed 0 --robot burger --wide-dynamics --name burger_s0
 ```
 
 Dos rasgos del sensor real que el 2D debe imitar (la lección del retardo de actuación: lo que no

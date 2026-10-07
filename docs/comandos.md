@@ -175,9 +175,18 @@ Con los puntos fijos del paquete anterior:
 ./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/mi_run/eval_gazebo_lab_points.csv
 ```
 
+`evaluate_gazebo` toma por defecto el perfil de Martha. Con el Burger en Gazebo
+(`sim.launch.py robot:=burger`, o con su política) hay que pasarle `-p robot:=burger`, o usaría
+el inflado y el tiempo límite de Martha:
+
+```bash
+./tools/ct_ros ros2 run martha_nav evaluate_gazebo --ros-args -p robot:=burger -p episodes:=100 -p mode:=seeds -p condition:=obstacles -p out:=/home/ros/ros2_ws/src/martha_nav/runs/burger_s0/eval_gazebo_lab.csv
+```
+
 O las dos de una vez (de ~1.5 h a ~13 min), sin levantar la simulación antes:
-`tools/evaluate_run_gazebo.sh` levanta 3 Gazebos sin GUI, cada uno con la física sin límite,
-y les reparte las semillas (`shard:=i/3`). Deja los CSV en el run, o en `out_dir` si se da:
+`tools/evaluate_run_gazebo.sh` levanta 3 Gazebos sin GUI, cada uno con la física limitada a 3×
+tiempo real (`gz physics -u 3000`), y les reparte las semillas (`shard:=i/3`). Deja los CSV en el
+run, o en `out_dir` si se da:
 
 ```bash
 ./tools/evaluate_run_gazebo.sh runs/mi_run ""
@@ -272,9 +281,9 @@ git log --diff-filter=D --name-only -- tools/experiments
 ```
 
 Los runs entrenados con opciones que el código ya no tiene no se pueden evaluar: los que tienen
-`lidar_encoding: linear` o `stuck_signal` se rechazan, y `full_cnn_s0` y `gate_cnn_s0` (entrenados
-con la codificación `linear` antes de que el `config.yaml` la registrara) se cargarían mal, así
-que no deben evaluarse.
+`lidar_encoding: linear` o `stuck_signal` se rechazan, y también `full_cnn_s0` y `gate_cnn_s0`
+(entrenados con la codificación `linear` antes de que el `config.yaml` la registrara): su
+`config.yaml` no tiene `robot` ni `lidar_encoding`, y se rechazan igual con el mismo error.
 
 ## 8. Limpieza cuando algo queda colgado
 
@@ -429,9 +438,17 @@ dominio es 0, y un `export` en el anfitrión no le llega: cada comando de ROS de
 ./tools/ct_ros env ROS_DOMAIN_ID=30 ros2 topic echo /scan --once --field range_max
 ```
 
-`3.5` es un LDS-01 (el perfil ya lo tiene). `8.0` es un LDS-02: cambiar en `ROBOTS['burger']`
-`lidar_range=8.0, lidar_min=0.16`, y en `urdf/burger.urdf.xacro` los `default` de `lidar_range` y
-`lidar_min` (`test/test_urdf.py` exige que coincidan).
+`3.5` es un LDS-01 (el perfil ya lo tiene). `8.0` es un LDS-02: poner en `ROBOTS['burger']`
+`lidar_range=8.0, lidar_min=0.16` y `guard_margin=0.15`, y en `urdf/burger.urdf.xacro` los
+`default` de `lidar_range` y `lidar_min` (`test/test_urdf.py` exige que coincidan con el perfil);
+después, reentrenar y reexportar. El `guard_margin` va con el `lidar_min`: la guarda tiene que
+alcanzar al menos 0.04 m más allá de la zona ciega del LiDAR, y con `lidar_min=0.16` el margen de
+0.10 m no llega (`test/test_robots.py` lo exige para cada perfil).
+
+Cada run guarda el perfil con el que se entrenó (`robot_profile` en su `config.yaml` y en el
+`policy.npz`). Si después cambia `ROBOTS[...]`, evaluar o lanzar ese modelo se rechaza y dice qué
+campos cambiaron: hay que reentrenar y reexportar. Los runs anteriores a este registro no lo
+tienen y no se comprueban (su `.npz` sí lleva el perfil vigente al exportar).
 
 **Entrenar y evaluar** (en el PC, como cualquier run):
 
@@ -505,3 +522,8 @@ Cada 10 s el planificador local registra la latencia scan → `/cmd_vel`. Para d
 PC, el mismo `burger.launch.py` corre allí sin cambios, en el contenedor
 (`./tools/ct_ros env ROS_DOMAIN_ID=30 ros2 launch martha_nav burger.launch.py ...`, con rutas
 `/home/ros/ros2_ws/src/martha_nav/...`).
+
+Con la política en el PC por WiFi (modo depuración), la latencia compara las marcas de tiempo de la
+Pi con el reloj del PC: sincronizarlos antes (por ejemplo con chrony), o el número no vale. A
+5 Hz, además, lo registrado es sobre todo la edad del scan (0 a 0.2 s). Y un scan perdido por el
+WiFi para al robot un momento (`STALE`, 0.3 s): es seguro, pero se mueve a tirones.

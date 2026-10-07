@@ -30,13 +30,16 @@ zanahoria. Entrenamiento en un simulador 2D propio y rápido; validación en Gaz
 | ruta | qué hay |
 |---|---|
 | `martha_nav/sim2d/` | `geometry.py` (rejilla, raycast), `planner.py` (Dijkstra, zanahoria, inflado 0.40 m), `worlds.py` (rasteriza SDF), `scenarios.py` (plantillas y `generate`), `dynamics.py`, `observation.py`, `reward.py`, `env.py` |
-| `martha_nav/learning/` | `policy.py` (CNN 1D sobre el LiDAR), `train.py`, `evaluate.py` |
-| `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `world_map_publisher.py` (`.world` o mapa guardado), `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py`, `esp32_bridge.py` y `slam.py` (robot real) |
+| `martha_nav/robots.py` | perfiles de robot (`ROBOTS['martha']`, `ROBOTS['burger']`): cuerpo, LiDAR, velocidades, inflado y margen de la guarda; todo lo que el código supone del robot |
+| `martha_nav/learning/` | `policy.py` (CNN 1D sobre el LiDAR), `train.py`, `evaluate.py`, `export.py` (política a `.npz`, para correr sin PyTorch) |
+| `martha_nav/ros/` | `global_planner.py`, `ppo_local_planner.py`, `numpy_policy.py` (la política exportada en numpy), `world_map_publisher.py` (`.world` o mapa guardado), `gazebo_ground_truth_tf.py`, `mecanum_cmd_vel_bridge.py`, `world_speed.py`, `evaluate_gazebo.py`, `esp32_bridge.py` y `slam.py` (robot real) |
 | `firmware/` | ESP32 del robot real: `firmware.ino`, `control.h` (PI, cinemática), `sensors.h` (encoders, gyro) |
 | `urdf/martha.urdf.xacro` | reusado del paquete anterior; `drive:=mecanum\|planar` |
+| `urdf/burger.urdf.xacro` | el TurtleBot3 Burger en Gazebo (el LiDAR sale del perfil) |
 | `launch/sim.launch.py` | Gazebo + controladores + nodos + RViz opcional |
 | `launch/real.launch.py` | robot real: sin `map:=` mapea con slam_toolbox, con `map:=` navega |
-| `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `evaluate_run_gazebo.sh`, gráficas |
+| `launch/burger.launch.py` | navegación del Burger, en su Raspberry Pi o en el PC para depurar; misma lógica con y sin `map:=` |
+| `tools/` | `ct`, `ct_ros`, `evaluate_run.sh`, `run_demo_worlds.sh`, `evaluate_run_gazebo.sh`, `deploy_burger.sh` (paquete y política a la Pi), gráficas |
 | `docs/resultados.md` | bitácora citable (puerta, A/B/C, `target_kl`, CNN contra MLP, brecha 2D → Gazebo) |
 | `docs/resultados-noche.md` | brazos H (holonómico) y L (LSTM) |
 
