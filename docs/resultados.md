@@ -378,13 +378,14 @@ idénticas. Los 190 episodios de E2 pasan de ~1.5 h a ~13 min.
 Con esto se re-evaluaron todas las configuraciones del paquete de datos de la tesis
 (`tools/build_entrega.py`, resultados en `runs/<run>/v5/`): ver `entrega_tesis/resumen_modelos.csv`.
 
-## TurtleBot3 Burger (burger_s0)
+## TurtleBot3 Burger, inflado 0.20 (burger_s0_infl020)
 
-Run `runs/burger_s0`: `--preset full --seed 0 --robot burger --wide-dynamics`, 5M pasos, 16 entornos,
-el perfil `burger` (LDS-01, `lidar_range=3.5`) guardado en su `config.yaml`. Duró 39.4 min
-(2118 pasos/s). El perfil **supone un LDS-01**: el `range_max` del LiDAR real no se ha medido; si
-resulta un LDS-02 (8.0 m), `docs/comandos.md` indica cambiar el perfil (`lidar_range`, `lidar_min`)
-y el `guard_margin`, y reentrenar y reexportar.
+Run `runs/burger_s0_infl020` (inflado de las rutas 0.20, el del perfil entonces): `--preset full
+--seed 0 --robot burger --wide-dynamics`, 5M pasos, 16 entornos, el perfil `burger` (LDS-01,
+`lidar_range=3.5`) guardado en su `config.yaml`. Duró 39.4 min (2118 pasos/s). El perfil **supone un
+LDS-01**: el `range_max` del LiDAR real no se ha medido; si resulta un LDS-02 (8.0 m),
+`docs/comandos.md` indica cambiar el perfil (`lidar_range`, `lidar_min`) y el `guard_margin`, y
+reentrenar y reexportar.
 
 **Evaluación periódica** (`evals.csv`): éxito 0.36 a 0.25M, 0.84 a 1.25M y 0.90 a 1.5M; después
 oscila entre 0.86 y 0.92 sin colapsar. El máximo es **0.920 a 2.5M** (colisión 0.060, SPL 0.908,
@@ -413,7 +414,7 @@ frente a `eval_gazebo_lab.csv`, y los puntos). Martha con el mismo `evaluate_run
 
 | comparación | semillas (100) | puntos (90) |
 |---|---|---|
-| 2D → Gazebo, `burger_s0` | 74 → 55 % (22 vs 3, p = 0.0002) | 74 → 64 % (15 vs 6, p = 0.078) |
+| 2D → Gazebo, `burger_s0_infl020` | 74 → 55 % (22 vs 3, p = 0.0002) | 74 → 64 % (15 vs 6, p = 0.078) |
 | 2D → Gazebo, `wide_dyn_s0` | 84 → 87 % (4 vs 7, p = 0.55) | 77 → 82 % (4 vs 9, p = 0.27) |
 
 (Las 100 semillas compartidas dan 74 % en 2D para el Burger; las 200 de `lab` completas, 69 %.)
@@ -431,5 +432,111 @@ ambos.
 > número de cajas (13/26, 10/23, 11/23 y 11/28 con 1, 2, 3 y 4), así que no parecen venir solo de las
 > cajas; no hay una corrida del Burger en `lab` sin cajas para comprobarlo. De los 26 fallos de 2D
 > entre las 100 semillas compartidas, 23 también fallan en Gazebo. Para la demo: en `lab` el Burger
-> llega a la meta en ~55–65 % de los intentos, lejos de Martha; la causa de los atascos no está
-> diagnosticada.
+> llega a la meta en ~55–65 % de los intentos, lejos de Martha; la causa de los atascos se
+> diagnostica a continuación.
+
+### Por qué se atascaba: el inflado de las rutas
+
+Diagnóstico en 2D con el mismo modelo (`burger_s0_infl020`, sin reentrenar), en las 200 semillas de `lab`
+con obstáculos. Los episodios atascados no eran de un robot parado sino de uno que **oscila**: en los
+últimos 15 s antes del atasco recorre ~2.2 m pero avanza en neto ~0.7 m, gira de un lado a otro (~8.8 rad
+de cambio de rumbo para ~2.6 rad netos) y está a ~0.6 m de la ruta, en cualquier punto de ella. Martha
+resuelve 40 de esas 48 semillas. El alcance del LiDAR no es la causa: los rayos que no leen nada (más
+allá de 3.5 m) fueron el 14 % en los episodios atascados y el 13 % en los exitosos. Alargar la regla de
+estancamiento a 30 s solo baja los atascos de 24 a 18 %.
+
+Lo que sí cambia el resultado es el inflado con el que se generan las rutas y los escenarios (el mismo
+modelo, evaluado con otro inflado):
+
+| inflado (m) | éxito | estancado | colisión |
+|---|---|---|---|
+| 0.20 (el de entonces) | 69.0 % | 24.0 % | 7.0 % |
+| 0.25 | 81.5 % | 8.5 % | 10.0 % |
+| 0.30 | 80.0 % | 11.0 % | 9.0 % |
+| 0.35 | 88.0 % | 5.5 % | 6.5 % |
+| 0.40 | 86.0 % | 4.5 % | 9.5 % |
+| 0.50 | 94.5 % | 2.0 % | 3.5 % |
+
+Con 0.20 el generador admite pasos de 0.4 m (2 × inflado), y ahí la política oscila; en Gazebo la guarda
+del Burger (0.189 m a cada lado) también se dispara en esos huecos. **Salvedad:** un inflado mayor
+también genera escenarios más fáciles (pasos más anchos garantizados), así que la mejora no es solo de
+la política. Con 0.40 los episodios son exactamente los de Martha, que allí saca 85.5 % (el Burger,
+86.0 %). Se eligió 0.30 para el Burger (`ROBOTS['burger'].inflation`).
+
+## TurtleBot3 Burger, inflado 0.30 (burger_s0)
+
+Run `runs/burger_s0` (reentrenado desde cero con el inflado 0.30 en el perfil): `--preset full --seed 0
+--robot burger --wide-dynamics`, 5M pasos, 16 entornos, el perfil `burger` (LDS-01, `lidar_range=3.5`,
+`inflation: 0.3`) guardado en su `config.yaml`. Duró 41.8 min (1995 pasos/s). El perfil **supone un
+LDS-01**, como antes (si el sensor real es un LDS-02, ver `docs/comandos.md`).
+
+**Evaluación periódica** (`evals.csv`): éxito 0.62 a 0.25M, 0.82 a 0.5M, 0.87 a 1.25M y 0.915 a 1.5M;
+después oscila entre 0.83 y 0.915 sin colapsar y termina en 0.885 a 5M. El máximo es **0.915 a 1.5M**
+(colisión 0.005, SPL 0.881, `best_model.zip`; 3.75M empata con 0.915 pero no lo reemplaza). La corrida
+de 0.20 llegó a 0.920 (a 2.5M).
+
+**Evaluación 2D determinista de `best_model.zip`** (`tools/evaluate_run.sh`):
+
+| condición | episodios | éxito [IC95] | colisión | estancado | timeout | SPL |
+|---|---|---|---|---|---|---|
+| limpio (fuentes de entrenamiento) | 500 | 0.968 [0.949, 0.980] | 0.000 | 0.032 | 0.000 | 0.948 |
+| con obstáculos (fuentes de entrenamiento) | 500 | 0.862 [0.829, 0.889] | 0.024 | 0.114 | 0.000 | 0.830 |
+| con obstáculos, `lab` (nunca visto) | 200 | 0.740 [0.675, 0.796] | 0.025 | 0.235 | 0.000 | 0.711 |
+| puntos fijos de `lab` | 90 | 0.667 [0.564, 0.755] | 0.056 | 0.278 | 0.000 | 0.646 |
+
+**Evaluación en Gazebo** (`tools/evaluate_run_gazebo.sh`, 3 Gazebos en paralelo a ~3× tiempo real,
+`lab.world`, con obstáculos, sin `action_delay`; `eval_gazebo_lab{,_points}.csv`):
+
+| conjunto | episodios | éxito [IC95] | colisión | estancado | timeout | SPL |
+|---|---|---|---|---|---|---|
+| semillas de `lab` | 100 | 0.690 [0.594, 0.772] | 0.000 | 0.310 | 0.000 | 0.664 |
+| puntos fijos de `lab` | 90 | 0.711 [0.610, 0.795] | 0.000 | 0.289 | 0.000 | 0.684 |
+
+**Comparación pareada 2D → Gazebo** (McNemar exacto, mismas semillas; `eval_obstacles_lab.csv` frente a
+`eval_gazebo_lab.csv`, y los puntos):
+
+| comparación | semillas (100) | puntos (90) |
+|---|---|---|
+| 2D → Gazebo, `burger_s0` (0.30) | 77 → 69 % (16 vs 8, p = 0.15) | 66.7 → 71.1 % (7 vs 11, p = 0.48) |
+| 2D → Gazebo, `burger_s0_infl020` (0.20) | 74 → 55 % (22 vs 3, p = 0.0002) | 74.4 → 64.4 % (15 vs 6, p = 0.078) |
+| 2D → Gazebo, `wide_dyn_s0` (Martha) | 84 → 87 % (4 vs 7, p = 0.55) | 85.6 → 91.1 % (4 vs 9, p = 0.27) |
+
+(Las 100 semillas compartidas dan 77 % en 2D para este Burger; las 200 de `lab` completas, 74.0 %.)
+El criterio del spec (p > 0.05) **se cumple en las semillas** (16 vs 8, p = 0.15) **y en los puntos**
+(7 vs 11, p = 0.48). Con tan pocos pares discordantes (24 y 18) la prueba tiene poca potencia: no
+detecta una brecha moderada, solo que ya no es tan grande como con 0.20 (22 vs 3).
+
+**Comparación con la corrida de 0.20** (éxito / estancado / colisión, %; los escenarios no son los
+mismos: con 0.30 el generador exige pasos de al menos 0.6 m):
+
+| conjunto | inflado 0.20 | inflado 0.30 |
+|---|---|---|
+| 2D, `lab` (200) | 69.0 / 24.0 / 7.0 | 74.0 / 23.5 / 2.5 |
+| 2D, puntos de `lab` (90) | 74.4 / 20.0 / 5.6 | 66.7 / 27.8 / 5.6 |
+| 2D, fuentes de entrenamiento con obstáculos (500) | 88.8 / 5.0 / 6.0 | 86.2 / 11.4 / 2.4 |
+| Gazebo, semillas (100) | 55.0 / 45.0 / 0.0 | 69.0 / 31.0 / 0.0 |
+| Gazebo, puntos (90) | 64.4 / 34.4 / 0.0 | 71.1 / 28.9 / 0.0 |
+
+En Gazebo sube de 55 a 69 % (semillas) y de 64 a 71 % (puntos), pero los intervalos se solapan
+([0.452, 0.644] y [0.594, 0.772]) y los escenarios cambiaron, así que no es una mejora demostrada. En
+2D, en cambio, **el reentrenamiento no mejora a `lab`**: sobre las mismas 200 semillas con inflado 0.30
+el modelo anterior, sin reentrenar, saca 80.0 / 11.0 / 9.0 y el nuevo 74.0 / 23.5 / 2.5 (35 semillas
+las resuelve solo el anterior y 23 solo el nuevo, McNemar p = 0.15, no significativo): el nuevo choca menos y se atasca
+más. Con inflado 0.20 el nuevo saca 63.5 / 34.0 / 2.5 frente a 69.0 / 24.0 / 7.0 del anterior. Los
+atascos de Gazebo ahora tienden a crecer con las cajas (5/26, 8/23, 6/23 y 12/28 con 1, 2, 3 y 4; con
+0.20 eran planos), y de los 23 fallos de 2D en las 100 semillas compartidas, 15 también fallan en Gazebo.
+
+**Frente a Martha** (`wide_dyn_s0`, `v5/`): 85.5 % en 2D `lab`, 85.6 % en los puntos, 87.0 % y 91.1 % en
+Gazebo. Solo es una referencia: los escenarios de Martha (inflado 0.40, pasos de al menos 0.8 m) no son
+los del Burger con 0.30 (pasos de al menos 0.6 m, más difíciles). El Burger queda 11.5 puntos por debajo
+en 2D `lab`, 19 en los puntos de 2D y 18 y 20 en Gazebo (semillas y puntos).
+
+> **Lectura:** para la demo, las rutas del Burger necesitan pasos de **al menos 0.6 m** entre
+> obstáculos (el doble del inflado de 0.30); en pasos más estrechos, como los de 0.4 m que admitía
+> 0.20, la política oscila y la guarda de Gazebo se dispara. Dentro de esa condición, en `lab` con cajas
+> el Burger llega a la meta en ~70 % de los intentos en Gazebo (69 % y 71 %) con ninguna colisión en
+> los 190 episodios; todos los fallos son atascos. La brecha 2D → Gazebo ya no es significativa, pero
+> el 74 % de 2D `lab` y su 23.5 % de atascos siguen lejos de Martha, y reentrenar con 0.30 no los
+> mejoró frente al modelo anterior evaluado con 0.30: el inflado explica parte del atasco, no todo, y
+> la causa de los atascos que quedan no está diagnosticada. Suposiciones: un LDS-01 (3.5 m, sin medir)
+> y un Gazebo que no es el robot real.
