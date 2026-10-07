@@ -415,7 +415,7 @@ frente a `eval_gazebo_lab.csv`, y los puntos). Martha con el mismo `evaluate_run
 | comparación | semillas (100) | puntos (90) |
 |---|---|---|
 | 2D → Gazebo, `burger_s0_infl020` | 74 → 55 % (22 vs 3, p = 0.0002) | 74 → 64 % (15 vs 6, p = 0.078) |
-| 2D → Gazebo, `wide_dyn_s0` | 84 → 87 % (4 vs 7, p = 0.55) | 77 → 82 % (4 vs 9, p = 0.27) |
+| 2D → Gazebo, `wide_dyn_s0` | 84 → 87 % (4 vs 7, p = 0.55) | 85.6 → 91.1 % (77 → 82 de 90; 4 vs 9, p = 0.27) |
 
 (Las 100 semillas compartidas dan 74 % en 2D para el Burger; las 200 de `lab` completas, 69 %.)
 En Gazebo `wide_dyn_s0` llega a 87 % (semillas) y 91 % (puntos, 82/90).
