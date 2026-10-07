@@ -377,3 +377,51 @@ idénticas. Los 190 episodios de E2 pasan de ~1.5 h a ~13 min.
 
 Con esto se re-evaluaron todas las configuraciones del paquete de datos de la tesis
 (`tools/build_entrega.py`, resultados en `runs/<run>/v5/`): ver `entrega_tesis/resumen_modelos.csv`.
+
+## TurtleBot3 Burger (burger_s0)
+
+Run `runs/burger_s0`: `--preset full --seed 0 --robot burger --wide-dynamics`, 5M pasos, 16 entornos,
+el perfil `burger` (LDS-01, `lidar_range=3.5`) guardado en su `config.yaml`. Duró 39.4 min
+(2118 pasos/s). El perfil **supone un LDS-01**: el `range_max` del LiDAR real no se ha medido; si
+resulta un LDS-02 (8.0 m), `docs/comandos.md` indica cambiar el perfil (`lidar_range`, `lidar_min`)
+y el `guard_margin`, y reentrenar y reexportar.
+
+**Evaluación periódica** (`evals.csv`): éxito 0.36 a 0.25M, 0.84 a 1.25M y 0.90 a 1.5M; después
+oscila entre 0.86 y 0.92 sin colapsar. El máximo es **0.920 a 2.5M** (colisión 0.060, SPL 0.908,
+`best_model.zip`); a 5M queda en 0.915.
+
+**Evaluación 2D determinista de `best_model.zip`** (`tools/evaluate_run.sh`):
+
+| condición | episodios | éxito [IC95] | colisión | estancado | timeout | SPL |
+|---|---|---|---|---|---|---|
+| limpio (fuentes de entrenamiento) | 500 | 0.958 [0.937, 0.972] | 0.010 | 0.032 | 0.000 | 0.953 |
+| con obstáculos (fuentes de entrenamiento) | 500 | 0.888 [0.857, 0.913] | 0.060 | 0.050 | 0.002 | 0.876 |
+| con obstáculos, `lab` (nunca visto) | 200 | 0.690 [0.623, 0.750] | 0.070 | 0.240 | 0.000 | 0.677 |
+| puntos fijos de `lab` | 90 | 0.744 [0.646, 0.823] | 0.056 | 0.200 | 0.000 | 0.725 |
+
+**Evaluación en Gazebo** (`tools/evaluate_run_gazebo.sh`, 3 Gazebos en paralelo a ~3× tiempo real,
+`lab.world`, con obstáculos, sin `action_delay`; `eval_gazebo_lab{,_points}.csv`):
+
+| conjunto | episodios | éxito [IC95] | colisión | estancado | timeout | SPL |
+|---|---|---|---|---|---|---|
+| semillas de `lab` | 100 | 0.550 [0.452, 0.644] | 0.000 | 0.450 | 0.000 | 0.540 |
+| puntos fijos de `lab` | 90 | 0.644 [0.541, 0.736] | 0.000 | 0.344 | 0.011 | 0.636 |
+
+**Comparación pareada 2D → Gazebo** (McNemar exacto, mismas semillas; `eval_obstacles_lab.csv`
+frente a `eval_gazebo_lab.csv`, y los puntos):
+
+| comparación | semillas (100) | puntos (90) |
+|---|---|---|
+| 2D → Gazebo, `burger_s0` | 74 → 55 % (22 vs 3, p < 0.001) | 74 → 64 % (15 vs 6, p = 0.078) |
+
+(Las 100 semillas compartidas dan 74 % en 2D; las 200 de `lab` completas, 69 %.)
+
+> **Lectura:** en las fuentes de entrenamiento el Burger rinde como Martha (95.8 % limpio, 88.8 % con
+> obstáculos), pero en `lab`, que nunca vio, baja a 69 % en 2D (`wide_dyn_s0`: 85.5 %) y en Gazebo a
+> 55 % (semillas) y 64 % (puntos). Falla casi siempre por atasco, no por choque (0 colisiones en
+> Gazebo), y los atascos no crecen con el número de cajas (13, 10, 11 y 11 con 1, 2, 3 y 4), así
+> que no vienen de los obstáculos; 23 de los 26 episodios que fallan en 2D también fallan en
+> Gazebo. La brecha 2D → Gazebo es significativa en las semillas y no en los puntos, de modo que
+> el criterio p > 0.05 no se cumple del todo. Para la demo: el Burger no choca, pero en `lab` solo
+> llega a la meta en ~55–65 % de los intentos, lejos del 83–88 % de Martha; la causa de los
+> atascos no está diagnosticada.
