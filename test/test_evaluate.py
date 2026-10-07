@@ -37,7 +37,8 @@ def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
     from martha_nav.learning.evaluate import trained_env_config
     model = tmp_path / 'best_model.zip'
     assert trained_env_config(model) == EnvConfig()                             # no config: defaults
-    (tmp_path / 'config.yaml').write_text('env:\n  action_dim: 3\n  target: goal\n')
+    (tmp_path / 'config.yaml').write_text(
+        'env:\n  lidar_encoding: inverse\n  action_dim: 3\n  target: goal\n')
     cfg = trained_env_config(model)
     assert (cfg.action_dim, cfg.target) == (3, 'goal')
 
@@ -45,7 +46,7 @@ def test_evaluation_uses_the_env_the_model_was_trained_with(tmp_path):
 def test_evaluation_drives_the_robot_the_model_was_trained_for(tmp_path):
     from martha_nav.learning.evaluate import trained_env_config
     model = tmp_path / 'best_model.zip'
-    (tmp_path / 'config.yaml').write_text('env:\n  n_rays: 180\n')
+    (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
     assert trained_env_config(model).robot == 'martha'
     (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
     cfg = trained_env_config(model)
@@ -79,7 +80,8 @@ def test_a_model_trained_with_a_removed_option_is_refused(tmp_path):
 
     from martha_nav.learning.evaluate import trained_env_config
     model = tmp_path / 'best_model.zip'
-    for env in ('lidar_encoding: linear', 'lidar_encoding: inverse\n  stuck_signal: true'):
+    for env in ('lidar_encoding: linear', 'lidar_encoding: inverse\n  stuck_signal: true',
+                'n_rays: 180'):                    # before config.yaml recorded the encoding
         (tmp_path / 'config.yaml').write_text(f'env:\n  {env}\n')
         with pytest.raises(ValueError, match='no longer'):
             trained_env_config(model)

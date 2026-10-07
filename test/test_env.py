@@ -196,3 +196,22 @@ def test_the_burger_lidar_reads_nothing_inside_its_blind_zone():
     ahead = np.abs(env.ray_angles) < np.deg2rad(15)
     assert (env.ranges[ahead] == env.robot.lidar_range).all()
     assert (env.ranges >= env.robot.lidar_min).all()
+
+
+def test_the_burger_collides_with_its_own_outline_not_marthas():
+    from martha_nav.robots import ROBOTS
+    from martha_nav.sim2d.geometry import draw_box, footprint_collides, footprint_points
+    env = NavEnv(EnvConfig(robot='burger',
+                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
+    env.reset(seed=3)
+    assert np.array_equal(env.footprint, footprint_points(ROBOTS['burger']))
+    x, y, th = env.dyn.pose
+    # A wall 0.10 to 0.20 m ahead of base_link: Martha's rectangle reaches 0.28 m, the Burger's 0.04 m.
+    draw_box(env.sc.full, x + 0.15 * np.cos(th), y + 0.15 * np.sin(th), 0.10, 1.0, th)
+    assert footprint_collides(env.sc.full, x, y, th, footprint_points(ROBOTS['martha']))
+    assert not footprint_collides(env.sc.full, x, y, th, env.footprint)
+    for _ in range(30):
+        *_, term, _, info = env.step(np.array([1.0, 0.0]))
+        if term:
+            break
+    assert info['outcome'] == 'collision'

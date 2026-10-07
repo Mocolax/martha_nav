@@ -107,8 +107,13 @@ def trained_env_config(model_path):
     if not config:
         return EnvConfig()
     saved = config['env']
-    removed = ('lidar_encoding: linear' if saved.get('lidar_encoding') == 'linear'
-               else 'stuck_signal' if saved.get('stuck_signal') else None)
+    removed = None
+    if saved.get('lidar_encoding') == 'linear':
+        removed = 'lidar_encoding: linear'
+    elif saved.get('stuck_signal'):
+        removed = 'stuck_signal'
+    elif 'robot' not in saved and 'lidar_encoding' not in saved:
+        removed = 'lidar_encoding: linear (its config.yaml records neither it nor a robot)'
     if removed:
         raise ValueError(f'{model_path} was trained with {removed}, which this code no longer has')
     dynamics = DynamicsRanges(**{k: tuple(v) for k, v in saved.get('dynamics', {}).items()})

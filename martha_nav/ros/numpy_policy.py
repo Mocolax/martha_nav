@@ -9,7 +9,7 @@ import json
 import numpy as np
 
 from martha_nav.robots import check_profile
-from martha_nav.sim2d.observation import N_SECTORS
+from martha_nav.sim2d.observation import N_SECTORS, obs_dim
 
 SETTINGS = ('robot', 'action_dim', 'target')
 CONVS = ((0, 1, 2), (2, 2, 2), (4, 2, 1))    # LidarCnnExtractor.cnn: (index, stride, padding)
@@ -37,6 +37,7 @@ class NumpyPolicy:
         self.settings = json.loads(str(data['settings']))
         check_profile(self.settings.get('robot_profile'), self.settings['robot'], path)
         self.w = {k: data[k].astype(np.float64) for k in data.files if k != 'settings'}
+        self.predict(np.zeros(obs_dim(self.settings['action_dim'])))     # a wrong net fails here
 
     def _linear(self, name, x):
         return self.w[f'{name}.weight'] @ x + self.w[f'{name}.bias']

@@ -106,3 +106,32 @@ def test_the_robot_side_never_imports_pytorch():
             'assert not heavy, heavy\n')
     done = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
+
+
+def test_a_policy_of_another_architecture_fails_when_it_is_loaded(burger_npz, tmp_path):
+    from martha_nav.ros.numpy_policy import NumpyPolicy
+    data = dict(np.load(burger_npz))
+    name = 'pi_features_extractor.lidar_head.0.weight'
+    data[name] = data[name][:, :-1]
+    np.savez(tmp_path / 'wrong.npz', **data)
+    with pytest.raises(ValueError):
+        NumpyPolicy(tmp_path / 'wrong.npz')
+
+
+def test_export_returns_the_path_it_wrote(tmp_path):
+    from martha_nav.learning.export import export
+    out = export(save_fresh_burger_policy(tmp_path), tmp_path / 'burger')
+    assert out == tmp_path / 'burger.npz' and out.exists()
+
+
+def test_the_node_runs_an_exported_policy_without_pytorch(burger_npz):
+    code = ('import sys\n'
+            'import rclpy\n'
+            'from martha_nav.ros.ppo_local_planner import PpoLocalPlanner\n'
+            f"rclpy.init(args=['--ros-args', '-p', 'checkpoint:={burger_npz}'])\n"
+            'node = PpoLocalPlanner()\n'
+            "assert node.core.robot.name == 'burger'\n"
+            "heavy = [m for m in ('torch', 'stable_baselines3', 'gymnasium') if m in sys.modules]\n"
+            'assert not heavy, heavy\n')
+    done = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
