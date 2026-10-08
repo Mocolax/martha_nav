@@ -598,7 +598,7 @@ m²) y cierra los pasos de menos de 0.8 m.
 Por eso el inflado ya no forma parte del perfil entrenado (`check_profile` lo ignora): `ROBOTS['burger']`
 planifica con **0.40** y un modelo entrenado con otro inflado se sigue pudiendo usar.
 
-**`burger_s1` con inflado 0.40** (el modelo de la demo, `runs/burger_s1/policy.npz`; sus cifras con
+**`burger_s1` con inflado 0.40** (el modelo de la demo, `policies/burger.npz`; sus cifras con
 0.30 quedan en `runs/burger_s1/infl030/`):
 
 | conjunto | episodios | 2D | Gazebo | estancado / colisión en Gazebo |

@@ -464,8 +464,12 @@ tienen y no se comprueban (su `.npz` sí lleva el perfil vigente al exportar).
 `sudo apt install ros-humble-slam-toolbox ros-humble-nav2-map-server ros-humble-teleop-twist-keyboard python3-scipy`):
 
 ```bash
-./tools/deploy_burger.sh turtlebot@<ip-del-robot> runs/burger_s1/policy.npz
+./tools/deploy_burger.sh turtlebot@<ip-del-robot> policies/burger.npz
 ```
+
+`policies/` guarda en git las políticas en uso, exportadas de `runs/` (que no va en git):
+`burger.npz` es `runs/burger_s1` y `martha.npz` es `runs/wide_dyn_s0`. Al cambiar de modelo, se
+reexporta y se copia ahí.
 
 Copia el paquete (sin `runs/`, `maps/` ni `policies/` del PC) a `~/martha_ws` de la Pi, le
 añade la política y lo compila. No borra los `maps/` ni las `policies/` que ya estén allí.
@@ -509,7 +513,7 @@ la Pi, terminal 4, con el mapeo corriendo:
 Parar el mapeo (Ctrl+C en la terminal 2) y relanzar navegando en el mapa, Pi, terminal 2:
 
 ```bash
-source ~/martha_ws/install/setup.bash && ros2 launch martha_nav burger.launch.py map:=$HOME/martha_ws/src/martha_nav/maps/sala checkpoint:=$HOME/martha_ws/src/martha_nav/policies/policy.npz speed_scale:=0.5
+source ~/martha_ws/install/setup.bash && ros2 launch martha_nav burger.launch.py map:=$HOME/martha_ws/src/martha_nav/maps/sala checkpoint:=$HOME/martha_ws/src/martha_nav/policies/burger.npz speed_scale:=0.5
 ```
 
 RViz, en el PC, para la pose inicial (*2D Pose Estimate*) y las metas (*2D Goal Pose*);
