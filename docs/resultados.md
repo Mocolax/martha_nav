@@ -540,3 +540,79 @@ en 2D `lab`, 19 en los puntos de 2D y 18 y 20 en Gazebo (semillas y puntos).
 > mejoró frente al modelo anterior evaluado con 0.30: el inflado explica parte del atasco, no todo, y
 > la causa de los atascos que quedan no está diagnosticada. Suposiciones: un LDS-01 (3.5 m, sin medir)
 > y un Gazebo que no es el robot real.
+
+## TurtleBot3 Burger: por qué se atasca, semillas e inflado 0.40 (2026-10-07)
+
+LiDAR medido en el robot: `range_max` 3.5, un **LDS-01**, como supone el perfil.
+
+**Dónde se atasca** (`burger_s0`, 2D `lab`, 200 episodios). En **41 de 48** atascos el *carrot*
+queda **detrás de una pared** del mapa estático durante más de la mitad de los últimos 15 s; en los
+éxitos, solo el 2 % de ese tiempo. El robot no está trabado: oscila (el signo del giro cambia 12 a 51
+veces en 15 s) en espacio abierto (~0.45 m de holgura), a mitad de ruta. No es el empuje del *carrot*
+más allá de los obstáculos (2 de 41): en la mitad de los casos el robot está a más de 0.5 m de la ruta,
+del otro lado de una pared delgada, y en la otra mitad la ruta dobla una esquina y el *carrot* queda
+detrás. Lo desencadenan los desvíos que fuerzan los obstáculos: el atasco sube con la razón desvío/ruta
+(12 % hasta 1.05, 33 % entre 1.05 y 1.2, 62 % por encima), mientras que en Martha es plano (4–8 %).
+Martha también tiene el *carrot* oculto más de 5 s en el 13 % de sus éxitos (el Burger, en el 36 %).
+
+Pruebas sin reentrenar, mismos 200 episodios (éxito):
+
+| cambio | `burger_s0` | `wide_dyn_s0` (Martha) |
+|---|---|---|
+| ninguno | 73.0 % | 85.5 % |
+| atasco a los 24 s (15 s × 0.35/0.22) / a los 60 s | 76.5 / 80.5 % | — |
+| *carrot* siempre a 1.0 / 2.5 m | 77.0 / 67.0 % | — |
+| *carrot* retrocedido hasta verse (línea de vista al mapa estático) | 77.0 % | 88.5 % |
+| replanificar a más de 1 m de la ruta (como `global_planner`) | 76.5 % | 88.0 % |
+| ambos | 78.5 % | 90.5 % |
+
+**Semillas** (inflado 0.30, misma receta; éxito / estancado / colisión, %):
+
+| run | `lab` (200) | puntos (90) |
+|---|---|---|
+| `burger_s0` | 74.0 / 23.5 / 2.5 | 66.7 / 27.8 / 5.6 |
+| `burger_s1` | 81.0 / 4.5 / 14.5 | 77.8 / 3.3 / 18.9 |
+| `burger_s2` | 72.5 / 10.0 / 17.5 | 77.8 / 5.6 / 16.7 |
+
+La semilla cambia el éxito (s1 frente a s2 en `lab`: 36 vs 19, McNemar p = 0.030) y sobre todo el tipo
+de fallo: s0 se atasca, s1 y s2 chocan. `burger_s1` se entrenó dos veces (la primera la mató un OOM a
+los 2M pasos, `runs/burger_s1_aborted_oom`); las dos dieron el mismo `best_model.zip` (1.25M pasos,
+0.925) y las mismas cifras.
+
+**Inflado: entrenar con 0.40 no ayuda, planificar con 0.40 sí.** `burger_infl040_s0` (semilla 0,
+entrenado con inflado 0.40) y los tres de 0.30, sobre los mismos escenarios (`runs/_cross_infl.py`):
+
+| modelo | escenarios 0.30, `lab` / puntos | escenarios 0.40, `lab` / puntos |
+|---|---|---|
+| `burger_s0` | 74.0 / 66.7 | 83.5 / 78.9 |
+| `burger_s1` | 81.0 / 77.8 | **88.0 / 88.9** |
+| `burger_s2` | 72.5 / 77.8 | 84.5 / 83.3 |
+| `burger_infl040_s0` | 74.5 / 73.3 | 86.5 / 81.1 |
+
+Con los mismos escenarios, el modelo de 0.40 empata con los de 0.30 (frente a s0, s1 y s2 en `lab` con
+0.40: p = 0.46, 0.76 y 0.67; en `lab` con 0.30 frente a s0: p = 1.0). Lo que sube el éxito es la ruta
+de 0.40, más lejos de las paredes. En `lab`, 0.40 no deja ningún destino fuera (los 90 pares de puntos
+siguen siendo alcanzables y la conectividad no cambia); quita el 18 % del área navegable (42.2 → 34.7
+m²) y cierra los pasos de menos de 0.8 m.
+
+Por eso el inflado ya no forma parte del perfil entrenado (`check_profile` lo ignora): `ROBOTS['burger']`
+planifica con **0.40** y un modelo entrenado con otro inflado se sigue pudiendo usar.
+
+**`burger_s1` con inflado 0.40** (el modelo de la demo, `runs/burger_s1/policy.npz`; sus cifras con
+0.30 quedan en `runs/burger_s1/infl030/`):
+
+| conjunto | episodios | 2D | Gazebo | estancado / colisión en Gazebo |
+|---|---|---|---|---|
+| semillas de `lab` | 100 | 90.0 % | **82.0 %** | 18.0 / 0.0 % |
+| puntos fijos de `lab` | 90 | 88.9 % | **83.3 %** | 16.7 / 0.0 % |
+
+En 2D, las 200 semillas de `lab` dan 88.0 % (colisión 7.0 %, estancado 5.0 %) y las fuentes de
+entrenamiento 96.8 % limpias y 92.6 % con obstáculos. Brecha 2D → Gazebo: semillas 10 vs 2 (p = 0.039,
+**no cumple** el criterio por poco), puntos 7 vs 2 (p = 0.18, cumple). Frente a `burger_s0` con 0.30
+en Gazebo (69 y 71 %) sube 13 y 12 puntos, y queda cerca de Martha (87 y 91 %).
+
+> **Lectura:** los atascos del Burger son mínimos locales con el *carrot* detrás de una pared, tras un
+> desvío por obstáculos. Planificar con 0.40 los reduce y la semilla 1 es la mejor de tres; con eso el
+> Burger llega en ~82 % de los intentos en Gazebo, sin colisiones. Un *carrot* con línea de vista y
+> replanificar al salirse de la ruta ayudan un poco sin reentrenar (+5 puntos); entrenar con ellos no se
+> probó.

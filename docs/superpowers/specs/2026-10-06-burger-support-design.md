@@ -46,7 +46,7 @@ perfiles en Python (no YAML: son dos y se versionan con el código).
 | `v_max`, `v_reverse`, `v_lateral` | 0.35, 0.15, 0.25 m/s | 0.22, 0.22, — |
 | `w_max` | 0.8 rad/s | 1.5 rad/s (el robot da 2.84; más rango haría la acción más gruesa) |
 | `holonomic` (acepta `action_dim` 3) | sí | no |
-| `inflation` del planificador | 0.40 m | 0.30 m (0.20 dejaba pasillos de 0.4 m donde la política se atascaba; ver `resultados.md`) |
+| `inflation` del planificador | 0.40 m | 0.40 m (planificar con 0.40 reduce los atascos; entrenar con 0.30 o 0.40 da lo mismo, y el inflado no se compara al cargar un modelo; ver `resultados.md`) |
 
 Las cifras del Burger salen de su URDF oficial (`turtlebot3_burger.urdf`: caja de colisión
 0.140 × 0.140 m centrada en x = −0.032, ruedas hasta 0.178 m de ancho, `base_scan` en x = −0.032)

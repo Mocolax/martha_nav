@@ -447,23 +447,24 @@ alcanzar al menos 0.04 m más allá de la zona ciega del LiDAR, y con `lidar_min
 
 Cada run guarda el perfil con el que se entrenó (`robot_profile` en su `config.yaml` y en el
 `policy.npz`). Si después cambia `ROBOTS[...]`, evaluar o lanzar ese modelo se rechaza y dice qué
-campos cambiaron: hay que reentrenar y reexportar. Los runs anteriores a este registro no lo
+campos cambiaron: hay que reentrenar y reexportar. El inflado es la excepción: es del planificador,
+no del modelo, y cambiarlo no obliga a reentrenar. Los runs anteriores a este registro no lo
 tienen y no se comprueban (su `.npz` sí lleva el perfil vigente al exportar).
 
 **Entrenar y evaluar** (en el PC, como cualquier run):
 
 ```bash
-./tools/ct_ros ros2 run martha_nav train_policy --preset full --seed 0 --robot burger --wide-dynamics --name burger_s0
-./tools/evaluate_run.sh runs/burger_s0
-./tools/evaluate_run_gazebo.sh runs/burger_s0 ""
-./tools/ct_ros ros2 run martha_nav export_policy --model runs/burger_s0/best_model.zip
+./tools/ct_ros ros2 run martha_nav train_policy --preset full --seed 1 --robot burger --wide-dynamics --name burger_s1
+./tools/evaluate_run.sh runs/burger_s1
+./tools/evaluate_run_gazebo.sh runs/burger_s1 ""
+./tools/ct_ros ros2 run martha_nav export_policy --model runs/burger_s1/best_model.zip
 ```
 
 **Desplegar** (en el PC; en la Pi, una vez:
 `sudo apt install ros-humble-slam-toolbox ros-humble-nav2-map-server ros-humble-teleop-twist-keyboard python3-scipy`):
 
 ```bash
-./tools/deploy_burger.sh ubuntu@<ip-del-robot> runs/burger_s0/policy.npz
+./tools/deploy_burger.sh turtlebot@<ip-del-robot> runs/burger_s1/policy.npz
 ```
 
 Copia el paquete (sin `runs/`, `maps/` ni `policies/` del PC) a `~/martha_ws` de la Pi, le
