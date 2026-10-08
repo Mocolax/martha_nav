@@ -83,10 +83,10 @@ def test_an_exported_policy_for_another_profile_of_its_robot_is_refused(burger_n
 
 
 def test_a_zip_trained_for_another_profile_is_refused_before_it_is_loaded(tmp_path):
-    other = {**asdict(ROBOTS['burger']), 'inflation': ROBOTS['burger'].inflation + 0.1}
+    other = {**asdict(ROBOTS['burger']), 'lidar_min': 0.16}
     (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'},
                                                           'robot_profile': other}))
-    with pytest.raises(ValueError, match=r'different burger profile \(changed: inflation\)'):
+    with pytest.raises(ValueError, match=r'different burger profile \(changed: lidar_min\)'):
         load_policy(str(tmp_path / 'best_model.zip'))
 
 

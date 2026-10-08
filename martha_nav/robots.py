@@ -21,7 +21,8 @@ class Robot:
     v_reverse: float           # m/s backward
     v_lateral: float           # m/s sideways; 0 for a robot that cannot slide
     w_max: float               # rad/s
-    inflation: float           # m, obstacle inflation of the global planner
+    inflation: float           # m, obstacle inflation of the global planner; not part of a
+                               # trained model: it plans the routes the model follows
     guard_margin: float        # m, how far beyond the contact rectangle the safety guard reacts
 
     @property
@@ -41,7 +42,7 @@ ROBOTS = {
     # 8.0 m and 0.16 m). Its guard reaches 0.17 m ahead of the LiDAR, past the 0.12 m blind zone.
     'burger': Robot('burger', length=0.14, width=0.178, footprint_offset_x=-0.032,
                     lidar_offset_x=-0.032, lidar_range=3.5, lidar_min=0.12, lidar_rate=5.0,
-                    v_max=0.22, v_reverse=0.22, v_lateral=0.0, w_max=1.5, inflation=0.30,
+                    v_max=0.22, v_reverse=0.22, v_lateral=0.0, w_max=1.5, inflation=0.40,
                     guard_margin=0.10),
 }
 
@@ -58,11 +59,15 @@ def checkpoint_robot(path):
 
 
 def check_profile(recorded, name, path):
-    """Refuse a checkpoint trained for another version of robot `name` (None: not recorded)."""
+    """Refuse a checkpoint trained for another version of robot `name` (None: not recorded).
+
+    The inflation is left out: training with 0.30 or 0.40 m gave the same policy, while planning
+    with 0.40 m is what helps (docs/resultados.md)."""
     if recorded is None:
         return
     current = asdict(ROBOTS[name])
-    changed = [k for k in {**current, **recorded} if recorded.get(k) != current.get(k)]
+    changed = [k for k in {**current, **recorded}
+               if k != 'inflation' and recorded.get(k) != current.get(k)]
     if changed:
         raise ValueError(f"{path} was trained for a different {name} profile (changed: "
                          f"{', '.join(changed)}): retrain and re-export")

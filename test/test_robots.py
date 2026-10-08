@@ -21,7 +21,7 @@ def test_martha_keeps_the_numbers_the_code_used_before_the_profiles():
 def test_burger_is_a_small_differential_robot():
     b = ROBOTS['burger']
     assert (b.length, b.width, b.footprint_offset_x, b.lidar_offset_x) == (0.14, 0.178, -0.032, -0.032)
-    assert (b.v_max, b.w_max, b.inflation, b.lidar_rate) == (0.22, 1.5, 0.30, 5.0)
+    assert (b.v_max, b.w_max, b.inflation, b.lidar_rate) == (0.22, 1.5, 0.40, 5.0)
     assert b.guard_margin == 0.10
     assert not b.holonomic
 
@@ -47,8 +47,15 @@ def test_a_recorded_profile_must_be_the_current_one():
                                          r'guard_margin\): retrain and re-export'):
         check_profile(changed, 'burger', 'best_model.zip')
     with pytest.raises(ValueError, match='best_model.zip'):
-        check_profile({k: v for k, v in burger.items() if k != 'inflation'}, 'burger',
+        check_profile({k: v for k, v in burger.items() if k != 'lidar_min'}, 'burger',
                       'best_model.zip')
+
+
+def test_the_inflation_is_the_planners_not_the_models():
+    """A model trained with other routes still drives on the current planner's."""
+    burger = asdict(ROBOTS['burger'])
+    check_profile({**burger, 'inflation': 0.30}, 'burger', 'best_model.zip')
+    check_profile({k: v for k, v in burger.items() if k != 'inflation'}, 'burger', 'best_model.zip')
 
 
 @pytest.mark.parametrize('name', list(ROBOTS))

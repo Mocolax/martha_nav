@@ -50,7 +50,7 @@ def test_evaluation_drives_the_robot_the_model_was_trained_for(tmp_path):
     assert trained_env_config(model).robot == 'martha'
     (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
     cfg = trained_env_config(model)
-    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.30
+    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.40
 
 
 def test_a_model_trained_for_another_profile_of_its_robot_is_refused(tmp_path):
@@ -101,7 +101,7 @@ def test_cli_builds_the_point_pairs_with_the_robots_inflation(tmp_path, monkeypa
         {'episode_seed': s, 'outcome': 'success', 'spl': 1.0, 'trajectory': []} for s in seeds])
     (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
     evaluate.main(['--model', str(tmp_path / 'best_model.zip'), '--points', 'lab', '--episodes', '2'])
-    assert inflations == [0.30]
+    assert inflations == [0.40]
 
 
 def test_point_mode_builds_one_episode_per_pair():
