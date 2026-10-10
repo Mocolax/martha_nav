@@ -39,7 +39,7 @@ class PolicyCore:
     """One control step: from a route and a scan to (v, w)."""
 
     def __init__(self, model, lookahead=1.5, carrot_clearance=0.4, action_dim=2, target='carrot',
-                 action_delay=0, robot=ROBOTS['martha']):
+                 action_delay=0, robot=ROBOTS['martha'], guard=True):
         self.model = model
         self.robot = robot
         self.lookahead = lookahead
@@ -49,6 +49,8 @@ class PolicyCore:
         # Ticks each command is held back: a robot that obeys at once (Gazebo's mecanum)
         # gets the lag of the one the policy was trained on.
         self.action_delay = action_delay
+        # False only reports what entered the footprint and leaves the policy's command alone.
+        self.guard = guard
         # An LSTM policy needs its hidden state carried from one tick to the next.
         self.recurrent = is_recurrent(model)
         self.reset()
@@ -101,15 +103,16 @@ class PolicyCore:
         self.prev_action = action
         self.pending.append(action_to_cmd(action, self.robot))
         commands = list(self.pending.pop(0))
+        blocked_now = blocked if self.guard else set()
         # Directional guard: stop the motion that would hit, keep the one that escapes.
-        if 'front' in blocked:
+        if 'front' in blocked_now:
             commands[0] = min(commands[0], 0.0)
-        if 'rear' in blocked:
+        if 'rear' in blocked_now:
             commands[0] = max(commands[0], 0.0)
         if len(commands) == 3:
-            if 'left' in blocked:
+            if 'left' in blocked_now:
                 commands[1] = min(commands[1], 0.0)
-            if 'right' in blocked:
+            if 'right' in blocked_now:
                 commands[1] = max(commands[1], 0.0)
         return (*commands, {'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point})
 

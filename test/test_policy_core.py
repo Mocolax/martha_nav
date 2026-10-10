@@ -89,6 +89,14 @@ def test_an_obstacle_behind_blocks_only_reverse():
     assert v > 0.0
 
 
+def test_without_the_guard_the_policy_drives_into_the_footprint_but_it_is_still_reported():
+    core = PolicyCore(FakeModel((1.0, 0.0)), guard=False)
+    ranges, angles = clear_scan()
+    ranges[180] = 0.04
+    v, _, info = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
+    assert v > 0.0 and info['blocked'] == ['front']
+
+
 def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     angles = np.array([0.0, np.pi])
     # Forward the footprint ends 0.28 - 0.2325 = 0.0475 m ahead of the LiDAR.

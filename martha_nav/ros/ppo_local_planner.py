@@ -64,10 +64,12 @@ class PpoLocalPlanner(Node):
             action_dim=settings['action_dim'],
             target=settings['target'],
             action_delay=self.declare_parameter('action_delay', 0).value,
-            robot=ROBOTS[settings['robot']])
+            robot=ROBOTS[settings['robot']],
+            guard=self.declare_parameter('guard', True).value)
         self.action_dim = self.core.action_dim
         self.get_logger().info(f"robot {settings['robot']}, action space {self.action_dim}D, "
-                               f'action delay {self.core.action_delay}, speed x{self.speed_scale}')
+                               f'action delay {self.core.action_delay}, speed x{self.speed_scale}'
+                               + ('' if self.core.guard else ', footprint guard OFF'))
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
@@ -140,8 +142,10 @@ class PpoLocalPlanner(Node):
         ranges, angles = self.scan
         *velocities, info = self.core.compute(self.path, pose, ranges, angles, self.velocity)
         if info['blocked']:
+            action = 'blocking those directions' if self.core.guard else 'guard off, not blocking'
             self.get_logger().warning(f"obstacle inside the footprint ({info['blocked']}), "
-                                      'blocking those directions', throttle_duration_sec=2.0)
+                                      f'{action}',
+                                      throttle_duration_sec=2.0)
         self.cmd_pub.publish(to_twist(velocities, self.speed_scale))
         self.latencies.append((self.get_clock().now() - self.scan_stamp).nanoseconds * 1e-9)
         if info['carrot'] is not None:
