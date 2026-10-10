@@ -10,7 +10,8 @@ LAUNCH_DIR = Path(__file__).resolve().parents[1] / 'launch'
 
 
 def built(name, arguments, only=None):
-    """{executable: its parameters} of <name>.launch.py with these launch arguments.
+    """{executable: its parameters} of <name>.launch.py with these launch arguments; the
+    ones not given take the launch file's declared defaults.
 
     only limits the nodes whose parameters are evaluated (the others may need xacro).
     """
@@ -18,7 +19,9 @@ def built(name, arguments, only=None):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     context = LaunchContext()
-    context.launch_configurations.update(arguments)
+    defaults = {a.name: ''.join(s.perform(context) for s in a.default_value)
+                for a in getattr(module, 'ARGUMENTS', []) if a.default_value is not None}
+    context.launch_configurations.update({**defaults, **arguments})
     nodes = [n for n in module.launch_setup(context) if isinstance(n, Node)]
     return {n.node_executable: {k: v for part in evaluate_parameters(context, n._Node__parameters)
                                 if isinstance(part, dict) for k, v in part.items()}
