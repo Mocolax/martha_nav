@@ -32,11 +32,24 @@ def test_xacro_expands():
     assert '<robot' in robot() and 'xacro' not in robot().lower().split('<robot', 1)[1]
 
 
-def test_contact_shell_matches_the_2d_footprint():
-    doc = robot()
+def contact_shell(doc):
+    """The length and width of the contact shell box."""
     size = doc.split('name="contact_shell_collision"', 1)[1].split('size="', 1)[1].split('"', 1)[0]
     sx, sy, _ = (float(v) for v in size.split())
-    assert (sx, sy) == (ROBOT_LENGTH, ROBOT_WIDTH)
+    return sx, sy
+
+
+def test_contact_shell_is_the_2d_footprint_lengthened_to_cover_the_wheels():
+    sx, sy = contact_shell(robot())
+    assert sy == ROBOT_WIDTH
+    assert ROBOT_LENGTH < sx <= ROBOT_LENGTH + 0.02     # Gazebo crashes at most 1 cm early
+
+
+def test_chassis_and_wheels_keep_the_original_measurements():
+    """martha/urdf/learning.xacro, the model of the real robot."""
+    doc = robot()
+    assert joint_origin(doc, 'base_front_left_wheel_joint') == [0.21, 0.175, 0.08]
+    assert 'size="0.238 0.41 0.025"' in doc and doc.count('size="0.16 0.24 0.025"') == 2
 
 
 def test_lidar_sits_where_the_observation_expects_it():
@@ -95,10 +108,12 @@ def test_lidar_scans_the_full_circle_at_8_m():
 
 def test_wheels_stay_inside_the_contact_shell():
     """A wall must touch the shell (which the bumper watches) before a wheel."""
-    for drive in ('mecanum', 'planar'):
+    for drive, reach in (('mecanum', 0.079), ('planar', 0.075)):  # rollers, fixed wheel
         doc = robot(drive)
-        x = joint_origin(doc, 'base_front_left_wheel_joint')[0]
-        assert x + 0.075 < ROBOT_LENGTH / 2, drive     # 0.075 m is the wheel envelope
+        x, y, _ = joint_origin(doc, 'base_front_left_wheel_joint')
+        sx, sy = contact_shell(doc)
+        assert x + reach < sx / 2, drive
+        assert y + 0.045 / 2 < sy / 2, drive          # 0.045 m is the wheel width
 
 
 BURGER_URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'burger.urdf.xacro'

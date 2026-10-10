@@ -3,8 +3,10 @@
      robot (no namespaces or frame prefixes) and no IMU. The drive argument below swaps
      the mecanum wheels for planar_move.
 
-     Geometry must match ROBOTS['martha'] in martha_nav/robots.py, with a footprint of
-     0.56 x 0.41 m and the LiDAR 0.2325 m ahead of base_link.
+     The chassis and wheels keep the measurements of the original martha/urdf/learning.xacro.
+     The LiDAR must match ROBOTS['martha'] in martha_nav/robots.py, 0.2325 m ahead of
+     base_link, and the contact shell is 0.58 x 0.41 m, longer than its 0.56 m footprint
+     so that it covers the wheels.
 
      IMPORTANT. Do not write a colon followed by a space anywhere in this file, not
      even inside a comment. gazebo_ros2_control passes the whole expanded URDF as a
@@ -38,24 +40,26 @@
     <xacro:property name="height_0" value="0.125" />
     <xacro:property name="wheel_length" value="0.045" />
     <xacro:property name="wheel_radius" value="0.075" />
-    <!-- Mecanum wheel: a hub plus 12 rollers whose envelope is wheel_radius. -->
+    <!-- Mecanum wheel: a hub plus 12 rollers reaching 0.079 m from the axle. -->
     <xacro:property name="hub_radius" value="0.045" />
     <xacro:property name="roller_radius" value="0.014" />
     <xacro:property name="roller_length" value="0.040" />
     <xacro:property name="roller_mount_radius" value="0.065" />
     <xacro:property name="roller_angle" value="0.785398" />
-    <!-- Wheels sit inside the contact shell (0.20 + 0.075 = 0.275 < 0.28) so a wall
-         always touches the shell first, and the bumper reports it. -->
-    <xacro:property name="wheel_pos_x" value="0.20" />
+    <!-- Where the original model puts them. The rollers reach 0.079 m from the axle,
+         so the wheels end at 0.21 + 0.079 = 0.289 m, inside the contact shell below. -->
+    <xacro:property name="wheel_pos_x" value="0.21" />
     <xacro:property name="wheel_pos_y" value="0.175" />
     <xacro:property name="wheel_pos_z" value="0.08" />
     <xacro:property name="lidar_length" value="0.04" />
     <xacro:property name="lidar_radius" value="0.0475" />
     <!-- lidar_offset_x of ROBOTS['martha'] in martha_nav/robots.py, and where it sits on the robot. -->
     <xacro:property name="lidar_x" value="0.2325" />
-    <!-- Collision envelope used for contacts, 0.56 x 0.41 m, held above the floor
-         so wheel support never counts as a collision. -->
-    <xacro:property name="contact_shell_x" value="0.560" />
+    <!-- Collision envelope used for contacts, held above the floor so wheel support
+         never counts as a collision. It is 0.58 m long, not the 0.56 m of the 2D
+         footprint, so a wall always touches the shell before a wheel and the bumper
+         reports it. Gazebo therefore counts a crash up to 1 cm before the 2D simulator. -->
+    <xacro:property name="contact_shell_x" value="0.580" />
     <xacro:property name="contact_shell_y" value="0.410" />
     <xacro:property name="contact_shell_center_z" value="0.125" />
     <xacro:property name="contact_shell_height" value="0.200" />
@@ -78,8 +82,8 @@
             <material name="grey"/>
         </visual>
 
-        <!-- One collision only, the contact shell. It is the same rectangle the
-             2D simulator checks, so a contact here means a collision there. -->
+        <!-- One collision only, the contact shell. It is the rectangle the 2D
+             simulator checks, 2 cm longer to cover the wheels. -->
         <collision name="contact_shell_collision">
             <origin xyz="0 0 ${contact_shell_center_z}"/>
             <geometry>

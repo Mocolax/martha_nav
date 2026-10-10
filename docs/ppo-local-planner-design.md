@@ -254,7 +254,10 @@ semillas fijas; `best_model` se elige por su tasa de éxito.
 
 ### 7.1 Robot de Gazebo (`urdf/martha.urdf.xacro`)
 
-- Chasis: caja de 0.56 × 0.41 m.
+- Chasis y ruedas con las medidas del modelo original (`martha/urdf/learning.xacro`):
+  ruedas mecanum en x = ±0.21 m, y = ±0.175 m.
+- Caja de contacto de 0.58 × 0.41 m: la huella 2D de 0.56 m alargada 1 cm por lado para
+  cubrir los rodillos, que llegan a 0.289 m. Gazebo cuenta un choque hasta 1 cm antes que el 2D.
 - LiDAR a +0.2325 m en x: 360 rayos, 0.15–8 m, 10 Hz, ruido gaussiano de 0.01 m.
 - Bumper en el chasis.
 - Movimiento: `gazebo_ros_planar_move`, que recibe `/cmd_vel` y publica `/odom`
