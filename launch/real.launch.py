@@ -16,6 +16,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
+from martha_nav.robots import checkpoint_robot
 from martha_nav.ros.slam import slam_toolbox
 
 ARGUMENTS = [
@@ -31,8 +32,14 @@ ARGUMENTS = [
 def launch_setup(context, *args, **kwargs):
     share = Path(FindPackageShare('martha_nav').perform(context))
     saved_map = LaunchConfiguration('map').perform(context)
+    checkpoint = LaunchConfiguration('checkpoint').perform(context)
+    # The planners take martha_tower when the checkpoint was trained for it and martha
+    # otherwise, so a policy for another robot (the Burger) is still refused. The model
+    # always carries the tower, which the real robot has.
+    trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
+    robot = trained if trained in ('martha', 'martha_tower') else 'martha'
     urdf = ParameterValue(Command(['xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
-                                   ' drive:=planar']), value_type=str)
+                                   ' drive:=planar tower:=true']), value_type=str)
     actions = [
         Node(package='robot_state_publisher', executable='robot_state_publisher', output='screen',
              parameters=[{'robot_description': urdf}]),
@@ -56,9 +63,9 @@ def launch_setup(context, *args, **kwargs):
         Node(package='martha_nav', executable='world_map_publisher', output='screen',
              parameters=[{'map_yaml': saved_map + '.yaml'}]),
         Node(package='martha_nav', executable='global_planner', output='screen',
-             parameters=[{'robot': 'martha'}]),
+             parameters=[{'robot': robot}]),
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
-             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': 'martha'}]),
+             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': robot}]),
     ]
 
 

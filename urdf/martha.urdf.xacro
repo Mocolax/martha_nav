@@ -6,7 +6,7 @@
      The chassis and wheels keep the measurements of the original martha/urdf/learning.xacro.
      The LiDAR must match ROBOTS['martha'] in martha_nav/robots.py, 0.2325 m ahead of
      base_link, and the contact shell is 0.58 x 0.41 m, longer than its 0.56 m footprint
-     so that it covers the wheels.
+     so that it covers the wheels. tower adds the aluminium tower of ROBOTS['martha_tower'].
 
      IMPORTANT. Do not write a colon followed by a space anywhere in this file, not
      even inside a comment. gazebo_ros2_control passes the whole expanded URDF as a
@@ -25,6 +25,9 @@
     <xacro:arg name="controllers_file" default="$(find martha_nav)/config/controllers.yaml" />
     <xacro:arg name="lidar_samples" default="360" />
     <xacro:arg name="lidar_visualize" default="false" />
+    <!-- tower: the aluminium tower on the chassis (ROBOTS['martha_tower']). "false" is the
+         robot ROBOTS['martha'] was trained for, without it. -->
+    <xacro:arg name="tower" default="true" />
 
     <material name="black"><color rgba="0 0 0 1" /></material>
     <material name="grey"><color rgba="0.7 0.7 0.7 1" /></material>
@@ -64,6 +67,20 @@
     <xacro:property name="contact_shell_center_z" value="0.125" />
     <xacro:property name="contact_shell_height" value="0.200" />
     <xacro:property name="lidar_shell_clearance" value="0.010" />
+    <!-- Tower of 20 x 20 mm aluminium profiles. Four posts 0.28 m apart along x and 0.24 m
+         along y (outer faces), centred on base_link, rising 0.565 m from the top of the
+         chassis. At the top a bar along x joins the front and rear post of each side; lower
+         down a crossbar joins the two front posts and another the two rear ones. posts must match ROBOTS['martha_tower'] in martha_nav/robots.py. The crossbar
+         height and the mass (0.5 kg per metre) are estimates. -->
+    <xacro:property name="profile" value="0.020" />
+    <xacro:property name="profile_kg_per_m" value="0.5" />
+    <xacro:property name="post_x" value="0.13" />
+    <xacro:property name="post_y" value="0.11" />
+    <xacro:property name="post_height" value="0.565" />
+    <xacro:property name="crossbar_fraction" value="0.4" />
+    <!-- The level the LiDAR rests on, two profiles along x as long as the chassis, in line
+         with the posts. -->
+    <xacro:property name="level_x" value="${base_front_x + base_center_x + base_rear_x}" />
 
     <link name="base_link">
         <visual>
@@ -115,6 +132,54 @@
              the contact shell so the robot never sees itself. -->
         <origin xyz="${lidar_x} 0 ${contact_shell_center_z + contact_shell_height/2 + lidar_length/2 + lidar_shell_clearance}"/>
     </joint>
+
+    <!-- One straight aluminium profile, fixed to base_link and centred on (x, y, z). -->
+    <xacro:macro name="profile_bar" params="name x y z sx sy sz">
+        <xacro:property name="mass" value="${profile_kg_per_m * (sx + sy + sz - 2 * profile)}" />
+        <link name="${name}">
+            <visual>
+                <geometry><box size="${sx} ${sy} ${sz}"/></geometry>
+                <material name="grey"/>
+            </visual>
+            <collision>
+                <geometry><box size="${sx} ${sy} ${sz}"/></geometry>
+            </collision>
+            <inertial>
+                <mass value="${mass}"/>
+                <inertia ixx="${mass * (sy*sy + sz*sz) / 12}" iyy="${mass * (sx*sx + sz*sz) / 12}"
+                         izz="${mass * (sx*sx + sy*sy) / 12}" ixy="0" ixz="0" iyz="0"/>
+            </inertial>
+        </link>
+        <joint name="base_${name}_joint" type="fixed">
+            <parent link="base_link" />
+            <child link="${name}" />
+            <origin xyz="${x} ${y} ${z}"/>
+        </joint>
+        <gazebo reference="${name}">
+            <material>Gazebo/Grey</material>
+        </gazebo>
+    </xacro:macro>
+
+    <xacro:if value="$(arg tower)">
+        <xacro:property name="chassis_top" value="${height_0 + base_z/2}" />
+        <xacro:property name="tower_top" value="${chassis_top + post_height}" />
+        <xacro:property name="inner_y" value="${2*post_y - profile}" />
+        <!-- The four posts. They cross the LiDAR's scan plane, so it sees them. -->
+        <xacro:profile_bar name="tower_post_front_left" x="${post_x}" y="${post_y}" z="${chassis_top + post_height/2}" sx="${profile}" sy="${profile}" sz="${post_height}" />
+        <xacro:profile_bar name="tower_post_front_right" x="${post_x}" y="${-post_y}" z="${chassis_top + post_height/2}" sx="${profile}" sy="${profile}" sz="${post_height}" />
+        <xacro:profile_bar name="tower_post_rear_left" x="${-post_x}" y="${post_y}" z="${chassis_top + post_height/2}" sx="${profile}" sy="${profile}" sz="${post_height}" />
+        <xacro:profile_bar name="tower_post_rear_right" x="${-post_x}" y="${-post_y}" z="${chassis_top + post_height/2}" sx="${profile}" sy="${profile}" sz="${post_height}" />
+        <!-- At the top, a bar along x joining the front and rear post of each side. -->
+        <xacro:profile_bar name="tower_top_left" x="0" y="${post_y}" z="${tower_top - profile/2}" sx="${2*post_x + profile}" sy="${profile}" sz="${profile}" />
+        <xacro:profile_bar name="tower_top_right" x="0" y="${-post_y}" z="${tower_top - profile/2}" sx="${2*post_x + profile}" sy="${profile}" sz="${profile}" />
+        <!-- A crossbar between the two front posts and another between the two rear ones. -->
+        <xacro:profile_bar name="tower_crossbar_front" x="${post_x}" y="0" z="${chassis_top + crossbar_fraction*post_height}" sx="${profile}" sy="${inner_y}" sz="${profile}" />
+        <xacro:profile_bar name="tower_crossbar_rear" x="${-post_x}" y="0" z="${chassis_top + crossbar_fraction*post_height}" sx="${profile}" sy="${inner_y}" sz="${profile}" />
+        <!-- The level, whose top is at the height of the LiDAR's base. -->
+        <xacro:property name="level_z" value="${contact_shell_center_z + contact_shell_height/2 + lidar_shell_clearance - profile/2}" />
+        <xacro:profile_bar name="tower_level_left" x="0" y="${post_y}" z="${level_z}" sx="${level_x}" sy="${profile}" sz="${profile}" />
+        <xacro:profile_bar name="tower_level_right" x="0" y="${-post_y}" z="${level_z}" sx="${level_x}" sy="${profile}" sz="${profile}" />
+    </xacro:if>
 
     <!-- Fixed wheels for the planar drive: not actuated, they only carry the chassis. -->
     <xacro:macro name="fixed_wheel" params="name x y">

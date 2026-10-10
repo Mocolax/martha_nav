@@ -258,6 +258,16 @@ semillas fijas; `best_model` se elige por su tasa de éxito.
   ruedas mecanum en x = ±0.21 m, y = ±0.175 m.
 - Caja de contacto de 0.58 × 0.41 m: la huella 2D de 0.56 m alargada 1 cm por lado para
   cubrir los rodillos, que llegan a 0.289 m. Gazebo cuenta un choque hasta 1 cm antes que el 2D.
+- Torre de perfiles de aluminio 20 × 20 mm (`tower:=true`, el robot real desde 2026-10-09):
+  cuatro postes a 0.28 × 0.24 m entre caras exteriores que suben 0.565 m desde el chasis; arriba,
+  una barra a lo largo de x por cada lado; más abajo, un travesaño entre los postes delanteros y
+  otro entre los traseros (altura estimada, 40 %); y el nivel del LiDAR, dos perfiles a lo largo
+  de x, del largo del chasis y alineados con los postes, con la cara de arriba a la altura de la
+  base del LiDAR. Masa estimada 0.5 kg/m (~2.2 kg). Cabe en la huella 2D.
+- Los postes cruzan el plano del LiDAR: los delanteros a ~0.14 m en ±128–138°, los traseros a
+  ~0.37 m en ±162–164°. El perfil `martha_tower` (`martha_nav/robots.py`) los lleva en
+  `posts`: el simulador 2D los añade al escaneo y el guard de seguridad los ignora. La política
+  de `martha` se entrenó sin ellos; para la torre hay que entrenar con `--robot martha_tower`.
 - LiDAR a +0.2325 m en x: 360 rayos, 0.15–8 m, 10 Hz, ruido gaussiano de 0.01 m.
 - Bumper en el chasis.
 - Movimiento: `gazebo_ros_planar_move`, que recibe `/cmd_vel` y publica `/odom`

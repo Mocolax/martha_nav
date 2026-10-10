@@ -1,6 +1,6 @@
 """The robots the policy can drive: everything the code assumes about the body and the LiDAR."""
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import MISSING, asdict, dataclass, fields, replace
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +24,9 @@ class Robot:
     inflation: float           # m, obstacle inflation of the global planner; not part of a
                                # trained model: it plans the routes the model follows
     guard_margin: float        # m, how far beyond the contact rectangle the safety guard reacts
+    posts: tuple = ()          # ((x, y, side), ...) m: square posts of the robot's own structure
+                               # that cross the LiDAR's scan plane, in base_link. The LiDAR sees
+                               # them; the safety guard ignores them
 
     @property
     def holonomic(self):
@@ -46,6 +49,13 @@ ROBOTS = {
                     guard_margin=0.10),
 }
 
+# Martha with the aluminium tower: four 20 x 20 mm posts 0.28 m apart (outer faces) along x
+# and 0.24 m along y, rising 0.565 m from the chassis through the LiDAR's scan plane. The
+# body and the footprint do not change; the LiDAR now sees the posts behind it.
+ROBOTS['martha_tower'] = replace(
+    ROBOTS['martha'], name='martha_tower',
+    posts=tuple((x, y, 0.02) for x in (0.13, -0.13) for y in (0.11, -0.11)))
+
 
 def checkpoint_robot(path):
     """The robot a checkpoint was trained for: its config.yaml (.zip) or its settings (.npz)."""
@@ -65,7 +75,11 @@ def check_profile(recorded, name, path):
     with 0.40 m is what helps (docs/resultados.md)."""
     if recorded is None:
         return
-    current = asdict(ROBOTS[name])
+    # A field added later with a default (posts) counts as that default in older recordings,
+    # and the JSON round trip turns the current tuples into the lists a recording holds.
+    defaults = {f.name: f.default for f in fields(Robot) if f.default is not MISSING}
+    recorded = json.loads(json.dumps({**defaults, **recorded}))
+    current = json.loads(json.dumps(asdict(ROBOTS[name])))
     changed = [k for k in {**current, **recorded}
                if k != 'inflation' and recorded.get(k) != current.get(k)]
     if changed:

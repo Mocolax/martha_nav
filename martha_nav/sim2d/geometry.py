@@ -100,6 +100,27 @@ def raycast(grid, ox, oy, angles, max_range):
     return np.where(hits.any(axis=1), np.minimum(ts[first], max_range), max_range)
 
 
+def post_ranges(robot, angles):
+    """Distance from the LiDAR along each angle (robot frame) to the robot's own posts.
+
+    The posts move with the robot, so the answer only depends on the angles. inf where a
+    ray misses them all. Exact ray-box intersection: the posts are far thinner than a cell.
+    """
+    angles = np.asarray(angles, dtype=float)
+    out = np.full(angles.shape, np.inf)
+    # A tiny step instead of zero keeps the rays parallel to a face out of the divisions.
+    dx = np.where(np.cos(angles) == 0, 1e-12, np.cos(angles))
+    dy = np.where(np.sin(angles) == 0, 1e-12, np.sin(angles))
+    for x, y, side in robot.posts:
+        h = side / 2
+        tx = np.sort([(x - h - robot.lidar_offset_x) / dx, (x + h - robot.lidar_offset_x) / dx],
+                     axis=0)
+        ty = np.sort([(y - h) / dy, (y + h) / dy], axis=0)
+        near, far = np.maximum(tx[0], ty[0]), np.minimum(tx[1], ty[1])
+        out = np.where((near <= far) & (near > 0), np.minimum(out, near), out)
+    return out
+
+
 def footprint_points(robot, spacing=RESOLUTION / 2):
     """Points on the perimeter of the robot's contact rectangle, in base_link."""
     hx, hy = robot.length / 2, robot.width / 2

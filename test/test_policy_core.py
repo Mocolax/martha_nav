@@ -250,3 +250,17 @@ def test_action_delay_holds_each_command_that_many_ticks():
     core.reset()
     again, *_ = core.compute(straight_path(), (0.0, 0.0, 0.0), ranges, angles, (0.0, 0.0))
     assert again == 0.0
+
+
+def test_the_guard_ignores_the_tower_posts_but_not_an_obstacle_beside_them():
+    from martha_nav.sim2d.geometry import post_ranges
+    tower = ROBOTS['martha_tower']
+    ranges, angles = clear_scan()
+    posts = post_ranges(tower, angles)
+    ranges = np.where(np.isfinite(posts), posts, ranges)
+    assert footprint_blocked(ranges, angles, ROBOTS['martha']) == {'front', 'left', 'right'}
+    assert footprint_blocked(ranges, angles, tower) == set()
+    # A point 0.06 m outside the left wall of the footprint, level with the front posts.
+    x, y = 0.13 - tower.lidar_offset_x, tower.width / 2 + 0.03
+    ranges[np.argmin(np.abs(angles - np.arctan2(y, x)))] = np.hypot(x, y)
+    assert footprint_blocked(ranges, angles, tower) == {'left'}

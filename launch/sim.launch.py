@@ -2,8 +2,8 @@
 
 ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip
 
-robot:=burger simulates the TurtleBot3 Burger (urdf/burger.urdf.xacro); by default the robot
-is the one the checkpoint was trained for.
+robot:=burger simulates the TurtleBot3 Burger (urdf/burger.urdf.xacro) and robot:=martha_tower
+Martha with the aluminium tower; by default the robot is the one the checkpoint was trained for.
 
 For Martha, drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
 drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
@@ -41,7 +41,7 @@ ARGUMENTS = [
     DeclareLaunchArgument('world', default_value='lab'),
     DeclareLaunchArgument('drive', default_value='mecanum', choices=['mecanum', 'planar']),
     DeclareLaunchArgument('robot', default_value='',
-                          description="martha or burger; empty: the checkpoint's"),
+                          description="martha, martha_tower or burger; empty: the checkpoint's"),
     DeclareLaunchArgument('gui', default_value='true'),
     DeclareLaunchArgument('rviz', default_value='false'),
     DeclareLaunchArgument('checkpoint', default_value=''),
@@ -66,7 +66,7 @@ def launch_setup(context, *args, **kwargs):
     if checkpoint and name != trained:
         raise RuntimeError(f'{checkpoint} drives {trained}, not {name}')
     robot = ROBOTS[name]
-    drive = LaunchConfiguration('drive').perform(context) if name == 'martha' else 'diff'
+    drive = LaunchConfiguration('drive').perform(context) if name != 'burger' else 'diff'
     slam = LaunchConfiguration('slam').perform(context)
     odom_remap = [('/odom', MECANUM_ODOM)] if drive == 'mecanum' else []
     world = create_scaled_world(
@@ -87,6 +87,7 @@ def launch_setup(context, *args, **kwargs):
             ' drive:=', drive,
             ' controllers_file:=', str(share / 'config' / 'controllers.yaml'),
             ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
+            f" tower:={'true' if robot.posts else 'false'}",
         ]), value_type=str)
 
     spawn = Node(package='gazebo_ros', executable='spawn_entity.py', output='screen',

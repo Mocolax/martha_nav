@@ -8,7 +8,7 @@ from gymnasium import spaces
 
 from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_params
-from martha_nav.sim2d.geometry import footprint_collides, footprint_points, raycast
+from martha_nav.sim2d.geometry import footprint_collides, footprint_points, post_ranges, raycast
 from martha_nav.sim2d.observation import (GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation,
                                           obs_dim)
 from martha_nav.sim2d.planner import DistanceField, RouteProgress, carrot
@@ -64,6 +64,7 @@ class NavEnv(gym.Env):
         self.observation_space = spaces.Box(-1.0, 1.0, (obs_dim(self.cfg.action_dim),), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
+        self.post_ranges = post_ranges(self.robot, self.ray_angles)  # constant: they ride along
         self._seed_index = 0
 
     # ---- episode ---------------------------------------------------------
@@ -156,6 +157,7 @@ class NavEnv(gym.Env):
         reach, offset = self.robot.lidar_range, self.robot.lidar_offset_x
         ox, oy = x + offset * np.cos(th), y + offset * np.sin(th)
         r = raycast(self.sc.full, ox, oy, th + self.ray_angles, reach)
+        r = np.minimum(r, self.post_ranges)            # the robot's own posts, if any
         r = r + self.rng.normal(0.0, self.lidar_sigma, r.shape)
         r[self.rng.random(r.shape) < self.cfg.lidar_dropout] = reach
         if self.robot.lidar_min > 0:

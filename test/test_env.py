@@ -215,3 +215,13 @@ def test_the_burger_collides_with_its_own_outline_not_marthas():
         if term:
             break
     assert info['outcome'] == 'collision'
+
+
+def test_the_tower_posts_appear_in_the_scan_wherever_the_robot_is():
+    env = NavEnv(EnvConfig(robot='martha_tower', lidar_noise=(0.0, 0.0), lidar_dropout=0.0,
+                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
+    env.reset(seed=3)
+    env._scan()
+    behind = np.abs(np.abs(np.rad2deg(env.ray_angles)) - 133) <= 2
+    assert (env.ranges[behind] < 0.16).all()
+    assert (env.ranges[np.abs(env.ray_angles) < np.deg2rad(90)] > 0.5).all()

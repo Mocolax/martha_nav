@@ -67,7 +67,8 @@ def test_a_fresh_burger_policy_exports_exactly(tmp_path):
 
 def test_the_export_carries_the_robot_profile(burger_npz):
     from martha_nav.ros.numpy_policy import NumpyPolicy
-    assert NumpyPolicy(burger_npz).settings['robot_profile'] == asdict(ROBOTS['burger'])
+    recorded = json.loads(json.dumps(asdict(ROBOTS['burger'])))     # posts become a list
+    assert NumpyPolicy(burger_npz).settings['robot_profile'] == recorded
 
 
 def test_an_exported_policy_for_another_profile_of_its_robot_is_refused(burger_npz, tmp_path):

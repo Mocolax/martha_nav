@@ -2,7 +2,7 @@ import numpy as np
 
 from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.geometry import (draw_box, draw_circle, empty_grid, footprint_collides,
-                                       footprint_points, raycast)
+                                       footprint_points, post_ranges, raycast)
 
 
 def test_grid_cells_and_outside_is_occupied():
@@ -72,3 +72,16 @@ def test_drawing_only_touches_cells_near_the_shape():
     xs, ys = g.cell_center(rows, cols)
     assert np.all((np.hypot(xs - 5.0, ys - 5.0) < 0.6) | (np.hypot(xs - 1.0, ys - 1.0) < 0.31))
     assert 0.5 * 0.9 < g.occ.sum() * g.resolution ** 2 < (0.5 + np.pi * 0.09) * 1.2
+
+
+def test_the_lidar_sees_the_tower_posts_behind_it():
+    angles = np.deg2rad(np.arange(-180, 180))
+    assert np.isinf(post_ranges(ROBOTS['martha'], angles)).all()
+    r = post_ranges(ROBOTS['martha_tower'], angles)
+    seen = np.rad2deg(angles[np.isfinite(r)])
+    # Front posts: 0.1025 m behind the LiDAR, 0.11 m to the side, minus half a post.
+    front = np.abs(np.abs(seen) - 133) <= 6
+    rear = np.abs(np.abs(seen) - 163) <= 2
+    assert (front | rear).all() and front.sum() == 22 and rear.sum() == 6
+    assert 0.13 < r[np.isfinite(r)].min() < 0.14
+    assert 0.36 < r[np.isfinite(r)][rear].min() < 0.375

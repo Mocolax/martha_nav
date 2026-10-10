@@ -16,8 +16,8 @@ URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'martha.urdf.xacro'
 CONTROLLERS = Path(__file__).resolve().parents[1] / 'config' / 'controllers.yaml'
 
 
-def robot(drive='mecanum'):
-    mappings = {'drive': drive, 'controllers_file': str(CONTROLLERS)}
+def robot(drive='mecanum', tower='true'):
+    mappings = {'drive': drive, 'controllers_file': str(CONTROLLERS), 'tower': tower}
     return xacro.process_file(str(URDF), mappings=mappings).toprettyxml()
 
 
@@ -114,6 +114,48 @@ def test_wheels_stay_inside_the_contact_shell():
         sx, sy = contact_shell(doc)
         assert x + reach < sx / 2, drive
         assert y + 0.045 / 2 < sy / 2, drive          # 0.045 m is the wheel width
+
+
+def box(doc, link):
+    """Centre (from the link's joint) and size of a one-box link."""
+    size = doc.split(f'<link name="{link}">', 1)[1].split('size="', 1)[1].split('"', 1)[0]
+    return joint_origin(doc, f'base_{link}_joint'), [float(v) for v in size.split()]
+
+
+def test_the_tower_posts_are_the_ones_the_2d_lidar_sees():
+    doc = robot()
+    posts = sorted((x, y, sx) for (x, y, _), (sx, sy, _) in (
+        box(doc, f'tower_post_{end}_{side}') for end in ('front', 'rear')
+        for side in ('left', 'right')))
+    assert posts == pytest.approx(sorted(ROBOTS['martha_tower'].posts))
+
+
+def test_the_tower_posts_cross_the_scan_plane_and_rise_0_565_m_from_the_chassis():
+    doc = robot()
+    (_, _, z), (_, _, height) = box(doc, 'tower_post_front_left')
+    scan_z = joint_origin(doc, 'base_lidar')[2]
+    assert height == 0.565 and z - height / 2 == pytest.approx(0.125 + 0.025 / 2)
+    assert z - height / 2 < scan_z < z + height / 2
+
+
+def test_the_level_is_at_the_height_of_the_lidars_base():
+    doc = robot()
+    (_, _, z), (_, _, sz) = box(doc, 'tower_level_left')
+    assert z + sz / 2 == pytest.approx(joint_origin(doc, 'base_lidar')[2] - 0.04 / 2)
+
+
+def test_the_tower_stays_inside_the_2d_footprint():
+    doc = robot()
+    links = [name.split('"', 1)[0] for name in doc.split('<link name="')[1:]]
+    for link in (n for n in links if n.startswith('tower_')):
+        (x, y, _), (sx, sy, _) = box(doc, link)
+        assert abs(x) + sx / 2 <= ROBOT_LENGTH / 2 and abs(y) + sy / 2 <= ROBOT_WIDTH / 2, link
+
+
+def test_without_the_tower_the_model_is_the_trained_martha():
+    for drive in ('mecanum', 'planar'):
+        assert 'tower_' not in robot(drive, tower='false')
+        assert 'tower_post_front_left' in robot(drive)
 
 
 BURGER_URDF = Path(__file__).resolve().parents[1] / 'urdf' / 'burger.urdf.xacro'

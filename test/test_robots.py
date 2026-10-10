@@ -66,3 +66,29 @@ def test_the_guard_reaches_beyond_the_lidars_blind_zone(name):
     assert 'front' in footprint_blocked([reach - 1e-6], [0.0], r)
     assert 'front' not in footprint_blocked([reach + 1e-3], [0.0], r)
     assert reach - r.lidar_min >= 0.04
+
+
+def test_martha_tower_is_martha_plus_the_posts_of_its_tower():
+    m, t = asdict(ROBOTS['martha']), asdict(ROBOTS['martha_tower'])
+    assert {k for k in m if m[k] != t[k]} == {'name', 'posts'}
+    assert ROBOTS['martha'].posts == ()
+    # 20 x 20 mm posts, 0.28 x 0.24 m between outer faces, inside the footprint.
+    xs = sorted({x for x, _, _ in t['posts']})
+    ys = sorted({y for _, y, _ in t['posts']})
+    assert len(t['posts']) == 4 and all(side == 0.02 for *_, side in t['posts'])
+    assert xs[1] - xs[0] + 0.02 == pytest.approx(0.28) and ys[1] - ys[0] + 0.02 == pytest.approx(0.24)
+    assert xs[1] + 0.01 < ROBOTS['martha_tower'].length / 2
+    assert ys[1] + 0.01 < ROBOTS['martha_tower'].width / 2
+
+
+def test_profiles_recorded_before_the_posts_still_load():
+    """policies/martha.npz was exported before the posts field existed."""
+    from pathlib import Path
+    npz = Path(__file__).resolve().parents[1] / 'policies' / 'martha.npz'
+    recorded = json.loads(str(np.load(npz)['settings']))['robot_profile']
+    assert 'posts' not in recorded
+    check_profile(recorded, 'martha', npz)
+    with pytest.raises(ValueError, match=r'changed: name, posts'):
+        check_profile(recorded, 'martha_tower', npz)
+    # And a profile with posts survives the JSON round trip of an export.
+    check_profile(json.loads(json.dumps(asdict(ROBOTS['martha_tower']))), 'martha_tower', npz)

@@ -7,6 +7,9 @@ from martha_nav.sim2d.observation import GOAL_MAX, WAYPOINT_MAX, action_to_cmd, 
 from martha_nav.sim2d.planner import RouteProgress, carrot
 
 
+POST_TOLERANCE = 0.04   # m around a post: the LiDAR's noise and the post's real size
+
+
 def footprint_blocked(ranges, angles, robot=ROBOTS['martha']):
     """Which sides of the footprint a scan point has entered.
 
@@ -14,6 +17,7 @@ def footprint_blocked(ranges, angles, robot=ROBOTS['martha']):
     measured from the LiDAR, so the points are moved into the footprint's frame first,
     and the guard reacts robot.guard_margin beyond the rectangle. The side matters
     because a guard that blocks every motion leaves the robot frozen against the obstacle.
+    Points on the robot's own posts (robot.posts, within POST_TOLERANCE) are not obstacles.
     """
     ranges = np.asarray(ranges, dtype=float)
     angles = np.asarray(angles, dtype=float)
@@ -21,6 +25,11 @@ def footprint_blocked(ranges, angles, robot=ROBOTS['martha']):
     x = (ranges[valid] * np.cos(angles[valid]) + robot.lidar_offset_x
          - robot.footprint_offset_x)
     y = ranges[valid] * np.sin(angles[valid])
+    own = np.zeros(x.shape, dtype=bool)
+    for px, py, side in robot.posts:
+        reach = side / 2 + POST_TOLERANCE
+        own |= (np.abs(x + robot.footprint_offset_x - px) <= reach) & (np.abs(y - py) <= reach)
+    x, y = x[~own], y[~own]
     half_x, half_y = robot.length / 2 + robot.guard_margin, robot.width / 2 + robot.guard_margin
     inside = (np.abs(x) <= half_x) & (np.abs(y) <= half_y)
     # Classify by the dominant axis of the intrusion, in units of the half extents:
