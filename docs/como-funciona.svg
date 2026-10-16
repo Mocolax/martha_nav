@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1050" viewBox="0 0 1440 1050" role="img" aria-labelledby="title desc">
+<title id="title">Cómo navega Martha: del mapa al movimiento</title><desc id="desc">El mapa, la posición y la meta alimentan a Dijkstra. Su ruta y objetivo intermedio, junto al LiDAR, velocidad medida y acción anterior, entran a PPO. Una guarda direccional revisa las velocidades antes de enviarlas por cmd_vel a Gazebo o al robot real. Las mediciones se actualizan durante el movimiento.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse"><path d="M1 1 L8 5 L1 9" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linejoin="round"/></marker></defs>
+<rect width="1440" height="1050" rx="28" fill="#f5f7fc"/>
+<style>text{font-family:'DejaVu Sans',sans-serif}.title{font-size:38px;font-weight:700;fill:#17253e}.label{font-size:26px;font-weight:700;fill:#17253e}.body{font-size:21px;fill:#465873}.small{font-size:18px;fill:#536581}.step{font-size:17px;font-weight:700;letter-spacing:1.6px}</style>
+<text x="60" y="58" class="step" style="fill:#3d60b7">MARTHA NAV  /  GUÍA VISUAL</text>
+<text x="60" y="111" class="title">Del mapa al movimiento</text>
+<text x="60" y="150" class="body">Una ruta global orienta al robot; PPO decide cómo avanzar según lo que detecta.</text>
+<rect x="60" y="195" width="550" height="122" rx="22" fill="#edf3ff" stroke="#ceddf9" stroke-width="2"/>
+<g transform="translate(82 228)" fill="none" stroke="#3d60b7" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 L18 4 L32 9 L46 4 V38 L32 43 L18 38 L4 43 Z M18 4 V38 M32 9 V43"/></g>
+<text x="151" y="238" class="label">¿Dónde estoy y adónde voy?</text>
+<text x="151" y="277" class="body">Mapa + posición y orientación + meta</text>
+<rect x="830" y="195" width="550" height="122" rx="22" fill="#eaf8f6" stroke="#bee6de" stroke-width="2"/>
+<g transform="translate(853 228)" fill="none" stroke="#128575" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="27" r="4"/><path d="M13 18 A15 15 0 0 1 24 12 M5 12 A25 25 0 0 1 43 12 M15 39 A16 16 0 0 0 39 20 M25 27 L43 9"/></g>
+<text x="922" y="238" class="label">¿Qué detecta el robot?</text>
+<text x="922" y="277" class="body">LiDAR + velocidad + acción anterior</text>
+<path d="M335 317 V356" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="60" y="365" width="550" height="187" rx="22" fill="#ffffff" stroke="#dde4f0" stroke-width="2"/>
+<g transform="translate(85 427)" fill="none" stroke="#3d60b7" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="37" r="4"/><circle cx="42" cy="10" r="4"/><path d="M7 32 V17 Q7 10 16 10 H24 Q31 10 31 19 V29 Q31 37 40 37 H44"/></g>
+<text x="155" y="402" class="step" style="fill:#3d60b7">01  ·  PLANIFICAR</text>
+<text x="155" y="443" class="label">Encontrar una ruta</text>
+<text x="155" y="479" class="body">Dijkstra calcula el camino sobre el mapa.</text>
+<text x="155" y="518" class="small">Salida: ruta + objetivo intermedio</text>
+<path d="M335 552 V580 Q335 595 350 595 H720" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1105 317 V335 Q1105 345 1095 345 H790 Q775 345 775 360 V580 Q775 595 760 595 H720" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1105" y="403" class="body" text-anchor="middle">El LiDAR informa sobre</text>
+<text x="1105" y="435" class="body" text-anchor="middle">obstáculos cercanos.</text>
+<text x="1105" y="492" class="small" text-anchor="middle">La política combina ambas entradas.</text>
+<rect x="475" y="640" width="490" height="141" rx="22" fill="#f0edff" stroke="#d8cef8" stroke-width="2"/>
+<g transform="translate(501 686)" fill="none" stroke="#7953b3" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="12" r="5"/><circle cx="11" cy="38" r="5"/><circle cx="38" cy="12" r="5"/><circle cx="38" cy="38" r="5"/><circle cx="25" cy="25" r="5"/><path d="M15 16 L21 21 M29 29 L34 34 M15 34 L21 29 M29 21 L34 16"/></g>
+<text x="570" y="678" class="step" style="fill:#7953b3">02  ·  DECIDIR</text>
+<text x="570" y="715" class="label">Política PPO</text>
+<text x="570" y="751" class="body">Propone velocidades para avanzar.</text>
+<path d="M475 711 H354 V805" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="60" y="813" width="585" height="135" rx="22" fill="#fff7e8" stroke="#edd9ae" stroke-width="2"/>
+<g transform="translate(86 854)" fill="none" stroke="#aa731d" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M25 3 L44 11 V26 Q43 38 25 47 Q7 38 6 26 V11 Z M15 24 L22 31 L35 17"/></g>
+<text x="155" y="850" class="step" style="fill:#aa731d">03  ·  REVISAR</text>
+<text x="155" y="887" class="label">Guarda direccional</text>
+<text x="155" y="921" class="body">Restringe movimientos hacia obstáculos.</text>
+<path d="M645 880 H819" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="731" y="857" class="small" text-anchor="middle">/cmd_vel</text>
+<rect x="830" y="813" width="550" height="135" rx="22" fill="#eaf8f6" stroke="#bee6de" stroke-width="2"/>
+<g transform="translate(854 854)" fill="none" stroke="#128575" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="13" width="33" height="28" rx="8"/><path d="M25 6 V13 M4 22 V33 M47 22 V33 M17 47 V41 M34 47 V41"/><circle cx="25" cy="5" r="3"/><circle cx="19" cy="25" r="2"/><circle cx="32" cy="25" r="2"/><path d="M19 33 H32"/></g>
+<text x="922" y="850" class="step" style="fill:#128575">04  ·  MOVER</text>
+<text x="922" y="887" class="label">Gazebo o robot real</text>
+<text x="922" y="921" class="body">Ejecuta las velocidades recibidas.</text>
+<text x="60" y="1002" class="step" style="fill:#3d60b7">CICLO CONTINUO</text>
+<text x="258" y="1002" class="body">Nuevas mediciones actualizan las decisiones de movimiento (10 Hz).</text>
+<path d="M720 595 V633" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/></svg>
