@@ -372,8 +372,11 @@ Para detener: Ctrl-C en esa terminal para todo. Si se cerró la terminal o algo
 quedó corriendo: `docker exec ros2_humble pkill -INT -f '[r]eal.launch.py'`. El
 paro físico es el interruptor de alimentación del robot.
 
-En otra terminal (el teleop necesita una terminal interactiva, por eso `-it`; con
-Shift se mueve lateral):
+Con un control de Xbox conectado al PC, agrega `joy:=true` al comando de arriba y no
+hace falta otra terminal (`config/xbox_teleop.yaml`): stick izquierdo adelante/atrás y de
+lado, stick derecho gira, RB/LB más rápido/más lento (×1.25 por pulsación, la velocidad
+sale en el log), Start para y otro Start vuelve a andar. Sin el control, en otra terminal
+(el teleop necesita una terminal interactiva, por eso `-it`; con Shift se mueve lateral):
 
 ```bash
 docker exec -it ros2_humble bash -lc 'source /opt/ros/humble/setup.bash && ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p speed:=0.2 -p turn:=0.5'

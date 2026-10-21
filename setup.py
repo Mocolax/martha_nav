@@ -36,6 +36,7 @@ setup(
             'mecanum_cmd_vel_bridge = martha_nav.ros.mecanum_cmd_vel_bridge:main',
             'evaluate_gazebo = martha_nav.ros.evaluate_gazebo:main',
             'esp32_bridge = martha_nav.ros.esp32_bridge:main',
+            'xbox_teleop = martha_nav.ros.xbox_teleop:main',
         ],
     },
 )

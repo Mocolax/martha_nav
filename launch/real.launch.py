@@ -1,7 +1,9 @@
 """Martha on the real robot: ESP32, RPLIDAR, EKF and slam_toolbox.
 
-Map a place, driving with teleop_twist_keyboard in another terminal, then save it:
-    ros2 launch martha_nav real.launch.py esp32_port:=/dev/serial/by-id/... lidar_port:=/dev/serial/by-id/...
+Map a place, driving with an Xbox controller (joy:=true, config/xbox_teleop.yaml) or with
+teleop_twist_keyboard in another terminal, then save it:
+    ros2 launch martha_nav real.launch.py joy:=true
+        esp32_port:=/dev/serial/by-id/... lidar_port:=/dev/serial/by-id/...
     tools/save_map.sh /abs/path/martha_nav/maps/lab_real
 Navigate in it, starting on the spot where the mapping began (or use 2D Pose Estimate):
     ros2 launch martha_nav real.launch.py map:=/abs/path/martha_nav/maps/lab_real checkpoint:=/abs/best_model.zip
@@ -26,6 +28,9 @@ ARGUMENTS = [
     DeclareLaunchArgument('esp32_port', default_value='/dev/ttyUSB0'),
     DeclareLaunchArgument('lidar_port', default_value='/dev/ttyUSB1'),
     DeclareLaunchArgument('rviz', default_value='false'),
+    DeclareLaunchArgument('joy', default_value='false',
+                          description='drive with an Xbox controller: sticks, RB/LB '
+                                      'faster/slower, Start stops'),
 ]
 
 
@@ -55,6 +60,12 @@ def launch_setup(context, *args, **kwargs):
              condition=IfCondition(LaunchConfiguration('rviz')),
              arguments=['-d', str(share / 'rviz' / 'nav.rviz')],
              remappings=[('/gazebo_ros_lidar/out', '/scan')]),
+        Node(package='joy', executable='joy_node', output='screen',
+             condition=IfCondition(LaunchConfiguration('joy')),
+             parameters=[str(share / 'config' / 'xbox_teleop.yaml')]),
+        Node(package='martha_nav', executable='xbox_teleop', output='screen',
+             condition=IfCondition(LaunchConfiguration('joy')),
+             parameters=[str(share / 'config' / 'xbox_teleop.yaml')]),
     ]
     if not saved_map:
         return actions + [slam_toolbox('mapping', '/scan', use_sim_time=False)]

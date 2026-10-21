@@ -15,7 +15,7 @@ def test_worlds_copied():
 
 EXECUTABLES = ['esp32_bridge', 'evaluate_2d', 'evaluate_gazebo', 'export_policy',
                'gazebo_ground_truth_tf', 'global_planner', 'mecanum_cmd_vel_bridge',
-               'ppo_local_planner', 'train_policy', 'world_map_publisher']
+               'ppo_local_planner', 'train_policy', 'world_map_publisher', 'xbox_teleop']
 
 
 def entry_points():

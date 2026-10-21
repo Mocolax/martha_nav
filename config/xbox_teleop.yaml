@@ -1,0 +1,24 @@
+# Xbox controller -> /cmd_vel for driving Martha by hand (mapping), mecanum layout.
+# joy_node (SDL game controller) numbers an Xbox pad as: axes 0/1 left stick x/y, 2/3 right
+# stick x/y, 4/5 triggers; buttons 0 A, 1 B, 2 X, 3 Y, 4 Back, 6 Start, 9 LB, 10 RB.
+# Left and up are +.
+#   left stick      forward/back and sideways
+#   right stick     turn (left = counterclockwise)
+#   RB / LB         faster / slower, x1.25 per press (the speeds show in the log)
+#   Start           stop; Start again to drive
+joy_node:
+  ros__parameters:
+    deadzone: 0.1
+    autorepeat_rate: 20.0  # keeps /cmd_vel flowing while a stick is held: firmware timeout 500 ms
+
+xbox_teleop:
+  ros__parameters:
+    axis_x: 1
+    axis_y: 0
+    axis_yaw: 2
+    button_faster: 10  # RB
+    button_slower: 9   # LB
+    button_stop: 6     # Start
+    scale: [0.20, 0.15, 0.5]      # vx, vy m/s and wz rad/s at full stick, at start
+    scale_max: [0.5, 0.5, 1.2]    # the firmware's ceiling (MAX_V, MAX_W)
+    speed_step: 1.25
