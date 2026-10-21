@@ -91,16 +91,32 @@ se mantienen para corregir la polaridad en la puesta en marcha.
 ### 4.2 Constantes del robot real
 
 r = 0.075 m, lx + ly = 0.385 m (el simulador usa 0.375), 3200 cuentas/vuelta
-(Pololu 37D 50:1, 64 CPR, x4), 200 RPM máx., PWM 10 kHz / 8 bits, Kp = 2, Ki = 1.6
-(se afinan en la puesta en marcha). Techo de seguridad: |vx|, |vy| ≤ 0.5 m/s,
-|wz| ≤ 1.2 rad/s (la política llega a 0.35 / 0.25 / 0.8).
+(Pololu 37D 50:1, 64 CPR, x4), 200 RPM máx., PWM 10 kHz / 8 bits en *slow decay*,
+feedforward PWM ≈ 4 + RPM / 1.15 y encima un PI con Kp = 1, Ki = 1.6 (puesta en marcha del
+2026-10-21). Techo de seguridad: |vx|, |vy| ≤ 0.5 m/s, |wz| ≤ 1.2 rad/s (la política llega a
+0.35 / 0.25 / 0.8).
+
+**Slow decay.** Con el PWM en una entrada y la otra en 0 (*fast decay*, manejar/rueda libre)
+los motores no arrancaban hasta PWM ~130 y tenían histéresis: con las ruedas en el aire,
+0.1 m/s no las movía. Con una entrada en alto y el PWM invertido en la otra (*slow decay*,
+manejar/frenar) arrancan desde PWM ~10 y RPM ≈ 1.15 × (PWM − 4) en las cuatro ruedas; de ahí
+el feedforward, y el PI solo corrige carga y desgaste.
+
+**Zona muerta.** Un comando con |vx|, |vy| < 0.01 m/s y |wz| < 0.02 rad/s es un alto; una
+rueda con referencia 0 va en rueda libre con su PI borrado, y una salida bajo PWM 8 se
+anula: un PWM que no mueve el motor solo lo calienta y pita a 10 kHz.
+
+**Circuitos sin montar.** `BATTERY_SENSE` y `OVERCURRENT_SENSE` en `false` mientras el
+divisor de batería (R5/R6) y el comparador de sobrecorriente (LM339, R4, RV1) no estén
+soldados: sin ellos el firmware arma igual, y nada lo para con la batería baja o un motor
+trabado. Al soldarlos, pasarlos a `true`.
 
 ### 4.3 Ritmos del `loop()`
 
 - **100 Hz, control.** Por rueda: `delta = cuenta − cuenta_anterior` (el contador
   de `pulse_cnt` con `accum_count` nunca se borra), RPM, PI, PWM. Al cambiar de
   sentido el motor queda un ciclo en *coast* (IN1 = IN2 = 0 es coast en el
-  MPQ6612A, no freno; la función se llama así). Se acumulan los pulsos para el reporte.
+  MPQ6612A, no freno; la función se llama así); fuera de eso, el PWM va en slow decay (4.2). Se acumulan los pulsos para el reporte.
 - **50 Hz, reporte.** `odom,vx,vy,wz,gz`: velocidades por cinemática directa de los
   pulsos acumulados desde el reporte anterior (divididos por el tiempo transcurrido);
   `gz` del IMU en ese momento, o `nan` sin IMU.
@@ -123,10 +139,13 @@ empuja hacia el mismo lado. Con la rueda bloqueada a 80 RPM el término I queda 
 ~95 en vez de crecer ~128 PWM/s; al ordenar reversa la salida cambia de signo en
 ~0.7 s en vez de ~12 s.
 
-### 4.6 IMU (solo gyro z)
+### 4.6 IMU (solo el giro alrededor del eje vertical)
+
+La placa va parada con +X hacia arriba, así que el yaw es el gyro X (`IMU_UP_REG`,
+`IMU_UP_SIGN`; ver `firmware/imu_test_uno`).
 
 Rango ±250 °/s (el robot gira como máximo ~46 °/s), filtro digital de 44 Hz.
-Bias: 1 s de calibración al arrancar y después se reaprende **solo** con el robot
+Bias: 5 s de calibración al arrancar (1000 muestras) y después se reaprende **solo** con el robot
 quieto según sus propios datos (todas las referencias en 0 y sin pulsos en los
 últimos 0.5 s). El gyro nunca se pone a cero por su propia lectura y no hay banda
 muerta. Si el IMU no responde: `imu_missing` y el firmware sigue sin él.

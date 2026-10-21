@@ -136,7 +136,7 @@ def check_battery(esp, report):
     print('\n--- 2. Battery')
     esp.poll(1.5)
     if esp.battery is None:
-        report.add('battery', False, 'no battery line in 1.5 s')
+        report.add('battery', None, 'not reported: BATTERY_SENSE is off in firmware.ino')
         return
     print(f'    ESP32 reads {esp.battery:.2f} V')
     answer = ask('Multimeter voltage at the battery (Enter to skip):').strip().replace(',', '.')
