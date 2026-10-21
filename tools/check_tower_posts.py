@@ -83,6 +83,10 @@ def main():
     parser.add_argument('--radius', type=float, default=0.6, help='m from the LiDAR')
     parser.add_argument('--min-rate', type=float, default=0.2,
                         help='share of scans a beam must see something in')
+    parser.add_argument('--match-deg', type=float, default=10.0,
+                        help='how far from its expected bearing a post may show')
+    parser.add_argument('--match-m', type=float, default=0.08,
+                        help='how far from its expected range a post may show')
     args = parser.parse_args()
 
     robot = ROBOTS['martha_tower']
@@ -95,19 +99,28 @@ def main():
     _, found = blobs(scans, args.radius, args.min_rate)
 
     sx, sy = robot.posts[0][2:] if robot.posts else (0.04, 0.02)
-    expected = [(x, y, mid) for (x, y, *_), (mid, _, _) in zip(robot.posts, post_shadows(robot))]
+    expected = [(x, y, mid, near) for (x, y, *_), (mid, _, near)
+                in zip(robot.posts, post_shadows(robot))]
     print(f'\nExpected (robots.py, LiDAR at x = {robot.lidar_offset_x} m):')
-    for x, y, mid in expected:
+    for x, y, mid, _ in expected:
         print(f'  post ({x:+.3f}, {y:+.3f})  bearing {math.degrees(mid):+7.1f} deg')
 
-    # Match each blob to the profile's nearest post, keeping the steadiest blob per post.
+    # A blob is a post's when it lies within args.match_deg of the post's expected bearing and
+    # args.match_m of its expected range; anything else (people, furniture) is left out. A post
+    # that flickers can show as several blobs: they merge, weighted by how often each shows.
     matched = {}
-    for b in found:
-        if expected:
-            k = min(range(len(expected)), key=lambda i: abs(wrap(b['bearing'] - expected[i][2])))
+    for k, (_, _, mid, near) in enumerate(expected):
+        mine = [b for b in found if abs(wrap(b['bearing'] - mid)) <= math.radians(args.match_deg)
+                and abs(b['range'] - near) <= args.match_m]
+        for b in mine:
             b['post'] = k
-            if k not in matched or b['rate'] > matched[k]['rate']:
-                matched[k] = b
+        if mine:
+            w = [b['rate'] for b in mine]
+            matched[k] = {
+                'bearing': math.atan2(sum(wi * math.sin(b['bearing']) for wi, b in zip(w, mine)),
+                                      sum(wi * math.cos(b['bearing']) for wi, b in zip(w, mine))),
+                'range': sum(wi * b['range'] for wi, b in zip(w, mine)) / sum(w),
+                'rate': max(w)}
 
     # A left/right pair mirrors about x in base_link; the LiDAR's yaw turns both scan bearings
     # the same way (scan bearing = base_link bearing - yaw), so the pair's mean is -yaw.
@@ -118,30 +131,33 @@ def main():
 
     print(f'\nSeen within {args.radius} m (centres in base_link, LiDAR yaw '
           f'{math.degrees(yaw):+.1f} deg taken out):')
-    measured = {}
     for b in sorted(found, key=lambda b: b['bearing']):
-        # The posts stand behind the LiDAR, which sees their front face: the centre lies half
-        # the post's length further back.
-        bearing = b['bearing'] + yaw
-        x = robot.lidar_offset_x + b['range'] * math.cos(bearing) - sx / 2
-        y = b['range'] * math.sin(bearing)
-        line = (f'  bearing {math.degrees(b["bearing"]):+7.1f} deg, range {b["range"]:.3f} m '
-                f'(nearest {b["nearest"]:.3f}), width {math.degrees(b["width"]):4.1f} deg, '
-                f'seen in {b["rate"]:4.0%} -> centre ({x:+.3f}, {y:+.3f})')
-        if 'post' in b:
-            k = b['post']
-            line += f', post {k} {math.degrees(wrap(b["bearing"] - expected[k][2])):+.1f} deg off'
-            if matched.get(k) is b:
-                measured[k] = {'x': x, 'y': y}
-        print(line)
+        tag = (f'post {b["post"]}' if 'post' in b else 'not a post (nothing expected here)')
+        print(f'  bearing {math.degrees(b["bearing"]):+7.1f} deg, range {b["range"]:.3f} m '
+              f'(nearest {b["nearest"]:.3f}), width {math.degrees(b["width"]):4.1f} deg, '
+              f'seen in {b["rate"]:4.0%} -> {tag}')
     if not found:
         print('  nothing: the posts are inside range_min, or --radius is too small')
 
+    print('\nPosts (centres in base_link):')
+    measured = {}
+    for k, (ex, ey, mid, near) in enumerate(expected):
+        if k not in matched:
+            print(f'  post {k} ({ex:+.3f}, {ey:+.3f}) not seen: closer than the A2M8 measures '
+                  '(0.15 m), moved, or hidden? Measure it with a tape from the LiDAR\'s centre.')
+            continue
+        m = matched[k]
+        # The posts stand behind the LiDAR, which sees their front face: the centre lies half
+        # the post's length further back.
+        bearing = m['bearing'] + yaw
+        x = robot.lidar_offset_x + m['range'] * math.cos(bearing) - sx / 2
+        y = m['range'] * math.sin(bearing)
+        measured[k] = {'x': x, 'y': y}
+        print(f'  post {k}: bearing {math.degrees(m["bearing"]):+7.1f} deg '
+              f'({math.degrees(wrap(m["bearing"] - mid)):+.1f} off), range {m["range"]:.3f} m '
+              f'({m["range"] - near:+.3f} off) -> centre ({x:+.3f}, {y:+.3f}), '
+              f'expected ({ex:+.3f}, {ey:+.3f})')
     missing = [k for k in range(len(expected)) if k not in measured]
-    for k in missing:
-        x, y, _ = expected[k]
-        print(f'\n  post ({x:+.3f}, {y:+.3f}) not seen: closer than the A2M8 measures '
-              '(0.15 m)? Measure it with a tape from the LiDAR\'s centre.')
 
     if yaws:
         print(f'\nLiDAR mounting yaw from the left/right pairs: {math.degrees(yaw):+.1f} deg '
