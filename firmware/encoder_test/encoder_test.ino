@@ -5,6 +5,8 @@
 //   <motor> <pwm>   motor 1-4 (M1=FL, M2=FR, M3=RL, M4=RR) or 0 for all four,
 //                   pwm -255..255, positive = that wheel forward, 0 stops it.
 //   z               zero the totals.
+//   d               toggle fast decay (drive/coast, the firmware's) and slow (drive/brake).
+// Motors stop 3 s after the last command.
 //
 // What to check, wheels in the air:
 //   1. "1 150": only enc M1 moves (each encoder on its own wheel).
@@ -28,17 +30,35 @@ Encoder encoders[4];
 long totals[4];
 unsigned long lastPrintMs = 0;
 
-// IN1 = IN2 = 0 is coast on the MPQ6612A.
+const unsigned long CMD_TIMEOUT_MS = 3000;  // the USB once dropped with the wheels spinning
+unsigned long lastCmdMs = 0;
+bool slowDecay = false;  // "d" toggles it
+int pwms[4];
+
+// MPQ6612A: IN1/IN2 = 1/0 forward, 0/1 back, 0/0 coast, 1/1 brake. Fast decay alternates
+// drive and coast (PWM on one input); slow decay alternates drive and brake (the other
+// input held high, PWM inverted on this one). 0 is coast in both.
 void drive(int i, int pwm) {
+  pwms[i] = pwm;
   pwm = constrain(MOTOR_SIGN[i] * pwm, -255, 255);
-  ledcWrite(IN1[i], pwm > 0 ? pwm : 0);
-  ledcWrite(IN2[i], pwm < 0 ? -pwm : 0);
+  const int forward = pwm > 0 ? pwm : 0, back = pwm < 0 ? -pwm : 0;
+  if (slowDecay && pwm != 0) {
+    ledcWrite(IN1[i], pwm > 0 ? 255 : 255 - back);
+    ledcWrite(IN2[i], pwm > 0 ? 255 - forward : 255);
+  } else {
+    ledcWrite(IN1[i], forward);
+    ledcWrite(IN2[i], back);
+  }
 }
 
 void handle(String line) {
   line.trim();
   int motor, pwm;
-  if (line == "z") {
+  if (line == "d") {
+    slowDecay = !slowDecay;
+    for (int i = 0; i < 4; ++i) drive(i, pwms[i]);
+    Serial.println(slowDecay ? "decay slow (drive/brake)" : "decay fast (drive/coast)");
+  } else if (line == "z") {
     for (int i = 0; i < 4; ++i) totals[i] = 0;
   } else if (line.length() && isDigit(line[0]) &&
              sscanf(line.c_str(), "%d %d", &motor, &pwm) == 2 && motor >= 0 && motor <= 4) {
@@ -62,7 +82,14 @@ void setup() {
 }
 
 void loop() {
-  if (Serial.available()) handle(Serial.readStringUntil('\n'));
+  if (Serial.available()) {
+    handle(Serial.readStringUntil('\n'));
+    lastCmdMs = millis();
+  }
+  if (millis() - lastCmdMs > CMD_TIMEOUT_MS && (pwms[0] || pwms[1] || pwms[2] || pwms[3])) {
+    for (int i = 0; i < 4; ++i) drive(i, 0);
+    Serial.println("timeout: motors stopped");
+  }
   const unsigned long now = millis();
   if (now - lastPrintMs < PRINT_MS) return;
   const float dt = (now - lastPrintMs) * 1e-3f;
