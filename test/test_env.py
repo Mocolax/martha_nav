@@ -225,3 +225,14 @@ def test_the_tower_posts_appear_in_the_scan_wherever_the_robot_is():
     behind = np.abs(np.abs(np.rad2deg(env.ray_angles)) - 133) <= 2
     assert (env.ranges[behind] < 0.16).all()
     assert (env.ranges[np.abs(env.ray_angles) < np.deg2rad(90)] > 0.5).all()
+
+
+def test_the_tower_posts_are_in_the_scan_but_not_in_the_carrots_obstacles():
+    env = NavEnv(EnvConfig(robot='martha_tower', lidar_noise=(0.0, 0.0), lidar_dropout=0.0,
+                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
+    env.reset(seed=3)
+    env._scan()
+    x, y, th = env.dyn.pose
+    ox, oy = x + env.robot.lidar_offset_x * np.cos(th), y + env.robot.lidar_offset_x * np.sin(th)
+    assert np.hypot(env.scan_points[:, 0] - ox, env.scan_points[:, 1] - oy).min() > 0.5
+

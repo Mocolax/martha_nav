@@ -268,6 +268,14 @@ semillas fijas; `best_model` se elige por su tasa de éxito.
   ~0.37 m en ±162–164°. El perfil `martha_tower` (`martha_nav/robots.py`) los lleva en
   `posts`: el simulador 2D los añade al escaneo y el guard de seguridad los ignora. La política
   de `martha` se entrenó sin ellos; para la torre hay que entrenar con `--robot martha_tower`.
+- Las caras de los postes delanteros quedan a 0.136–0.151 m, en el borde de los 0.15 m del A2M8,
+  y `rplidar_ros` publica lo que el firmware dé (solo un 0 pasa a `inf`): en el robot pueden
+  verse, no verse o parpadear de un escaneo a otro. Por eso la observación no los lee: los
+  sectores que tapa un poste, con su sombra ensanchada `post_pad` = 0.05 rad (~3°, el yaw de
+  montaje del LiDAR y la posición real de los postes), valen siempre la distancia al poste
+  (`post_sectors` en `observation.py`): 124–140° a 0.136 m y 160–168° a 0.366 m, a cada lado,
+  16 de 90 sectores. Así el 2D, Gazebo y el robot dan la misma observación lea lo que lea el
+  LiDAR ahí. Los rayos de esa sombra tampoco cuentan como obstáculos para la zanahoria.
 - LiDAR a +0.2325 m en x: 360 rayos, 0.15–8 m, 10 Hz, ruido gaussiano de 0.01 m.
 - Bumper en el chasis.
 - Movimiento: `gazebo_ros_planar_move`, que recibe `/cmd_vel` y publica `/odom`

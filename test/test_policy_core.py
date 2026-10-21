@@ -264,3 +264,16 @@ def test_the_guard_ignores_the_tower_posts_but_not_an_obstacle_beside_them():
     x, y = 0.13 - tower.lidar_offset_x, tower.width / 2 + 0.03
     ranges[np.argmin(np.abs(angles - np.arctan2(y, x)))] = np.hypot(x, y)
     assert footprint_blocked(ranges, angles, tower) == {'left'}
+
+
+def test_the_carrot_does_not_skip_the_tower_posts():
+    from martha_nav.sim2d.geometry import post_ranges
+    tower = ROBOTS['martha_tower']
+    core = PolicyCore(FakeModel((0.0, 0.0)), robot=tower)
+    ranges, angles = clear_scan()
+    posts = post_ranges(tower, angles)
+    ranges = np.where(np.isfinite(posts), posts, ranges)
+    assert len(core._scan_points(ranges, angles, (0.0, 0.0, 0.0))) == 0
+    ranges[0] = 1.0                                   # a real obstacle ahead still counts
+    assert len(core._scan_points(ranges, angles, (0.0, 0.0, 0.0))) == 1
+

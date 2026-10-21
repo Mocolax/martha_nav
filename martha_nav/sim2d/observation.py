@@ -1,4 +1,6 @@
 """The single observation contract shared by the 2D env and the ROS nodes."""
+from functools import cache
+
 import numpy as np
 
 from martha_nav.robots import ROBOTS
@@ -32,6 +34,56 @@ def reduce_scan(ranges, angles, max_range=8.0):
     return out
 
 
+def _wrap(a):
+    return np.angle(np.exp(1j * np.asarray(a, dtype=float)))
+
+
+def post_shadows(robot):
+    """[(centre, half width, nearest distance)] of each post seen from the LiDAR: rad, rad, m.
+
+    The half width already carries robot.post_pad.
+    """
+    shadows = []
+    for x, y, side in robot.posts:
+        h = side / 2
+        cx, cy = x - robot.lidar_offset_x, y
+        centre = np.arctan2(cy, cx)
+        corners = _wrap([np.arctan2(cy + sy * h, cx + sx * h) - centre
+                         for sx in (-1, 1) for sy in (-1, 1)])
+        mid = centre + (corners.min() + corners.max()) / 2
+        half = (corners.max() - corners.min()) / 2 + robot.post_pad
+        shadows.append((mid, half, np.hypot(max(abs(cx) - h, 0.0), max(abs(cy) - h, 0.0))))
+    return shadows
+
+
+def post_rays(robot, angles):
+    """True for the beams in a post's shadow: whatever they read, it is the robot itself."""
+    angles = np.asarray(angles, dtype=float)
+    out = np.zeros(angles.shape, dtype=bool)
+    for mid, half, _ in post_shadows(robot):
+        out |= np.abs(_wrap(angles - mid)) <= half
+    return out
+
+
+@cache
+def post_sectors(robot):
+    """The sectors a post's shadow reaches and the fixed range each one reads (index, m).
+
+    Behind a post the LiDAR sees nothing, and on it the A2M8 reads the post or nothing (its
+    faces are 0.136-0.151 m away, at the 0.15 m edge of its range), flickering from scan to scan.
+    Fixing those sectors to the post's distance makes the observation the same in the 2D sim,
+    in Gazebo and on the robot, whatever the LiDAR reads there.
+    """
+    width = 2 * np.pi / N_SECTORS
+    centres = np.arange(N_SECTORS) * width
+    values = np.full(N_SECTORS, np.inf)
+    for mid, half, near in post_shadows(robot):
+        reached = np.abs(_wrap(centres - mid)) < half + width / 2
+        values[reached] = np.minimum(values[reached], near)
+    idx = np.flatnonzero(np.isfinite(values))
+    return idx, values[idx]
+
+
 def encode_lidar(sectors):
     """Metres -> [0, 1) as d / (d + 1 m): finer up close, where it matters."""
     return sectors / (sectors + 1.0)
@@ -45,9 +97,13 @@ def build_observation(ranges, angles, velocity, waypoint_rel, prev_action,
     velocity: measured (v, w). waypoint_rel: (dx, dy) in the robot frame.
     prev_action: last action sent, already in [-1, 1].
     waypoint_max: distance scale, WAYPOINT_MAX for the carrot or GOAL_MAX for the goal.
-    robot: the profile whose LiDAR range and velocity limits scale the values.
+    robot: the profile whose LiDAR range and velocity limits scale the values; the sectors
+    its posts shadow read the posts (post_sectors).
     """
-    lidar = encode_lidar(reduce_scan(ranges, angles, robot.lidar_range))
+    sectors = reduce_scan(ranges, angles, robot.lidar_range)
+    idx, fixed = post_sectors(robot)
+    sectors[idx] = fixed
+    lidar = encode_lidar(sectors)
     dx, dy = waypoint_rel
     wp = [min(np.hypot(dx, dy), waypoint_max) / waypoint_max, np.arctan2(dy, dx) / np.pi]
     vel = ([velocity[0] / robot.v_max, velocity[1] / robot.v_lateral, velocity[2] / robot.w_max]

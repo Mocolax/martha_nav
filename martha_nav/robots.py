@@ -27,6 +27,8 @@ class Robot:
     posts: tuple = ()          # ((x, y, side), ...) m: square posts of the robot's own structure
                                # that cross the LiDAR's scan plane, in base_link. The LiDAR sees
                                # them; the safety guard ignores them
+    post_pad: float = 0.05     # rad (~3 deg) the posts' shadow is widened by in the observation:
+                               # the mounting yaw and the posts' real placement
 
     @property
     def holonomic(self):

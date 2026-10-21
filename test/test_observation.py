@@ -1,8 +1,9 @@
 import numpy as np
 
 from martha_nav.robots import ROBOTS
-from martha_nav.sim2d.geometry import draw_box, empty_grid, raycast
-from martha_nav.sim2d.observation import OBS_DIM, action_to_cmd, build_observation, reduce_scan
+from martha_nav.sim2d.geometry import draw_box, empty_grid, post_ranges, raycast
+from martha_nav.sim2d.observation import (OBS_DIM, action_to_cmd, build_observation, post_rays,
+                                          post_sectors, reduce_scan)
 
 MARTHA, BURGER = ROBOTS['martha'], ROBOTS['burger']
 LIDAR_MAX, V_MAX, W_MAX, V_LATERAL = MARTHA.lidar_range, MARTHA.v_max, MARTHA.w_max, MARTHA.v_lateral
@@ -93,3 +94,49 @@ def test_an_empty_sector_reads_the_robots_range():
     assert reduce_scan(np.array([np.inf]), np.zeros(1), max_range=3.5)[0] == 3.5
     empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0), robot=BURGER)
     assert np.isclose(empty[45], 3.5 / 4.5)
+
+
+TOWER = ROBOTS['martha_tower']
+
+
+def test_the_tower_posts_shadow_eight_sectors_a_side_and_a_robot_without_posts_none():
+    idx, values = post_sectors(TOWER)
+    degrees = np.minimum(idx * 4, 360 - idx * 4)           # both sides folded onto 0-180
+    assert sorted(degrees) == sorted([124, 128, 132, 136, 140, 160, 164, 168] * 2)
+    # Each sector reads the face of its post nearest the LiDAR.
+    assert np.allclose(values[degrees < 150], 0.136, atol=0.001)
+    assert np.allclose(values[degrees > 150], 0.366, atol=0.001)
+    assert len(post_sectors(MARTHA)[0]) == 0 and not post_rays(MARTHA, np.zeros(3)).any()
+
+
+def test_the_post_shadow_covers_every_beam_that_hits_a_post_with_room_to_spare():
+    angles = np.deg2rad(np.arange(-180, 180, 0.1))
+    hits = np.isfinite(post_ranges(TOWER, angles))
+    shadow = post_rays(TOWER, angles)
+    assert shadow[hits].all()
+    # Turning the posts by up to 2.5 deg (the LiDAR's mounting yaw) keeps them in the shadow.
+    for turn in (-2.5, 2.5):
+        assert post_rays(TOWER, angles + np.deg2rad(turn))[hits].all()
+
+
+def test_the_tower_observation_ignores_what_the_lidar_reads_on_its_posts():
+    """On the robot, the A2M8 reads the front posts (0.136-0.151 m) or nothing, flickering."""
+    rng = np.random.default_rng(0)
+    angles = np.deg2rad(np.arange(-180, 180, 0.5))
+    room = np.full(angles.shape, 3.0)
+    posts = post_ranges(TOWER, angles)
+    seen = np.where(np.isfinite(posts), posts, room)
+    shadow = post_rays(TOWER, angles)
+    variants = [seen, room,                                    # always seen, never seen
+                np.where(shadow, np.inf, room), np.where(shadow, 0.0, room),
+                np.where(shadow & (rng.random(angles.shape) < 0.5), np.inf, seen),
+                np.where(shadow, rng.uniform(0.05, 8.0, angles.shape), room)]
+    obs = [build_observation(r, angles, (0.0, 0.0), (1.0, 0.0), (0.0, 0.0), robot=TOWER)
+           for r in variants]
+    for o in obs[1:]:
+        assert np.array_equal(o, obs[0])
+    # Outside the shadow the LiDAR still counts: an obstacle at 1 m dead behind.
+    behind = np.where(np.abs(angles) > np.deg2rad(178), 1.0, seen)
+    assert not np.array_equal(build_observation(behind, angles, (0.0, 0.0), (1.0, 0.0), (0.0, 0.0),
+                                                robot=TOWER), obs[0])
+

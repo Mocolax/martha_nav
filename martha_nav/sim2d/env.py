@@ -10,7 +10,7 @@ from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.dynamics import DT, Dynamics, DynamicsRanges, sample_params
 from martha_nav.sim2d.geometry import footprint_collides, footprint_points, post_ranges, raycast
 from martha_nav.sim2d.observation import (GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation,
-                                          obs_dim)
+                                          obs_dim, post_rays)
 from martha_nav.sim2d.planner import DistanceField, RouteProgress, carrot
 from martha_nav.sim2d.reward import RewardConfig, compute_reward
 from martha_nav.sim2d.scenarios import ScenarioConfig, generate
@@ -65,6 +65,7 @@ class NavEnv(gym.Env):
         self.action_space = spaces.Box(-1.0, 1.0, (self.cfg.action_dim,), np.float32)
         self.ray_angles = np.linspace(-np.pi, np.pi, self.cfg.n_rays, endpoint=False)
         self.post_ranges = post_ranges(self.robot, self.ray_angles)  # constant: they ride along
+        self.own_rays = post_rays(self.robot, self.ray_angles)
         self._seed_index = 0
 
     # ---- episode ---------------------------------------------------------
@@ -163,7 +164,7 @@ class NavEnv(gym.Env):
         if self.robot.lidar_min > 0:
             r[r < self.robot.lidar_min] = reach        # too close to measure, as the real sensor
         self.ranges = np.clip(r, 0.0, reach)
-        hit = self.ranges < reach
+        hit = (self.ranges < reach) & ~self.own_rays    # the posts are no obstacle for the carrot
         a = th + self.ray_angles[hit]
         self.scan_points = np.stack([ox + self.ranges[hit] * np.cos(a),
                                      oy + self.ranges[hit] * np.sin(a)], axis=1)

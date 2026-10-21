@@ -3,7 +3,8 @@ import numpy as np
 
 from martha_nav.learning import is_recurrent
 from martha_nav.robots import ROBOTS
-from martha_nav.sim2d.observation import GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation
+from martha_nav.sim2d.observation import (GOAL_MAX, WAYPOINT_MAX, action_to_cmd, build_observation,
+                                          post_rays)
 from martha_nav.sim2d.planner import RouteProgress, carrot
 
 
@@ -126,11 +127,12 @@ class PolicyCore:
         return (*commands, {'blocked': sorted(blocked), 's': self.progress.s, 'carrot': point})
 
     def _scan_points(self, ranges, angles, pose):
-        """Scan hits in map coordinates, for the carrot's obstacle skipping."""
+        """Scan hits in map coordinates, for the carrot's obstacle skipping; not the posts."""
         x, y, yaw = pose
         ranges = np.asarray(ranges, dtype=float)
         angles = np.asarray(angles, dtype=float)
         hit = np.isfinite(ranges) & (ranges > 0) & (ranges < self.robot.lidar_range)
+        hit &= ~post_rays(self.robot, angles)
         if not hit.any():
             return np.empty((0, 2))
         ox = x + self.robot.lidar_offset_x * np.cos(yaw)
