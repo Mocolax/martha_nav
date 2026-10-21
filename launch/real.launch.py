@@ -25,6 +25,8 @@ ARGUMENTS = [
     DeclareLaunchArgument('map', default_value='',
                           description='saved map without extension; empty maps the place'),
     DeclareLaunchArgument('checkpoint', default_value=''),
+    DeclareLaunchArgument('speed_scale', default_value='1.0',
+                          description='fraction of the trained speeds to command, in (0, 1]'),
     DeclareLaunchArgument('esp32_port', default_value='/dev/ttyUSB0'),
     DeclareLaunchArgument('lidar_port', default_value='/dev/ttyUSB1'),
     DeclareLaunchArgument('rviz', default_value='false'),
@@ -59,7 +61,9 @@ def launch_setup(context, *args, **kwargs):
         Node(package='rviz2', executable='rviz2', output='screen',
              condition=IfCondition(LaunchConfiguration('rviz')),
              arguments=['-d', str(share / 'rviz' / 'nav.rviz')],
-             remappings=[('/gazebo_ros_lidar/out', '/scan')]),
+             # While mapping, the map growing is slam_toolbox's /slam_map; /map is the saved one.
+             remappings=[('/gazebo_ros_lidar/out', '/scan')]
+             + ([] if saved_map else [('/map', '/slam_map')])),
         Node(package='joy', executable='joy_node', output='screen',
              condition=IfCondition(LaunchConfiguration('joy')),
              parameters=[str(share / 'config' / 'xbox_teleop.yaml')]),
@@ -76,7 +80,9 @@ def launch_setup(context, *args, **kwargs):
         Node(package='martha_nav', executable='global_planner', output='screen',
              parameters=[{'robot': robot}]),
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
-             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': robot}]),
+             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': robot,
+                          'speed_scale': ParameterValue(LaunchConfiguration('speed_scale'),
+                                                        value_type=float)}]),
     ]
 
 
