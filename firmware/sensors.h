@@ -49,30 +49,38 @@ struct Encoder {
   }
 };
 
-// MPU-6050 gyro z only (the EKF fuses nothing else from it). The bias is averaged at
-// boot and afterwards relearned only when the caller knows the robot is still: the
-// gyro's own reading cannot tell a slow turn from no turn.
+// MPU-6050 yaw rate only (the EKF fuses nothing else from it): the rate of the board axis
+// that points up, given by its register (0x43 x, 0x45 y, 0x47 z) and sign (-1 when that
+// axis points down), so a counterclockwise turn seen from above stays positive whatever
+// way the board is mounted. The bias is averaged at boot and afterwards relearned only
+// when the caller knows the robot is still: the gyro's own reading cannot tell a slow
+// turn from no turn.
 struct Gyro {
   static constexpr uint8_t ADDRESS = 0x68;
   static constexpr float LSB_PER_RAD_S = 131.0f * 180.0f / PI;  // +-250 deg/s
   bool ok = false;
-  float bias = 0;
+  float bias = 0, sign = 1;
+  uint8_t reg = 0x47;
 
-  bool begin(int sda, int scl) {
+  bool begin(int sda, int scl, uint8_t upReg, float upSign) {
+    reg = upReg;
+    sign = upSign;
     Wire.begin(sda, scl, 400000);
     ok = write(0x6B, 0x00)    // wake up
          && write(0x1A, 0x03)  // 44 Hz low-pass
          && write(0x1B, 0x00); // +-250 deg/s
     if (!ok) return false;
     delay(100);
+    // 1000 samples, ~5 s: a finer zero than 200 (checked with imu_test_uno). The robot
+    // must stay still meanwhile; any movement shows up later as drift.
     long sum = 0;
     int16_t z;
-    for (int i = 0; i < 200; ++i) {
+    for (int i = 0; i < 1000; ++i) {
       if (!raw(z)) return ok = false;
       sum += z;
       delay(5);
     }
-    bias = sum / 200.0f;
+    bias = sum / 1000.0f;
     return true;
   }
 
@@ -80,7 +88,7 @@ struct Gyro {
     int16_t z;
     if (!ok || !raw(z)) return NAN;
     if (still) bias += 0.01f * (z - bias);
-    return (z - bias) / LSB_PER_RAD_S;
+    return sign * (z - bias) / LSB_PER_RAD_S;
   }
 
   bool write(uint8_t reg, uint8_t value) {
@@ -92,7 +100,7 @@ struct Gyro {
 
   bool raw(int16_t &z) {
     Wire.beginTransmission(ADDRESS);
-    Wire.write(0x47);  // GYRO_ZOUT_H
+    Wire.write(reg);
     if (Wire.endTransmission(false) != 0 || Wire.requestFrom(ADDRESS, (uint8_t)2) != 2) return false;
     const uint8_t high = Wire.read();
     const uint8_t low = Wire.read();

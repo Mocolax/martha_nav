@@ -12,10 +12,15 @@ const int SLEEP_PIN = 17;        // nSLEEP of the four drivers
 const int OVERCURRENT_PIN = 23;  // LM339, low = overcurrent; powered only while awake
 const int BATTERY_PIN = 34;      // 39k / 10k divider
 const int SDA_PIN = 25, SCL_PIN = 26;
+// The IMU board stands on its side with +X up (imu_test_uno, 2026-10-20): yaw is gyro X.
+const uint8_t IMU_UP_REG = 0x43;  // GYRO_XOUT_H
+const float IMU_UP_SIGN = 1.0f;
 
-// Flip one entry if that wheel turns or counts backwards.
-const int MOTOR_SIGN[4] = {1, 1, 1, 1};
-const int ENCODER_SIGN[4] = {1, 1, 1, 1};
+// The right motors and the left encoders are mounted mirrored (checked 2026-10-20, wheels
+// in the air: forward PWM, forward wheel, positive counts). Flip an entry if that wheel
+// turns or counts backwards.
+const int MOTOR_SIGN[4] = {1, -1, 1, -1};
+const int ENCODER_SIGN[4] = {-1, 1, -1, 1};
 
 const float WHEEL_RADIUS = 0.075f;       // m
 const float LX_PLUS_LY = 0.385f;         // m
@@ -187,7 +192,7 @@ void setup() {
     ledcAttach(IN2[i], 10000, 8);
     encoders[i].begin(ENC_A[i], ENC_B[i]);
   }
-  if (!gyro.begin(SDA_PIN, SCL_PIN)) Serial.println("imu_missing");
+  if (!gyro.begin(SDA_PIN, SCL_PIN, IMU_UP_REG, IMU_UP_SIGN)) Serial.println("imu_missing");
   battery = readBattery();
   lastControlUs = micros();
   arm(BATTERY_LOW);
