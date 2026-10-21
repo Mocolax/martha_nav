@@ -2,6 +2,8 @@
 
 python3 -m martha_nav.learning.train --preset gate --seed 0
 python3 -m martha_nav.learning.train --preset full --seed 0
+python3 -m martha_nav.learning.train --preset full --robot martha_tower --steps 350000 \
+    --init-from runs/martha_tower_s0/best_model.zip     # fine-tune after a robot change
 """
 import argparse
 import csv
@@ -36,6 +38,7 @@ PRESETS = {
 PPO_PARAMS = dict(n_steps=512, batch_size=256, n_epochs=10, gamma=0.99, gae_lambda=0.95,
                   clip_range=0.2, ent_coef=0.0, vf_coef=0.5, max_grad_norm=0.5, target_kl=0.02)
 LEARNING_RATE = 3e-4
+FINE_TUNE_LEARNING_RATE = 1e-4   # starting from trained weights: adjust, do not unlearn
 
 
 class EpisodeLogger(BaseCallback):
@@ -160,6 +163,9 @@ def main(argv=None):
                     help='delay 0-2 periods and faster responses, which cover the Gazebo mecanum')
     ap.add_argument('--recurrent', action='store_true',
                     help='train with an LSTM policy (RecurrentPPO); slower per step')
+    ap.add_argument('--init-from', default=None,
+                    help='start from these weights (a .zip) at a lower learning rate, e.g. to '
+                         'fine-tune a policy after a change to the robot profile')
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']
@@ -173,13 +179,21 @@ def main(argv=None):
               'n_envs': args.n_envs, 'learning_rate': LEARNING_RATE, 'ppo': PPO_PARAMS,
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,
               'env': json.loads(json.dumps(asdict(env_cfg))),
-              'robot_profile': asdict(ROBOTS[args.robot])}
+              'robot_profile': asdict(ROBOTS[args.robot]),
+              'init_from': args.init_from}
     (run_dir / 'config.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
 
     torch.set_num_threads(4)
     venv = make_vec_env(env_cfg, args.n_envs, args.seed)
-    model = build_model(venv, args.recurrent, args.seed, args.device,
-                        str(run_dir / 'tb'))
+    if args.init_from:
+        algo = RecurrentPPO if args.recurrent else PPO
+        schedule = lambda f: FINE_TUNE_LEARNING_RATE * f  # noqa: E731
+        model = algo.load(args.init_from, env=venv, device=args.device, seed=args.seed,
+                          tensorboard_log=str(run_dir / 'tb'),
+                          custom_objects={'learning_rate': schedule, 'lr_schedule': schedule})
+    else:
+        model = build_model(venv, args.recurrent, args.seed, args.device,
+                            str(run_dir / 'tb'))
     callbacks = [EpisodeLogger(run_dir / 'episodes.csv'),
                  PeriodicEval(env_cfg, run_dir, args.eval_every, args.eval_episodes)]
     start = time.time()

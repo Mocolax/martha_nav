@@ -80,3 +80,16 @@ def test_wide_dynamics_flag_reaches_the_env_config():
     from martha_nav.sim2d.dynamics import WIDE_DYNAMICS, DynamicsRanges
     assert build_config('full').dynamics == DynamicsRanges()
     assert build_config('full', wide_dynamics=True).dynamics == WIDE_DYNAMICS
+
+
+def test_init_from_starts_from_trained_weights_at_the_fine_tune_rate(tmp_path):
+    from martha_nav.learning.train import FINE_TUNE_LEARNING_RATE
+    args = ['--preset', 'gate', '--steps', '1024', '--n-envs', '2', '--eval-every', '100000',
+            '--runs-dir', str(tmp_path)]
+    train_main(args + ['--name', 'base'])
+    base = tmp_path / 'base' / 'last_model.zip'
+    train_main(args + ['--name', 'tuned', '--init-from', str(base)])
+    config = yaml.safe_load((tmp_path / 'tuned' / 'config.yaml').read_text())
+    assert config['init_from'] == str(base)
+    tuned = PPO.load(tmp_path / 'tuned' / 'last_model.zip', device='cpu')
+    assert tuned.lr_schedule(1.0) == FINE_TUNE_LEARNING_RATE
