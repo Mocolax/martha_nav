@@ -20,5 +20,5 @@ xbox_teleop:
     button_slower: 9   # LB
     button_stop: 6     # Start
     scale: [0.20, 0.15, 0.5]      # vx, vy m/s and wz rad/s at full stick, at start
-    scale_max: [0.5, 0.5, 1.2]    # the firmware's ceiling (MAX_V, MAX_W)
+    scale_max: [1.0, 1.0, 2.0]    # the firmware's ceiling (MAX_V, MAX_W)
     speed_step: 1.25

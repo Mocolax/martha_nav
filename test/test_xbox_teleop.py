@@ -24,7 +24,9 @@ def test_speed_steps_up_and_down_within_the_ceiling_and_the_floor():
     speed = SpeedLevel([0.2, 0.15, 0.5], [0.5, 0.5, 1.2], 1.25)
     speed.change(+1)
     assert speed.scales == pytest.approx([0.25, 0.1875, 0.625])
-    speed.change(+10)                    # capped where the first axis meets its maximum
-    assert speed.scales == pytest.approx([0.48, 0.36, 1.2])
+    speed.change(+10)                    # every axis at its own maximum
+    assert speed.scales == pytest.approx([0.5, 0.5, 1.2])
+    speed.change(-1)                     # vy drops from where it was capped, the others follow
+    assert speed.scales == pytest.approx([0.5, 0.4, 1.2])
     speed.change(-20)
     assert speed.scales == pytest.approx([0.05, 0.0375, 0.125])

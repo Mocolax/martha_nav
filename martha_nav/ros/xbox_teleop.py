@@ -27,11 +27,12 @@ class Presses:
 
 
 class SpeedLevel:
-    """Stick scales (vx, vy, wz at full stick) multiplied by step per RB, divided per LB."""
+    """Stick scales (vx, vy, wz at full stick) multiplied by step per RB, divided per LB; each
+    axis stops at its own maximum while the others keep rising."""
 
     def __init__(self, scale, scale_max, step, lowest=0.25):
         self.scale, self.scale_max, self.step = list(scale), list(scale_max), step
-        self.top = min(m / s for m, s in zip(scale_max, scale))  # every axis within its max
+        self.top = max(m / s for m, s in zip(scale_max, scale))  # the last axis at its max
         self.lowest = lowest
         self.factor = 1.0
 
@@ -40,7 +41,7 @@ class SpeedLevel:
 
     @property
     def scales(self):
-        return [s * self.factor for s in self.scale]
+        return [min(s * self.factor, m) for s, m in zip(self.scale, self.scale_max)]
 
 
 def stick_command(axes, cfg, scales):
@@ -55,7 +56,7 @@ class XboxTeleop(Node):
         self.cfg = {name: self.declare_parameter(name, default).value for name, default in [
             ('axis_x', 1), ('axis_y', 0), ('axis_yaw', 2), ('button_faster', 10),
             ('button_slower', 9), ('button_stop', 6), ('scale', [0.20, 0.15, 0.5]),
-            ('scale_max', [0.5, 0.5, 1.2]), ('speed_step', 1.25)]}
+            ('scale_max', [1.0, 1.0, 2.0]), ('speed_step', 1.25)]}
         self.speed = SpeedLevel(self.cfg['scale'], self.cfg['scale_max'], self.cfg['speed_step'])
         self.presses = Presses()
         self.stopped = False

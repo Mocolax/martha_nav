@@ -25,7 +25,7 @@ const int ENCODER_SIGN[4] = {-1, 1, -1, 1};
 const float WHEEL_RADIUS = 0.075f;       // m
 const float LX_PLUS_LY = 0.385f;         // m
 const float COUNTS_PER_REV = 3200.0f;    // 64 CPR x 50:1
-const float MAX_V = 0.5f, MAX_W = 1.2f;  // safety ceiling, above the policy's limits
+const float MAX_V = 1.0f, MAX_W = 2.0f;  // safety ceiling, above the policy's limits and teleop
 const float KP = 1.0f, KI = 1.6f;        // PWM counts per RPM, on top of the feedforward
 // Slow decay, wheels in the air (2026-10-21): RPM ~ 1.15 x (PWM - 4) on all four wheels,
 // moving from PWM ~10. Fast decay needed PWM ~130 just to start, with hysteresis.

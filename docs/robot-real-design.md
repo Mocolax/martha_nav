@@ -93,7 +93,7 @@ se mantienen para corregir la polaridad en la puesta en marcha.
 r = 0.075 m, lx + ly = 0.385 m (el simulador usa 0.375), 3200 cuentas/vuelta
 (Pololu 37D 50:1, 64 CPR, x4), 200 RPM máx., PWM 10 kHz / 8 bits en *slow decay*,
 feedforward PWM ≈ 4 + RPM / 1.15 y encima un PI con Kp = 1, Ki = 1.6 (puesta en marcha del
-2026-10-21). Techo de seguridad: |vx|, |vy| ≤ 0.5 m/s, |wz| ≤ 1.2 rad/s (la política llega a
+2026-10-21). Techo de seguridad: |vx|, |vy| ≤ 1.0 m/s, |wz| ≤ 2.0 rad/s (el control de Xbox llega ahí; la política llega a
 0.35 / 0.25 / 0.8).
 
 **Slow decay.** Con el PWM en una entrada y la otra en 0 (*fast decay*, manejar/rueda libre)
