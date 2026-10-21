@@ -70,14 +70,15 @@ def test_the_guard_reaches_beyond_the_lidars_blind_zone(name):
 
 def test_martha_tower_is_martha_plus_the_posts_of_its_tower():
     m, t = asdict(ROBOTS['martha']), asdict(ROBOTS['martha_tower'])
-    assert {k for k in m if m[k] != t[k]} == {'name', 'posts'}
-    assert ROBOTS['martha'].posts == ()
-    # 20 x 20 mm posts, 0.28 x 0.24 m between outer faces, inside the footprint.
-    xs = sorted({x for x, _, _ in t['posts']})
-    ys = sorted({y for _, y, _ in t['posts']})
-    assert len(t['posts']) == 4 and all(side == 0.02 for *_, side in t['posts'])
-    assert xs[1] - xs[0] + 0.02 == pytest.approx(0.28) and ys[1] - ys[0] + 0.02 == pytest.approx(0.24)
-    assert xs[1] + 0.01 < ROBOTS['martha_tower'].length / 2
+    assert {k for k in m if m[k] != t[k]} == {'name', 'lidar_offset_x', 'posts'}
+    assert ROBOTS['martha'].posts == () and t['lidar_offset_x'] == 0.19
+    # 20 x 40 mm posts, the long side along x, at x = -0.033 and -0.208 m, 0.24 m between
+    # outer faces across, inside the footprint (measured on the robot, 2026-10-21).
+    xs = sorted({x for x, *_ in t['posts']})
+    ys = sorted({y for _, y, *_ in t['posts']})
+    assert len(t['posts']) == 4 and all((sx, sy) == (0.04, 0.02) for *_, sx, sy in t['posts'])
+    assert xs == pytest.approx([-0.208, -0.033]) and ys[1] - ys[0] + 0.02 == pytest.approx(0.24)
+    assert max(map(abs, xs)) + 0.02 < ROBOTS['martha_tower'].length / 2
     assert ys[1] + 0.01 < ROBOTS['martha_tower'].width / 2
 
 
@@ -88,7 +89,7 @@ def test_profiles_recorded_before_the_posts_still_load():
     recorded = json.loads(str(np.load(npz)['settings']))['robot_profile']
     assert 'posts' not in recorded
     check_profile(recorded, 'martha', npz)
-    with pytest.raises(ValueError, match=r'changed: name, posts'):
+    with pytest.raises(ValueError, match=r'changed: name, lidar_offset_x, posts'):
         check_profile(recorded, 'martha_tower', npz)
     # And a profile with posts survives the JSON round trip of an export.
     check_profile(json.loads(json.dumps(asdict(ROBOTS['martha_tower']))), 'martha_tower', npz)

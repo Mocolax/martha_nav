@@ -27,9 +27,9 @@ def footprint_blocked(ranges, angles, robot=ROBOTS['martha']):
          - robot.footprint_offset_x)
     y = ranges[valid] * np.sin(angles[valid])
     own = np.zeros(x.shape, dtype=bool)
-    for px, py, side in robot.posts:
-        reach = side / 2 + POST_TOLERANCE
-        own |= (np.abs(x + robot.footprint_offset_x - px) <= reach) & (np.abs(y - py) <= reach)
+    for px, py, sx, sy in robot.posts:
+        own |= ((np.abs(x + robot.footprint_offset_x - px) <= sx / 2 + POST_TOLERANCE)
+                & (np.abs(y - py) <= sy / 2 + POST_TOLERANCE))
     x, y = x[~own], y[~own]
     half_x, half_y = robot.length / 2 + robot.guard_margin, robot.width / 2 + robot.guard_margin
     inside = (np.abs(x) <= half_x) & (np.abs(y) <= half_y)

@@ -222,8 +222,8 @@ def test_the_tower_posts_appear_in_the_scan_wherever_the_robot_is():
                            scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
     env.reset(seed=3)
     env._scan()
-    behind = np.abs(np.abs(np.rad2deg(env.ray_angles)) - 133) <= 2
-    assert (env.ranges[behind] < 0.16).all()
+    behind = np.abs(np.abs(np.rad2deg(env.ray_angles)) - 153.5) <= 2   # the front posts
+    assert (env.ranges[behind] < 0.24).all()
     assert (env.ranges[np.abs(env.ray_angles) < np.deg2rad(90)] > 0.5).all()
 
 

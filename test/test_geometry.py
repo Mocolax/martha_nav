@@ -79,9 +79,9 @@ def test_the_lidar_sees_the_tower_posts_behind_it():
     assert np.isinf(post_ranges(ROBOTS['martha'], angles)).all()
     r = post_ranges(ROBOTS['martha_tower'], angles)
     seen = np.rad2deg(angles[np.isfinite(r)])
-    # Front posts: 0.1025 m behind the LiDAR, 0.11 m to the side, minus half a post.
-    front = np.abs(np.abs(seen) - 133) <= 6
-    rear = np.abs(np.abs(seen) - 163) <= 2
-    assert (front | rear).all() and front.sum() == 22 and rear.sum() == 6
-    assert 0.13 < r[np.isfinite(r)].min() < 0.14
-    assert 0.36 < r[np.isfinite(r)][rear].min() < 0.375
+    # Front posts: their front face 0.203 m behind the LiDAR, the inner face 0.10 m to the side.
+    front = np.abs(np.abs(seen) - 153.5) <= 3.5
+    rear = np.abs(np.abs(seen) - 164.5) <= 1.5
+    assert (front | rear).all() and front.sum() == 16 and rear.sum() == 8
+    assert 0.22 < r[np.isfinite(r)].min() < 0.23
+    assert 0.385 < r[np.isfinite(r)][rear].min() < 0.395

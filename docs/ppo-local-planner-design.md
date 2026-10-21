@@ -258,25 +258,33 @@ semillas fijas; `best_model` se elige por su tasa de éxito.
   ruedas mecanum en x = ±0.21 m, y = ±0.175 m.
 - Caja de contacto de 0.58 × 0.41 m: la huella 2D de 0.56 m alargada 1 cm por lado para
   cubrir los rodillos, que llegan a 0.289 m. Gazebo cuenta un choque hasta 1 cm antes que el 2D.
-- Torre de perfiles de aluminio 20 × 20 mm (`tower:=true`, el robot real desde 2026-10-09):
-  cuatro postes a 0.28 × 0.24 m entre caras exteriores que suben 0.565 m desde el chasis; arriba,
-  una barra a lo largo de x por cada lado; más abajo, un travesaño entre los postes delanteros y
-  otro entre los traseros (altura estimada, 40 %); y el nivel del LiDAR, dos perfiles a lo largo
-  de x, del largo del chasis y alineados con los postes, con la cara de arriba a la altura de la
-  base del LiDAR. Masa estimada 0.5 kg/m (~2.2 kg). Cabe en la huella 2D.
-- Los postes cruzan el plano del LiDAR: los delanteros a ~0.14 m en ±128–138°, los traseros a
-  ~0.37 m en ±162–164°. El perfil `martha_tower` (`martha_nav/robots.py`) los lleva en
-  `posts`: el simulador 2D los añade al escaneo y el guard de seguridad los ignora. La política
-  de `martha` se entrenó sin ellos; para la torre hay que entrenar con `--robot martha_tower`.
-- Las caras de los postes delanteros quedan a 0.136–0.151 m, en el borde de los 0.15 m del A2M8,
-  y `rplidar_ros` publica lo que el firmware dé (solo un 0 pasa a `inf`): en el robot pueden
-  verse, no verse o parpadear de un escaneo a otro. Por eso la observación no los lee: los
+- El robot tal como está armado (`tower:=true`, medido en el robot con el LiDAR, una cinta y
+  fotos, 2026-10-21): dos tablas de 5 mm separadas 10 cm, la inferior con la forma del chasis
+  (cara de arriba a 0.095 m del piso) y la superior rectangular de 0.57 × 0.405 m (cara de
+  arriba a 0.20 m), con el LiDAR apoyado en ella 0.19 m delante de `base_link` y su plano de
+  escaneo 3.1 cm más arriba. Encima, una torre de cuatro postes de 20 × 40 mm (el lado largo a
+  lo largo del robot) de 0.91 m, los delanteros centrados en x = −0.033 m y los traseros en
+  x = −0.208 m, y = ±0.11 m; entre los dos delanteros y entre los dos traseros, un travesaño
+  6.5 cm sobre la tabla (por encima del plano del LiDAR) y otro más arriba (0.435 m adelante,
+  0.585 m atrás). La sección de los travesaños (20 × 80 mm) y la masa (0.5 kg/m) son estimadas.
+  Cabe en la huella 2D. `tower:=false` es el modelo original, el de `martha`.
+- Los postes cruzan el plano del LiDAR: los delanteros a ~0.23 m en ±150–157°, los traseros a
+  ~0.39 m en ±163–166°. El perfil `martha_tower` (`martha_nav/robots.py`) lleva el LiDAR en
+  0.19 m y los postes en `posts`, rectángulos `(x, y, sx, sy)`: el simulador 2D los añade al
+  escaneo y el guard de seguridad los ignora. La política de `martha` se entrenó sin ellos y
+  con el LiDAR en 0.2325 m; para el robot armado hay que entrenar con `--robot martha_tower`.
+- El LiDAR quedó montado girado unos −2.9° (medido con los pares de postes izquierda/derecha),
+  justo el margen `post_pad`; enderezarlo deja margen. El planner no lee ese giro del TF.
+- En el robot el A2M8 ve cada poste solo en parte de los escaneos (60–85 %), y
+  `rplidar_ros` publica lo que el firmware dé (solo un 0 pasa a `inf`): los postes parpadean de
+  un escaneo a otro. Por eso la observación no los lee: los
   sectores que tapa un poste, con su sombra ensanchada `post_pad` = 0.05 rad (~3°, el yaw de
   montaje del LiDAR y la posición real de los postes), valen siempre la distancia al poste
-  (`post_sectors` en `observation.py`): 124–140° a 0.136 m y 160–168° a 0.366 m, a cada lado,
-  16 de 90 sectores. Así el 2D, Gazebo y el robot dan la misma observación lea lo que lea el
+  (`post_sectors` en `observation.py`): 148–160° a 0.226 m y 164–168° a 0.391 m, a cada lado,
+  12 de 90 sectores. Así el 2D, Gazebo y el robot dan la misma observación lea lo que lea el
   LiDAR ahí. Los rayos de esa sombra tampoco cuentan como obstáculos para la zanahoria.
-- LiDAR a +0.2325 m en x: 360 rayos, 0.15–8 m, 10 Hz, ruido gaussiano de 0.01 m.
+- LiDAR a +0.2325 m en x (+0.19 m con la torre): 360 rayos, 0.15–8 m, 10 Hz, ruido gaussiano
+  de 0.01 m.
 - Bumper en el chasis.
 - Movimiento: `gazebo_ros_planar_move`, que recibe `/cmd_vel` y publica `/odom`
   y el TF `odom -> base_link`.

@@ -99,13 +99,14 @@ def test_an_empty_sector_reads_the_robots_range():
 TOWER = ROBOTS['martha_tower']
 
 
-def test_the_tower_posts_shadow_eight_sectors_a_side_and_a_robot_without_posts_none():
+def test_the_tower_posts_shadow_six_sectors_a_side_and_a_robot_without_posts_none():
     idx, values = post_sectors(TOWER)
     degrees = np.minimum(idx * 4, 360 - idx * 4)           # both sides folded onto 0-180
-    assert sorted(degrees) == sorted([124, 128, 132, 136, 140, 160, 164, 168] * 2)
+    assert sorted(degrees) == sorted([148, 152, 156, 160, 164, 168] * 2)
     # Each sector reads the face of its post nearest the LiDAR.
-    assert np.allclose(values[degrees < 150], 0.136, atol=0.001)
-    assert np.allclose(values[degrees > 150], 0.366, atol=0.001)
+    # 160 deg is in both shadows and reads the nearer, front post.
+    assert np.allclose(values[degrees <= 160], 0.226, atol=0.001)
+    assert np.allclose(values[degrees > 160], 0.391, atol=0.001)
     assert len(post_sectors(MARTHA)[0]) == 0 and not post_rays(MARTHA, np.zeros(3)).any()
 
 
@@ -120,7 +121,7 @@ def test_the_post_shadow_covers_every_beam_that_hits_a_post_with_room_to_spare()
 
 
 def test_the_tower_observation_ignores_what_the_lidar_reads_on_its_posts():
-    """On the robot, the A2M8 reads the front posts (0.136-0.151 m) or nothing, flickering."""
+    """On the robot, the A2M8 reads each post in only part of its scans, flickering."""
     rng = np.random.default_rng(0)
     angles = np.deg2rad(np.arange(-180, 180, 0.5))
     room = np.full(angles.shape, 3.0)

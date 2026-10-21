@@ -94,8 +94,8 @@ def main():
           f'{scans[0].range_min:.2f} m')
     _, found = blobs(scans, args.radius, args.min_rate)
 
-    side = robot.posts[0][2] if robot.posts else 0.02
-    expected = [(x, y, mid) for (x, y, _), (mid, _, _) in zip(robot.posts, post_shadows(robot))]
+    sx, sy = robot.posts[0][2:] if robot.posts else (0.04, 0.02)
+    expected = [(x, y, mid) for (x, y, *_), (mid, _, _) in zip(robot.posts, post_shadows(robot))]
     print(f'\nExpected (robots.py, LiDAR at x = {robot.lidar_offset_x} m):')
     for x, y, mid in expected:
         print(f'  post ({x:+.3f}, {y:+.3f})  bearing {math.degrees(mid):+7.1f} deg')
@@ -120,10 +120,11 @@ def main():
           f'{math.degrees(yaw):+.1f} deg taken out):')
     measured = {}
     for b in sorted(found, key=lambda b: b['bearing']):
-        d = b['range'] + side / 2  # the centre lies half a side behind the face
+        # The posts stand behind the LiDAR, which sees their front face: the centre lies half
+        # the post's length further back.
         bearing = b['bearing'] + yaw
-        x = robot.lidar_offset_x + d * math.cos(bearing)
-        y = d * math.sin(bearing)
+        x = robot.lidar_offset_x + b['range'] * math.cos(bearing) - sx / 2
+        y = b['range'] * math.sin(bearing)
         line = (f'  bearing {math.degrees(b["bearing"]):+7.1f} deg, range {b["range"]:.3f} m '
                 f'(nearest {b["nearest"]:.3f}), width {math.degrees(b["width"]):4.1f} deg, '
                 f'seen in {b["rate"]:4.0%} -> centre ({x:+.3f}, {y:+.3f})')
@@ -149,7 +150,7 @@ def main():
             print('  -> more than post_pad: turn the LiDAR straight, or raise post_pad')
 
     if measured and not missing:
-        posts = ', '.join(f'({m["x"]:.3f}, {m["y"]:.3f}, {side})'
+        posts = ', '.join(f'({m["x"]:.3f}, {m["y"]:.3f}, {sx}, {sy})'
                           for _, m in sorted(measured.items()))
         print(f'\nFor robots.py (rounded to the tape, and keep them symmetric if they are):'
               f'\n    posts=({posts})')

@@ -24,9 +24,9 @@ class Robot:
     inflation: float           # m, obstacle inflation of the global planner; not part of a
                                # trained model: it plans the routes the model follows
     guard_margin: float        # m, how far beyond the contact rectangle the safety guard reacts
-    posts: tuple = ()          # ((x, y, side), ...) m: square posts of the robot's own structure
-                               # that cross the LiDAR's scan plane, in base_link. The LiDAR sees
-                               # them; the safety guard ignores them
+    posts: tuple = ()          # ((x, y, sx, sy), ...) m: rectangular posts of the robot's own
+                               # structure that cross the LiDAR's scan plane, centre and size in
+                               # base_link. The LiDAR sees them; the safety guard ignores them
     post_pad: float = 0.05     # rad (~3 deg) the posts' shadow is widened by in the observation:
                                # the mounting yaw and the posts' real placement
 
@@ -51,12 +51,14 @@ ROBOTS = {
                     guard_margin=0.10),
 }
 
-# Martha with the aluminium tower: four 20 x 20 mm posts 0.28 m apart (outer faces) along x
-# and 0.24 m along y, rising 0.565 m from the chassis through the LiDAR's scan plane. The
-# body and the footprint do not change; the LiDAR now sees the posts behind it.
+# Martha as built (measured 2026-10-21 with the LiDAR, tools/check_tower_posts.py, and a tape):
+# the LiDAR moved back to 0.19 m ahead of base_link, and an aluminium tower of four 20 x 40 mm
+# posts, the long side along x, crosses its scan plane behind it: the front pair centred at
+# x = -0.033 m, the rear pair at -0.208 m, y = +-0.11 m. The body and the footprint do not
+# change.
 ROBOTS['martha_tower'] = replace(
-    ROBOTS['martha'], name='martha_tower',
-    posts=tuple((x, y, 0.02) for x in (0.13, -0.13) for y in (0.11, -0.11)))
+    ROBOTS['martha'], name='martha_tower', lidar_offset_x=0.19,
+    posts=tuple((x, y, 0.04, 0.02) for x in (-0.033, -0.208) for y in (0.11, -0.11)))
 
 
 def checkpoint_robot(path):

@@ -111,11 +111,11 @@ def post_ranges(robot, angles):
     # A tiny step instead of zero keeps the rays parallel to a face out of the divisions.
     dx = np.where(np.cos(angles) == 0, 1e-12, np.cos(angles))
     dy = np.where(np.sin(angles) == 0, 1e-12, np.sin(angles))
-    for x, y, side in robot.posts:
-        h = side / 2
-        tx = np.sort([(x - h - robot.lidar_offset_x) / dx, (x + h - robot.lidar_offset_x) / dx],
+    for x, y, sx, sy in robot.posts:
+        hx, hy = sx / 2, sy / 2
+        tx = np.sort([(x - hx - robot.lidar_offset_x) / dx, (x + hx - robot.lidar_offset_x) / dx],
                      axis=0)
-        ty = np.sort([(y - h) / dy, (y + h) / dy], axis=0)
+        ty = np.sort([(y - hy) / dy, (y + hy) / dy], axis=0)
         near, far = np.maximum(tx[0], ty[0]), np.minimum(tx[1], ty[1])
         out = np.where((near <= far) & (near > 0), np.minimum(out, near), out)
     return out

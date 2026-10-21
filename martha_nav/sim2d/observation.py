@@ -44,15 +44,15 @@ def post_shadows(robot):
     The half width already carries robot.post_pad.
     """
     shadows = []
-    for x, y, side in robot.posts:
-        h = side / 2
+    for x, y, sx, sy in robot.posts:
+        hx, hy = sx / 2, sy / 2
         cx, cy = x - robot.lidar_offset_x, y
         centre = np.arctan2(cy, cx)
-        corners = _wrap([np.arctan2(cy + sy * h, cx + sx * h) - centre
-                         for sx in (-1, 1) for sy in (-1, 1)])
+        corners = _wrap([np.arctan2(cy + ky * hy, cx + kx * hx) - centre
+                         for kx in (-1, 1) for ky in (-1, 1)])
         mid = centre + (corners.min() + corners.max()) / 2
         half = (corners.max() - corners.min()) / 2 + robot.post_pad
-        shadows.append((mid, half, np.hypot(max(abs(cx) - h, 0.0), max(abs(cy) - h, 0.0))))
+        shadows.append((mid, half, np.hypot(max(abs(cx) - hx, 0.0), max(abs(cy) - hy, 0.0))))
     return shadows
 
 
@@ -69,8 +69,8 @@ def post_rays(robot, angles):
 def post_sectors(robot):
     """The sectors a post's shadow reaches and the fixed range each one reads (index, m).
 
-    Behind a post the LiDAR sees nothing, and on it the A2M8 reads the post or nothing (its
-    faces are 0.136-0.151 m away, at the 0.15 m edge of its range), flickering from scan to scan.
+    Behind a post the LiDAR sees nothing, and on the robot the A2M8 reads a 20 mm post in only
+    part of its scans (60-85 %, measured 2026-10-21), flickering from scan to scan.
     Fixing those sectors to the post's distance makes the observation the same in the 2D sim,
     in Gazebo and on the robot, whatever the LiDAR reads there.
     """

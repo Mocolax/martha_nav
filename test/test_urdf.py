@@ -46,14 +46,25 @@ def test_contact_shell_is_the_2d_footprint_lengthened_to_cover_the_wheels():
 
 
 def test_chassis_and_wheels_keep_the_original_measurements():
-    """martha/urdf/learning.xacro, the model of the real robot."""
-    doc = robot()
+    """martha/urdf/learning.xacro, the model ROBOTS['martha'] was trained for."""
+    doc = robot(tower='false')
     assert joint_origin(doc, 'base_front_left_wheel_joint') == [0.21, 0.175, 0.08]
     assert 'size="0.238 0.41 0.025"' in doc and doc.count('size="0.16 0.24 0.025"') == 2
 
 
+def test_the_robot_as_built_has_two_57_cm_boards_10_cm_apart():
+    doc = robot()
+    assert joint_origin(doc, 'base_front_left_wheel_joint') == [0.21, 0.175, 0.08]
+    # The lower board keeps the chassis shape; the upper one is a plain rectangle.
+    assert doc.count('size="0.25 0.41 0.005"') == 1 and doc.count('size="0.16 0.24 0.005"') == 2
+    assert doc.count('size="0.57 0.405 0.005"') == 1
+    assert 'size="0.238 0.41 0.025"' not in doc
+
+
 def test_lidar_sits_where_the_observation_expects_it():
-    assert abs(joint_origin(robot(), 'base_lidar')[0] - LIDAR_OFFSET_X) < 1e-9
+    assert abs(joint_origin(robot(tower='false'), 'base_lidar')[0] - LIDAR_OFFSET_X) < 1e-9
+    tower = ROBOTS['martha_tower'].lidar_offset_x
+    assert abs(joint_origin(robot(), 'base_lidar')[0] - tower) < 1e-9
 
 
 def test_sensors_are_the_same_in_both_drives():
@@ -124,24 +135,27 @@ def box(doc, link):
 
 def test_the_tower_posts_are_the_ones_the_2d_lidar_sees():
     doc = robot()
-    posts = sorted((x, y, sx) for (x, y, _), (sx, sy, _) in (
+    posts = sorted((x, y, sx, sy) for (x, y, _), (sx, sy, _) in (
         box(doc, f'tower_post_{end}_{side}') for end in ('front', 'rear')
         for side in ('left', 'right')))
     assert posts == pytest.approx(sorted(ROBOTS['martha_tower'].posts))
 
 
-def test_the_tower_posts_cross_the_scan_plane_and_rise_0_565_m_from_the_chassis():
+def test_the_tower_posts_cross_the_scan_plane_and_rise_0_91_m_from_the_upper_board():
     doc = robot()
     (_, _, z), (_, _, height) = box(doc, 'tower_post_front_left')
     scan_z = joint_origin(doc, 'base_lidar')[2]
-    assert height == 0.565 and z - height / 2 == pytest.approx(0.125 + 0.025 / 2)
+    assert height == 0.91 and z - height / 2 == pytest.approx(0.20)
     assert z - height / 2 < scan_z < z + height / 2
 
 
-def test_the_level_is_at_the_height_of_the_lidars_base():
+def test_the_lidar_scans_3_1_cm_above_the_upper_board_and_under_the_crossbars():
     doc = robot()
-    (_, _, z), (_, _, sz) = box(doc, 'tower_level_left')
-    assert z + sz / 2 == pytest.approx(joint_origin(doc, 'base_lidar')[2] - 0.04 / 2)
+    scan_z = joint_origin(doc, 'base_lidar')[2]
+    assert scan_z == pytest.approx(0.231)
+    for bar in ('front_low', 'rear_low'):
+        (_, _, z), (_, _, sz) = box(doc, f'tower_crossbar_{bar}')
+        assert z - sz / 2 == pytest.approx(0.20 + 0.065) and z - sz / 2 > scan_z
 
 
 def test_the_tower_stays_inside_the_2d_footprint():
