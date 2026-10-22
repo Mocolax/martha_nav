@@ -27,6 +27,9 @@ ARGUMENTS = [
     DeclareLaunchArgument('checkpoint', default_value=''),
     DeclareLaunchArgument('speed_scale', default_value='1.0',
                           description='fraction of the trained speeds to command, in (0, 1]'),
+    DeclareLaunchArgument('inflation', default_value='',
+                          description="global planner's obstacle inflation in m (empty: the "
+                                      "robot's); lower it when a narrow passage closes"),
     DeclareLaunchArgument('esp32_port', default_value='/dev/ttyUSB0'),
     DeclareLaunchArgument('lidar_port', default_value='/dev/ttyUSB1'),
     DeclareLaunchArgument('rviz', default_value='false'),
@@ -43,6 +46,7 @@ def launch_setup(context, *args, **kwargs):
     # The planners take martha_tower when the checkpoint was trained for it and martha
     # otherwise, so a policy for another robot (the Burger) is still refused. The model
     # always carries the tower, which the real robot has.
+    inflation = LaunchConfiguration('inflation').perform(context)
     trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
     robot = trained if trained in ('martha', 'martha_tower') else 'martha'
     urdf = ParameterValue(Command(['xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
@@ -78,7 +82,8 @@ def launch_setup(context, *args, **kwargs):
         Node(package='martha_nav', executable='world_map_publisher', output='screen',
              parameters=[{'map_yaml': saved_map + '.yaml'}]),
         Node(package='martha_nav', executable='global_planner', output='screen',
-             parameters=[{'robot': robot}]),
+             parameters=[{'robot': robot,
+                          **({'inflation': float(inflation)} if inflation else {})}]),
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
              parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'robot': robot,
                           'speed_scale': ParameterValue(LaunchConfiguration('speed_scale'),
