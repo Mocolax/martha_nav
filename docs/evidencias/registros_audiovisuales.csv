@@ -1,0 +1,13 @@
+id,archivo_original,escenario,duracion_s,tiempo_movimiento_s,metodo_tiempo,nota
+V1,WhatsApp Video 2026-10-21 at 11.07.41 PM (1).mp4,laboratorio,77.8,,no medible,Recorre la preparación y el mapa en pantalla; no encuadra el recorrido completo
+V2,WhatsApp Video 2026-10-21 at 11.07.41 PM.mp4,laboratorio,124.2,,no medible,Muestra la posición de partida con obstáculos y la meta; el movimiento se ve solo en RViz
+V3,WhatsApp Video 2026-10-21 at 11.07.42 PM (1).mp4,laboratorio,73.9,,no medible,Preparación de obstáculos y parte del desplazamiento
+V4,WhatsApp Video 2026-10-21 at 11.07.42 PM.mp4,laboratorio,84.3,,no medible,Preparación y parte del desplazamiento
+V5,WhatsApp Video 2026-10-21 at 11.07.43 PM (1).mp4,laboratorio,47.8,,no medible,Preparación y seguimiento parcial del robot
+V6,WhatsApp Video 2026-10-21 at 11.07.43 PM.mp4,laboratorio,58.1,,no medible,Preparación y seguimiento parcial del robot
+V7,WhatsApp Video 2026-10-21 at 11.07.44 PM.mp4,laboratorio,55.2,,no medible,Seguimiento parcial del robot
+R1,Screencast_20261021_210624.webm,laboratorio,45.1,29.4,grabación de pantalla de RViz (5 cuadros/s),Ejecución exitosa distinta de las de V1-V7; medida completa: inicio 6.4 s y llegada 35.8 s
+V8,WhatsApp Video 2026-10-22 at 6.26.11 PM.mp4,salón,75.0,22,estimado en el video (±3 s),Obstáculos colocados después del mapeo (mochila y cubo); RViz muestra A y B (t = 38 s); el robot pasa entre ambos (52 s a 73 s)
+V9,WhatsApp Video 2026-10-22 at 6.26.16 PM.mp4,salón,33.2,18,estimado en el video (±3 s),Cámara casi fija; pasa junto a la mochila (13 s a 31 s)
+V10,WhatsApp Video 2026-10-22 at 6.26.32 PM.mp4,salón,37.9,23,estimado en el video (±3 s),Cubo junto al punto de partida; llega al extremo opuesto (13 s a 36 s)
+V11,WhatsApp Video 2026-10-22 at 6.26.32 PM (1).mp4,salón,50.9,,no medible,Video vertical con cámara en movimiento; el recorrido no se delimita con claridad
