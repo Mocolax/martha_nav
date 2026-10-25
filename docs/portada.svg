@@ -1,7 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="380" viewBox="0 0 1440 380" role="img" aria-labelledby="t d">
-<title id="t">Martha Nav</title><desc id="d">Navegación autónoma con aprendizaje por refuerzo. ROS 2 Humble, PPO, Gazebo Classic y Python.</desc>
-<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#12213d"/><stop offset="1" stop-color="#213a59"/></linearGradient><pattern id="grid" width="45" height="45" patternUnits="userSpaceOnUse"><path d="M45 0H0V45" fill="none" stroke="#90a9cc" stroke-opacity=".10"/></pattern></defs>
-<rect width="1440" height="380" rx="26" fill="url(#bg)"/><rect width="1440" height="380" rx="26" fill="url(#grid)"/>
-<g font-family="DejaVu Sans,sans-serif"><text x="64" y="71" fill="#76dfcb" font-size="18" letter-spacing="4">ROBÓTICA · APRENDIZAJE · NAVEGACIÓN</text><text x="59" y="165" font-size="78" font-weight="700" fill="#fff">MARTHA NAV</text><text x="64" y="216" font-size="27" fill="#dbe7f7">Del mapa al movimiento.</text><text x="64" y="254" font-size="21" fill="#afc5e0">Planificación global + inteligencia local con PPO</text>
-<g font-size="17" fill="#e4efff"><rect x="64" y="291" width="174" height="41" rx="20" fill="#304a6e"/><text x="151" y="318" text-anchor="middle">ROS 2 Humble</text><rect x="250" y="291" width="85" height="41" rx="20" fill="#304a6e"/><text x="292" y="318" text-anchor="middle">PPO</text><rect x="347" y="291" width="188" height="41" rx="20" fill="#304a6e"/><text x="441" y="318" text-anchor="middle">Gazebo Classic</text><rect x="547" y="291" width="109" height="41" rx="20" fill="#304a6e"/><text x="601" y="318" text-anchor="middle">Python</text></g></g>
-<g transform="translate(960 45)"><rect x="90" y="30" width="75" height="65" rx="11" fill="#415773"/><rect x="255" y="180" width="90" height="70" rx="11" fill="#415773"/><path d="M18 268 V154 Q18 130 45 130 H195 Q220 130 220 103 V48 Q220 22 247 22 H320" fill="none" stroke="#6fe0c4" stroke-width="5" stroke-dasharray="10 8"/><circle cx="320" cy="22" r="13" fill="#6fe0c4"/><circle cx="320" cy="22" r="24" fill="none" stroke="#6fe0c4" stroke-opacity=".4" stroke-width="2"/><g transform="translate(-12 225)"><rect x="0" y="0" width="62" height="67" rx="16" fill="#e6effb"/><rect x="-8" y="9" width="11" height="19" rx="4" fill="#94aed2"/><rect x="-8" y="42" width="11" height="19" rx="4" fill="#94aed2"/><rect x="59" y="9" width="11" height="19" rx="4" fill="#94aed2"/><rect x="59" y="42" width="11" height="19" rx="4" fill="#94aed2"/><circle cx="31" cy="20" r="10" fill="#238b87"/><path d="M20 45 H42" stroke="#233e62" stroke-width="4" stroke-linecap="round"/></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="480" viewBox="0 0 1440 480" role="img" aria-labelledby="title desc">
+<title id="title">MARTHA — Del mapa al movimiento</title>
+<desc id="desc">Proyecto de navegación autónoma que combina planificación global y aprendizaje por refuerzo. ROS 2, PPO y Gazebo. Ilustración conceptual de un robot y su ruta hacia una meta.</desc>
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101e2a"/><stop offset="1" stop-color="#081017"/></linearGradient>
+ <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#17333b"/><stop offset="1" stop-color="#11232e"/></linearGradient>
+ <pattern id="grid" width="38" height="38" patternUnits="userSpaceOnUse"><path d="M38 0H0V38" fill="none" stroke="#9ec8cc" stroke-opacity=".07"/></pattern>
+</defs>
+<rect width="1440" height="480" rx="24" fill="url(#bg)"/>
+<rect x="0" y="0" width="8" height="480" rx="4" fill="#75e2be"/>
+<g font-family="DejaVu Sans,Arial,sans-serif">
+ <circle cx="65" cy="55" r="5" fill="#75e2be"/>
+ <text x="83" y="61" fill="#a1bbbf" font-size="15" letter-spacing="3">ROBÓTICA · NAVEGACIÓN AUTÓNOMA</text>
+ <text x="57" y="188" fill="#f4f5ef" font-size="116" font-weight="700" letter-spacing="3">MARTHA</text>
+ <text x="63" y="245" fill="#75e2be" font-size="33" font-weight="600">Del mapa al movimiento.</text>
+ <text x="64" y="292" fill="#b6c7cf" font-size="21">Planificación global y aprendizaje por refuerzo</text>
+ <text x="64" y="323" fill="#b6c7cf" font-size="21">para navegar hacia una meta y responder a obstáculos.</text>
+ <path d="M64 356H754" stroke="#2c414b"/>
+ <g font-size="15" fill="#dce9e8">
+  <rect x="64" y="378" width="151" height="37" rx="8" fill="#1a3039" stroke="#314b54"/><text x="139.5" y="402" text-anchor="middle">ROS 2 Humble</text>
+  <rect x="227" y="378" width="76" height="37" rx="8" fill="#1a3039" stroke="#314b54"/><text x="265" y="402" text-anchor="middle">PPO</text>
+  <rect x="315" y="378" width="157" height="37" rx="8" fill="#1a3039" stroke="#314b54"/><text x="393.5" y="402" text-anchor="middle">Gazebo Classic</text>
+ </g>
+ <text x="64" y="450" fill="#75939d" font-size="13" letter-spacing="2">SIMULACIÓN · ENTRENAMIENTO · ROBOT REAL</text>
+</g>
+<g>
+ <rect x="830" y="34" width="574" height="412" rx="20" fill="url(#panel)" stroke="#2b454c"/>
+ <rect x="830" y="34" width="574" height="412" rx="20" fill="url(#grid)"/>
+ <g font-family="DejaVu Sans,Arial,sans-serif" font-size="12" letter-spacing="2" fill="#9abbbe"><text x="855" y="66">MAPA / RUTA / META</text><text x="855" y="423" font-size="10">ILUSTRACIÓN CONCEPTUAL</text></g>
+ <rect x="940" y="109" width="78" height="83" rx="10" fill="#2d4650" stroke="#4b626b"/>
+ <rect x="1205" y="256" width="115" height="77" rx="10" fill="#2d4650" stroke="#4b626b"/>
+ <path d="M921 342H1037Q1073 342 1073 306V245Q1073 215 1104 215H1213Q1247 215 1247 181V129H1329" fill="none" stroke="#75e2be" stroke-opacity=".12" stroke-width="18" stroke-linecap="round"/>
+ <path d="M921 342H1037Q1073 342 1073 306V245Q1073 215 1104 215H1213Q1247 215 1247 181V129H1329" fill="none" stroke="#75e2be" stroke-width="4" stroke-dasharray="8 9" stroke-linecap="round"/>
+ <circle cx="1329" cy="129" r="29" fill="none" stroke="#75e2be" stroke-opacity=".2"/><circle cx="1329" cy="129" r="18" fill="none" stroke="#75e2be" stroke-opacity=".55"/><circle cx="1329" cy="129" r="7" fill="#75e2be"/>
+ <text x="1329" y="84" text-anchor="middle" font-family="DejaVu Sans,Arial,sans-serif" font-size="12" fill="#aeeed9" letter-spacing="2">META</text>
+ <g transform="translate(888 252)">
+  <circle cx="34" cy="83" r="70" fill="none" stroke="#75e2be" stroke-opacity=".1"/>
+  <circle cx="34" cy="83" r="51" fill="none" stroke="#75e2be" stroke-opacity=".2"/>
+  <ellipse cx="34" cy="108" rx="53" ry="13" fill="#071218" opacity=".7"/>
+  <rect x="-7" y="82" width="16" height="28" rx="5" fill="#6b8695"/><rect x="61" y="82" width="16" height="28" rx="5" fill="#6b8695"/>
+  <path d="M1 82L34 70L69 82V104H1Z" fill="#dae6e5"/>
+  <path d="M9 82V-6M59 82V-6" fill="none" stroke="#8ea9af" stroke-width="5"/>
+  <path d="M8 -6H60M9 44H59" stroke="#b9cdcf" stroke-width="5"/>
+  <rect x="18" y="12" width="33" height="24" rx="3" fill="#557680" stroke="#91afb5"/>
+  <path d="M24 25H44M34 18V31" stroke="#75e2be" stroke-width="2"/>
+  <ellipse cx="34" cy="70" rx="13" ry="6" fill="#1a5357"/><ellipse cx="34" cy="66" rx="13" ry="5" fill="#75e2be"/>
+  <path d="M24 93H44" stroke="#59757e" stroke-width="3" stroke-linecap="round"/>
+ </g>
+</g>
+</svg>
