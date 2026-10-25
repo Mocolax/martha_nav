@@ -199,13 +199,12 @@ registradas el **21 y 22 de octubre de 2026**.
 | [<img src="docs/evidencias/fotos/14_video5_00m25s_martha_fisico.png" alt="MARTHA durante una prueba en el laboratorio" width="420">](docs/evidencias/README.md#galería-visual) | [<img src="docs/evidencias/fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="Robot, ruta y meta en RViz durante el registro R1" width="420">](docs/evidencias/README.md#galería-visual) |
 
 **[Abrir galería de evidencias](docs/evidencias/README.md#galería-visual)** ·
-[Consultar registros audiovisuales](docs/evidencias/README.md#videos) ·
+[🎬 Ver los 9 videos](docs/evidencias/README.md#videos) ·
 [Resultados de las pruebas físicas](docs/evidencias/README.md#aciertos-y-fallas)
 
 El registro de los autores reporta **10 llegadas a la meta en 12 pruebas**.
 Las dos fallas no tienen video y los registros audiovisuales no corresponden
-uno a uno con los ensayos. La galería contiene 21 imágenes; los videos están
-pendientes de publicación. Estas pruebas documentales complementan la evaluación
+uno a uno con los ensayos. La galería contiene **21 imágenes y 9 videos disponibles**. Estas pruebas documentales complementan la evaluación
 en simulación y no constituyen una batería cuantitativa equivalente.
 
 [↑ Volver al menú](#explora-el-proyecto)
