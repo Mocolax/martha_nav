@@ -4,9 +4,49 @@ Registros audiovisuales y fotografías de las pruebas de navegación de MARTHA e
 laboratorio de robótica (21 de octubre de 2026) y en un salón controlado (22 de
 octubre de 2026). Corresponden a la sección 6.4.4 y al Anexo E de la tesis.
 
-**Fotografías disponibles en esta galería. Videos pendientes de publicación.**
-El inventario conserva los 12 registros documentados; la carpeta preparada para subir
-contiene 9 videos. Faltan V1, V4 y V6. Las fotografías están en [`fotos/`](fotos/).
+**9 videos y 21 imágenes disponibles.** Los archivos MP4 están alojados en
+[la publicación de evidencias](https://github.com/Mocolax/martha_nav/releases/tag/evidencias-pruebas-fisicas).
+El inventario conserva los 12 registros documentados; V1, V4 y V6 siguen pendientes.
+
+[🎬 Videos](#videos) · [📷 Fotografías](#galería-visual) · [📊 Aciertos y fallas](#aciertos-y-fallas)
+
+## Videos
+
+Selecciona **Descargar MP4** para guardar y reproducir un video. Los nueve archivos
+se encuentran en la tabla; las imágenes siguientes son fotogramas de tres registros.
+
+| R1 · Navegación en RViz | V2 · Prueba en laboratorio | V7 · Seguimiento del robot |
+|:---:|:---:|:---:|
+| [<img src="fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="R1 · Navegación en RViz" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4) | [<img src="fotos/12_video2_01m24s_martha_fisico.png" alt="V2 · Prueba en laboratorio" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4) | [<img src="fotos/15_video7_00m47s_martha_fisico.png" alt="V7 · Seguimiento del robot" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4) |
+
+
+Los videos de teléfono están estabilizados, con reducción leve de ruido, audio
+normalizado y un rótulo inferior con el nombre y el tiempo. Conservan la duración
+original: no se cortó nada. R1 es una grabación de pantalla de RViz (1920×1080) con
+el mismo rótulo, sin estabilizar.
+
+| Registro | Escenario | Duración (s) | Movimiento (s) | Observación | Video |
+|---|---|---:|---:|---|---|
+| V1 | Laboratorio | 77.8 | – | Preparación y mapa en pantalla. | `V01_laboratorio.mp4` · pendiente |
+| V2 | Laboratorio | 124.2 | – | Partida con obstáculos y meta; movimiento visto en RViz. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4) |
+| V3 | Laboratorio | 73.9 | – | Preparación y parte del desplazamiento. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V03_laboratorio.mp4) |
+| V4 | Laboratorio | 84.3 | – | Preparación y parte del desplazamiento. | `V04_laboratorio.mp4` · pendiente |
+| V5 | Laboratorio | 47.8 | – | Seguimiento parcial del robot. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V05_laboratorio.mp4) |
+| V6 | Laboratorio | 58.1 | – | Seguimiento parcial del robot. | `V06_laboratorio.mp4` · pendiente |
+| V7 | Laboratorio | 55.2 | – | Seguimiento parcial del robot. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4) |
+| R1 | Laboratorio | 45.1 | 29.4 | Pantalla de RViz de una ejecución exitosa (inicio 6.4 s, llegada 35.8 s). | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4) |
+| V8 | Salón | 75.0 | ≈22 | RViz muestra A y B; pasa entre la mochila y el cubo. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V08_salon.mp4) |
+| V9 | Salón | 33.2 | ≈18 | Cámara casi fija; pasa junto a la mochila. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V09_salon.mp4) |
+| V10 | Salón | 37.9 | ≈23 | Cubo junto a la partida; llega al extremo opuesto. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V10_salon.mp4) |
+| V11 | Salón | 50.9 | – | Video vertical; no delimita el recorrido. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V11_salon_vertical.mp4) |
+
+Los tiempos de movimiento de V8 a V10 se estimaron viendo el video (±3 s); solo R1
+permite medir el recorrido completo. La duración de un video de teléfono no equivale
+al tiempo de recorrido, porque incluye preparación y movimientos de cámara.
+[`registros_audiovisuales.csv`](registros_audiovisuales.csv) contiene el mismo
+inventario con el nombre del archivo original de cada registro.
+
+---
 
 ## Galería visual
 
@@ -32,34 +72,6 @@ Selecciona una imagen para abrirla en su tamaño original.
 | [<img src="fotos/10_video7_00m16s_rviz_robot_en_ruta.png" alt="10 video7 00m16s rviz robot en ruta" width="360">](fotos/10_video7_00m16s_rviz_robot_en_ruta.png)<br>10 video7 00m16s rviz robot en ruta | [<img src="fotos/11_video7_00m20s_rviz_robot_en_ruta.png" alt="11 video7 00m20s rviz robot en ruta" width="360">](fotos/11_video7_00m20s_rviz_robot_en_ruta.png)<br>11 video7 00m20s rviz robot en ruta |
 | [<img src="fotos/19_R1_00m06s_rviz_goal_ruta_robot.png" alt="19 R1 00m06s rviz goal ruta robot" width="360">](fotos/19_R1_00m06s_rviz_goal_ruta_robot.png)<br>19 R1 00m06s rviz goal ruta robot | [<img src="fotos/19_R1_00m15s_rviz_goal_ruta_robot.png" alt="19 R1 00m15s rviz goal ruta robot" width="360">](fotos/19_R1_00m15s_rviz_goal_ruta_robot.png)<br>19 R1 00m15s rviz goal ruta robot |
 | [<img src="fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="19 R1 00m27s rviz goal ruta robot" width="360">](fotos/19_R1_00m27s_rviz_goal_ruta_robot.png)<br>19 R1 00m27s rviz goal ruta robot | [<img src="fotos/19_R1_00m36s_rviz_goal_ruta_robot.png" alt="19 R1 00m36s rviz goal ruta robot" width="360">](fotos/19_R1_00m36s_rviz_goal_ruta_robot.png)<br>19 R1 00m36s rviz goal ruta robot |
-
-## Videos
-
-Los videos de teléfono están estabilizados, con reducción leve de ruido, audio
-normalizado y un rótulo inferior con el nombre y el tiempo. Conservan la duración
-original: no se cortó nada. R1 es una grabación de pantalla de RViz (1920×1080) con
-el mismo rótulo, sin estabilizar.
-
-| Registro | Escenario | Duración (s) | Movimiento (s) | Observación | Video |
-|---|---|---:|---:|---|---|
-| V1 | Laboratorio | 77.8 | – | Preparación y mapa en pantalla. | `V01_laboratorio.mp4` · pendiente |
-| V2 | Laboratorio | 124.2 | – | Partida con obstáculos y meta; movimiento visto en RViz. | `V02_laboratorio.mp4` · pendiente |
-| V3 | Laboratorio | 73.9 | – | Preparación y parte del desplazamiento. | `V03_laboratorio.mp4` · pendiente |
-| V4 | Laboratorio | 84.3 | – | Preparación y parte del desplazamiento. | `V04_laboratorio.mp4` · pendiente |
-| V5 | Laboratorio | 47.8 | – | Seguimiento parcial del robot. | `V05_laboratorio.mp4` · pendiente |
-| V6 | Laboratorio | 58.1 | – | Seguimiento parcial del robot. | `V06_laboratorio.mp4` · pendiente |
-| V7 | Laboratorio | 55.2 | – | Seguimiento parcial del robot. | `V07_laboratorio.mp4` · pendiente |
-| R1 | Laboratorio | 45.1 | 29.4 | Pantalla de RViz de una ejecución exitosa (inicio 6.4 s, llegada 35.8 s). | `R1_laboratorio_pantalla_rviz.mp4` · pendiente |
-| V8 | Salón | 75.0 | ≈22 | RViz muestra A y B; pasa entre la mochila y el cubo. | `V08_salon.mp4` · pendiente |
-| V9 | Salón | 33.2 | ≈18 | Cámara casi fija; pasa junto a la mochila. | `V09_salon.mp4` · pendiente |
-| V10 | Salón | 37.9 | ≈23 | Cubo junto a la partida; llega al extremo opuesto. | `V10_salon.mp4` · pendiente |
-| V11 | Salón | 50.9 | – | Video vertical; no delimita el recorrido. | `V11_salon_vertical.mp4` · pendiente |
-
-Los tiempos de movimiento de V8 a V10 se estimaron viendo el video (±3 s); solo R1
-permite medir el recorrido completo. La duración de un video de teléfono no equivale
-al tiempo de recorrido, porque incluye preparación y movimientos de cámara.
-[`registros_audiovisuales.csv`](registros_audiovisuales.csv) contiene el mismo
-inventario con el nombre del archivo original de cada registro.
 
 ## Aciertos y fallas
 
