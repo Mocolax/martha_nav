@@ -2,14 +2,6 @@
   <img src="docs/portada.svg" alt="Martha Nav — navegación autónoma con aprendizaje por refuerzo, ROS 2 y Gazebo" width="100%">
 </p>
 
-<p align="center">
-  <a href="docs/manual-usuario.md"><strong>Manual de usuario</strong></a> ·
-  <a href="#cómo-funciona">Cómo funciona</a> ·
-  <a href="#resultados-y-limitaciones">Resultados</a> ·
-  <a href="#evidencias-del-robot-real">Evidencias</a> ·
-  <a href="docs/comandos.md">Referencia de comandos</a>
-</p>
-
 # Martha Nav
 
 **Del mapa al movimiento: un robot que sigue una ruta y responde a los obstáculos.**
@@ -22,9 +14,17 @@ Desarrollado como parte del trabajo de tesis sobre el planificador local de Mart
 Incluye simulador 2D, integración con ROS 2 y Gazebo Classic, políticas entrenadas y
 componentes de despliegue en robots reales.
 
-| Entrenar | Simular | Desplegar |
+## Explora el proyecto
+
+Elige un apartado para consultar las instrucciones, entender el sistema o revisar las evidencias.
+
+| 🚀 Primeros pasos | 🧭 El sistema | 📊 Pruebas y evidencias |
 |:---|:---|:---|
-| Simulador 2D y PPO con escenarios variados. | Gazebo, RViz y evaluación por episodios. | Inferencia con NumPy, SLAM e interfaces de hardware. |
+| **[Instalación y primera prueba](#empieza-aquí)**<br>Requisitos, puesta en marcha y demostración. | **[Cómo funciona](#cómo-funciona)**<br>Planificación, LiDAR y políticas de navegación. | **[Evidencias del robot real](#evidencias-del-robot-real)**<br>Galería, registros y pruebas de MARTHA. |
+| **[Manual de usuario](docs/manual-usuario.md)**<br>Simulación, entrenamiento y uso en robots reales. | **[Trabajo realizado](#trabajo-realizado)**<br>Componentes desarrollados e integración. | **[Resultados y limitaciones](#resultados-y-limitaciones)**<br>Métricas y condiciones de evaluación. |
+| **[Referencia de comandos](docs/comandos.md)**<br>Comandos para operar y evaluar el sistema. | **[Organización del repositorio](#organización-del-repositorio)**<br>Carpetas y archivos principales. | **[Documentación complementaria](#documentación-complementaria)**<br>Diseño, bitácoras y material de consulta. |
+
+---
 
 ## Empieza aquí
 
@@ -51,6 +51,10 @@ En RViz, selecciona **2D Goal Pose** sobre una zona libre para enviar una meta.
 La modalidad `planar` permite probar navegación sin simular la dinámica de ruedas.
 Para instalación desde cero, cancelación de metas y otras opciones, sigue el
 [manual paso a paso](docs/manual-usuario.md#manual-de-simulación).
+
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
 
 ## Cómo funciona
 
@@ -84,6 +88,10 @@ necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se inc
 una política para `martha_tower`. El cargador comprueba la compatibilidad del perfil;
 no basta con cambiar el nombre del robot para reutilizar una política.
 
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
+
 ## Trabajo realizado
 
 | Componente | Desarrollo incluido |
@@ -101,6 +109,10 @@ no basta con cambiar el nombre del robot para reutilizar una política.
 
 La existencia de los componentes de hardware no equivale a una validación experimental
 completa del robot real. El alcance de los resultados se detalla más adelante.
+
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
 
 ## Organización del repositorio
 
@@ -127,6 +139,10 @@ martha_nav/
 nuevo no contiene los checkpoints históricos, mapas guardados ni todos los CSV
 mencionados en las bitácoras. `docs/entrega/` describe el paquete de evidencias,
 pero no contiene ese paquete completo.
+
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
 
 ## Resultados y limitaciones
 
@@ -169,6 +185,10 @@ Más detalle en [limitaciones de los datos](docs/limitaciones-datos-tesis.md).
 Ese documento recoge el estado de una entrega anterior; para cambios posteriores,
 consultar también la bitácora y el código actual.
 
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
+
 ## Evidencias del robot real
 
 Pruebas de MARTHA en el laboratorio de robótica y en un salón controlado,
@@ -187,6 +207,10 @@ Las dos fallas no tienen video y los registros audiovisuales no corresponden
 uno a uno con los ensayos. La galería contiene 21 imágenes; los videos están
 pendientes de publicación. Estas pruebas documentales complementan la evaluación
 en simulación y no constituyen una batería cuantitativa equivalente.
+
+[↑ Volver al menú](#explora-el-proyecto)
+
+---
 
 ## Documentación complementaria
 
