@@ -7,3 +7,12 @@ maps/
 entrega_tesis/
 entrega_tesis.zip
 firmware/*/build/
+# Internal working notes, kept locally but not part of the delivery
+docs/superpowers/
+docs/ppo-local-planner-plan-1.md
+docs/ppo-local-planner-plan-2.md
+docs/robot-real-plan.md
+docs/contexto.md
+docs/cruce-hallazgos.md
+docs/ppo-local-planner-design.md
+docs/robot-real-design.md

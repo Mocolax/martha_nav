@@ -297,7 +297,7 @@ docker restart ros2_humble
 
 ## 9. Robot real
 
-Diseño: [robot-real-design.md](robot-real-design.md). Todo lo de ROS corre en el PC
+Todo lo de ROS corre en el PC
 montado sobre el robot; la ESP32 solo hace motores, encoders, gyro y protecciones.
 
 ### 9.1 Puertos

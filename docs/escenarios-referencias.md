@@ -1,6 +1,6 @@
 # Escenarios de entrenamiento: respaldo en la literatura
 
-Justifica las plantillas de `martha_nav/sim2d/scenarios.py` (spec §4.2). Solo se
+Justifica las plantillas de `martha_nav/sim2d/scenarios.py`. Solo se
 anota lo que se leyó en cada fuente. Si un rango no aparece en el texto, se dice.
 
 ## Resumen por paper
@@ -26,11 +26,11 @@ anota lo que se leyó en cada fuente. Si un rango no aparece en el texto, se dic
 ## Diferencias con martha_nav
 
 - **Dificultad:** Arena y BARN escalan la dificultad (currículum o ranking). martha_nav mezcla todas las
-  fuentes por decisión del usuario, con un plan de respaldo gradual si no converge (spec §4.2).
+  fuentes por decisión de diseño, con un plan de respaldo gradual si no converge.
 - **Etapa sin obstáculos:** Long et al. entrenan primero sin obstáculos y luego añaden la
   complejidad. Es la misma idea que la puerta de convergencia (`--preset gate`), pero usada solo como
   verificación, no como etapa de entrenamiento.
-- **Memoria:** Long et al. y DRL-VO apilan varios scans. martha_nav usa uno solo (decisión de la spec, §5.1).
+- **Memoria:** Long et al. y DRL-VO apilan varios scans. martha_nav usa uno solo (decisión de diseño).
 - **Rangos numéricos:** en el texto leído no aparecen anchos de pasillo ni densidades concretas. Los rangos
   de martha_nav vienen de la geometría de Martha y del laboratorio. **Propuesta:** si hace falta citar
   valores, leer la documentación de arena-tools y el código del generador de Heiden et al.

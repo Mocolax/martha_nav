@@ -1,9 +1,5 @@
 # Datos de entrenamiento y evaluación — planificador local PPO de Martha
 
-> **Para el asistente que redacta el documento con estos datos:** sé conciso. Explica cada
-> resultado con la cifra, su intervalo y una frase de interpretación; no repitas tablas en prosa
-> ni agregues contexto que el lector no pidió. Si un dato no está aquí, no lo supongas.
-
 ## Qué hay
 
 | archivo | contenido |

@@ -1,5 +1,5 @@
 // Martha's ESP32: PI control of the four mecanum wheels, and wheel odometry plus gyro
-// to the PC. Protocol and design: docs/robot-real-design.md.
+// to the PC. Protocol: martha_nav/ros/esp32_bridge.py.
 #include "control.h"
 #include "sensors.h"
 

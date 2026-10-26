@@ -1,6 +1,6 @@
 """Publish map -> odom from Gazebo's true pose, so map -> base_link is exact.
 
-Evaluation in Gazebo measures the policy, not the localisation (spec 7.2).
+Evaluation in Gazebo measures the policy, not the localisation.
 """
 import math
 

@@ -514,15 +514,13 @@ el paquete y volver a cargar el workspace.
 | Documento | Contenido |
 |---|---|
 | [Comandos detallados](../docs/comandos.md) | Operación en el contenedor, evaluación, SLAM y robots reales. |
-| [Diseño del planificador](../docs/ppo-local-planner-design.md) | Planteamiento y decisiones de arquitectura. |
 | [Escenarios y referencias](../docs/escenarios-referencias.md) | Escenarios utilizados y contexto bibliográfico. |
 | [Resultados](../docs/resultados.md) | Bitácora experimental y correcciones posteriores. |
 | [Experimentos holonómicos y recurrentes](../docs/resultados-noche.md) | Variantes de política. |
 | [Análisis del atasco](../docs/resultados-atasco.md) | Ablaciones de memoria, objetivo y recompensa. |
-| [Diseño del robot real](../docs/robot-real-design.md) | Integración de hardware y software. |
 | [Paquete de evidencias](../docs/entrega/README.md) | Estructura y métricas de la entrega experimental. |
 | [Justificación de recompensa](../docs/entrega/recompensa.md) | Criterios usados para sus términos y pesos. |
 
-Los documentos de diseño y las bitácoras conservan decisiones de distintas etapas;
+Las bitácoras conservan decisiones de distintas etapas;
 para nombres de parámetros y comportamiento vigente, contrastarlos con los launch,
 las interfaces de línea de comandos y los perfiles del código.

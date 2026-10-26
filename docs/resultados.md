@@ -420,7 +420,7 @@ frente a `eval_gazebo_lab.csv`, y los puntos). Martha con el mismo `evaluate_run
 (Las 100 semillas compartidas dan 74 % en 2D para el Burger; las 200 de `lab` completas, 69 %.)
 En Gazebo `wide_dyn_s0` llega a 87 % (semillas) y 91 % (puntos, 82/90).
 
-El criterio del spec (p > 0.05) **no se cumple en las semillas** del Burger (22 vs 3, p = 0.0002) y se
+El criterio fijado de antemano (p > 0.05) **no se cumple en las semillas** del Burger (22 vs 3, p = 0.0002) y se
 cumple por poco en los puntos (15 vs 6, p = 0.078, con poca potencia). `wide_dyn_s0` lo cumple en
 ambos.
 
@@ -502,7 +502,7 @@ de 0.20 llegó a 0.920 (a 2.5M).
 | 2D → Gazebo, `wide_dyn_s0` (Martha) | 84 → 87 % (4 vs 7, p = 0.55) | 85.6 → 91.1 % (4 vs 9, p = 0.27) |
 
 (Las 100 semillas compartidas dan 77 % en 2D para este Burger; las 200 de `lab` completas, 74.0 %.)
-El criterio del spec (p > 0.05) **se cumple en las semillas** (16 vs 8, p = 0.15) **y en los puntos**
+El criterio fijado de antemano (p > 0.05) **se cumple en las semillas** (16 vs 8, p = 0.15) **y en los puntos**
 (7 vs 11, p = 0.48). Con tan pocos pares discordantes (24 y 18) la prueba tiene poca potencia: no
 detecta una brecha moderada, solo que ya no es tan grande como con 0.20 (22 vs 3).
 
