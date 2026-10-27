@@ -21,8 +21,8 @@ Elige un apartado para consultar las instrucciones, entender el sistema o revisa
 | 🚀 Primeros pasos | 🧭 El sistema | 📊 Pruebas y evidencias |
 |:---|:---|:---|
 | **[Instalación y primera prueba](#empieza-aquí)**<br>Requisitos, puesta en marcha y demostración. | **[Cómo funciona](#cómo-funciona)**<br>Planificación, LiDAR y políticas de navegación. | **[Evidencias del robot real](#evidencias-del-robot-real)**<br>Galería, registros y pruebas de MARTHA. |
-| **[Manual de usuario](docs/manual-usuario.md)**<br>Simulación, entrenamiento y uso en robots reales. | **[Trabajo realizado](#trabajo-realizado)**<br>Componentes desarrollados e integración. | **[Resultados y limitaciones](#resultados-y-limitaciones)**<br>Métricas y condiciones de evaluación. |
-| **[Referencia de comandos](docs/comandos.md)**<br>Comandos para operar y evaluar el sistema. | **[Organización del repositorio](#organización-del-repositorio)**<br>Carpetas y archivos principales. | **[Documentación complementaria](#documentación-complementaria)**<br>Diseño, bitácoras y material de consulta. |
+| **[Manual de usuario](docs/manual-usuario.md)**<br>Simulación, entrenamiento y uso en robots reales. | **[Trabajo realizado](#trabajo-realizado)**<br>Componentes desarrollados e integración. | **[Resultados](#resultados)**<br>Métricas y condiciones de evaluación. |
+| **[Referencia de comandos](docs/comandos.md)**<br>Comandos para operar y evaluar el sistema. | **[Organización del repositorio](#organización-del-repositorio)**<br>Carpetas y archivos principales. | **[Documentación complementaria](#documentación-complementaria)**<br>Bitácoras y material de consulta. |
 
 ---
 
@@ -132,7 +132,7 @@ martha_nav/
 ├── firmware/        # Programa de la ESP32 y control de hardware
 ├── tools/           # Evaluación, mapas, gráficas y despliegue
 ├── test/            # Pruebas automatizadas
-└── docs/            # Diseño, comandos y resultados
+└── docs/            # Manual, comandos y resultados
 ```
 
 `runs/`, `maps/` y `entrega_tesis/` son salidas locales excluidas de Git. Un clon
@@ -144,14 +144,13 @@ pero no contiene ese paquete completo.
 
 ---
 
-## Resultados y limitaciones
+## Resultados
 
 La [bitácora de resultados](docs/resultados.md) registra el estudio de codificación
 LiDAR, recompensa, estabilidad de PPO, CNN frente a MLP, acciones holonómicas,
 memoria recurrente, variación de dinámica, localización y soporte Burger.
 
-Como referencia, estos valores son **resultados históricos documentados**, no
-mediciones obtenidas al preparar este README:
+Resultados principales:
 
 | Modelo y condición | Episodios | Éxito |
 |---|---:|---:|
@@ -165,25 +164,6 @@ mediciones obtenidas al preparar este README:
 Consultar las condiciones y comparaciones en las secciones de reevaluación `v5`
 y Burger del 2026-10-07 de la bitácora. Las tablas de 200 episodios 2D y 100 de
 Gazebo no constituyen por sí solas una comparación pareada del mismo tamaño.
-
-Las limitaciones registradas incluyen:
-
-- Variación por semilla de entrenamiento; varias configuraciones solo tienen una
-  ejecución y las diferencias pequeñas no demuestran superioridad.
-- Solapamiento parcial entre semillas de selección del mejor modelo y evaluación
-  en los mapas de entrenamiento. `lab` se reservó para generalización.
-- Gazebo no determinista: el mismo modelo puede dar resultados distintos al repetir.
-- Cambios históricos en reglas de evaluación, perfiles y guarda. Las reevaluaciones
-  sustituyen algunas cifras de las primeras bitácoras.
-- Checkpoints, CSV y mapas históricos ausentes del clon; regenerar el paquete de
-  evidencias requiere disponer de los datos de origen en `runs/`.
-- No se aporta aquí una batería cuantitativa equivalente de navegación física de
-  Martha. La implementación y las instrucciones de despliegue no sustituyen esa
-  validación.
-
-Más detalle en [limitaciones de los datos](docs/limitaciones-datos-tesis.md).
-Ese documento recoge el estado de una entrega anterior; para cambios posteriores,
-consultar también la bitácora y el código actual.
 
 [↑ Volver al menú](#explora-el-proyecto)
 

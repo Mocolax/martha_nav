@@ -25,7 +25,7 @@ exactamente una corrida histórica.
 - [Manual de simulación](#manual-de-simulación)
 - [Entrenamiento y evaluación](#entrenamiento-y-evaluación)
 - [Uso en robots reales](#uso-en-robots-reales)
-- [Resultados y limitaciones](#resultados-y-limitaciones)
+- [Resultados](#resultados)
 - [Pruebas y solución de problemas](#pruebas-y-solución-de-problemas)
 - [Documentación complementaria](#documentación-complementaria)
 
@@ -437,14 +437,13 @@ que el perfil de evaluación usa inflado de **0,40 m** y tolerancia de **0,30 m*
 No atribuir los resultados de simulación a esa configuración real. La guarda
 permanece activa por defecto (`guard:=true`).
 
-## Resultados y limitaciones
+## Resultados
 
 La [bitácora de resultados](../docs/resultados.md) registra el estudio de codificación
 LiDAR, recompensa, estabilidad de PPO, CNN frente a MLP, acciones holonómicas,
 memoria recurrente, variación de dinámica, localización y soporte Burger.
 
-Como referencia, estos valores son **resultados históricos documentados**, no
-mediciones obtenidas al preparar este README:
+Resultados principales:
 
 | Modelo y condición | Episodios | Éxito |
 |---|---:|---:|
@@ -458,25 +457,6 @@ mediciones obtenidas al preparar este README:
 Consultar las condiciones y comparaciones en las secciones de reevaluación `v5`
 y Burger del 2026-10-07 de la bitácora. Las tablas de 200 episodios 2D y 100 de
 Gazebo no constituyen por sí solas una comparación pareada del mismo tamaño.
-
-Las limitaciones registradas incluyen:
-
-- Variación por semilla de entrenamiento; varias configuraciones solo tienen una
-  ejecución y las diferencias pequeñas no demuestran superioridad.
-- Solapamiento parcial entre semillas de selección del mejor modelo y evaluación
-  en los mapas de entrenamiento. `lab` se reservó para generalización.
-- Gazebo no determinista: el mismo modelo puede dar resultados distintos al repetir.
-- Cambios históricos en reglas de evaluación, perfiles y guarda. Las reevaluaciones
-  sustituyen algunas cifras de las primeras bitácoras.
-- Checkpoints, CSV y mapas históricos ausentes del clon; regenerar el paquete de
-  evidencias requiere disponer de los datos de origen en `runs/`.
-- No se aporta aquí una batería cuantitativa equivalente de navegación física de
-  Martha. La implementación y las instrucciones de despliegue no sustituyen esa
-  validación.
-
-Más detalle en [limitaciones de los datos](../docs/limitaciones-datos-tesis.md).
-Ese documento recoge el estado de una entrega anterior; para cambios posteriores,
-consultar también la bitácora y el código actual.
 
 ## Pruebas y solución de problemas
 
