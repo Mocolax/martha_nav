@@ -34,21 +34,21 @@ def same_actions(model_path, env, steps=40):
     return policy
 
 
-def save_fresh_burger_policy(folder):
-    """A policy nobody trained, with the config.yaml of a Burger run; returns its model path."""
+def save_fresh_martha_policy(folder):
+    """A policy nobody trained, with the config.yaml of a Martha run; returns its model path."""
     from stable_baselines3 import PPO
 
     from martha_nav.learning.policy import policy_kwargs
-    PPO('MlpPolicy', NavEnv(EnvConfig(robot='burger')), policy_kwargs=policy_kwargs(), seed=0,
+    PPO('MlpPolicy', NavEnv(EnvConfig(robot='martha')), policy_kwargs=policy_kwargs(), seed=0,
         device='cpu').save(folder / 'best_model.zip')
-    (folder / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'}}))
+    (folder / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'martha'}}))
     return folder / 'best_model.zip'
 
 
 @pytest.fixture(scope='module')
-def burger_npz(tmp_path_factory):
+def martha_npz(tmp_path_factory):
     from martha_nav.learning.export import export
-    return export(save_fresh_burger_policy(tmp_path_factory.mktemp('burger')))
+    return export(save_fresh_martha_policy(tmp_path_factory.mktemp('martha')))
 
 
 def rewritten(source, target, **settings):
@@ -60,34 +60,34 @@ def rewritten(source, target, **settings):
     return str(target)
 
 
-def test_a_fresh_burger_policy_exports_exactly(tmp_path):
-    policy = same_actions(save_fresh_burger_policy(tmp_path), NavEnv(EnvConfig(robot='burger')))
-    assert policy.settings['robot'] == 'burger' and policy.settings['action_dim'] == 2
+def test_a_fresh_martha_policy_exports_exactly(tmp_path):
+    policy = same_actions(save_fresh_martha_policy(tmp_path), NavEnv(EnvConfig(robot='martha')))
+    assert policy.settings['robot'] == 'martha' and policy.settings['action_dim'] == 2
 
 
-def test_the_export_carries_the_robot_profile(burger_npz):
+def test_the_export_carries_the_robot_profile(martha_npz):
     from martha_nav.ros.numpy_policy import NumpyPolicy
-    recorded = json.loads(json.dumps(asdict(ROBOTS['burger'])))     # posts become a list
-    assert NumpyPolicy(burger_npz).settings['robot_profile'] == recorded
+    recorded = json.loads(json.dumps(asdict(ROBOTS['martha'])))     # posts become a list
+    assert NumpyPolicy(martha_npz).settings['robot_profile'] == recorded
 
 
-def test_an_exported_policy_for_another_profile_of_its_robot_is_refused(burger_npz, tmp_path):
-    profile = asdict(ROBOTS['burger'])
-    same = rewritten(burger_npz, tmp_path / 'same.npz', robot_profile=profile)
-    assert load_policy(same)[1]['robot'] == 'burger'
-    unrecorded = rewritten(burger_npz, tmp_path / 'unrecorded.npz', robot_profile=None)
-    assert load_policy(unrecorded)[1]['robot'] == 'burger'
-    other = rewritten(burger_npz, tmp_path / 'other.npz',
+def test_an_exported_policy_for_another_profile_of_its_robot_is_refused(martha_npz, tmp_path):
+    profile = asdict(ROBOTS['martha'])
+    same = rewritten(martha_npz, tmp_path / 'same.npz', robot_profile=profile)
+    assert load_policy(same)[1]['robot'] == 'martha'
+    unrecorded = rewritten(martha_npz, tmp_path / 'unrecorded.npz', robot_profile=None)
+    assert load_policy(unrecorded)[1]['robot'] == 'martha'
+    other = rewritten(martha_npz, tmp_path / 'other.npz',
                       robot_profile={**profile, 'lidar_min': 0.16})
-    with pytest.raises(ValueError, match=r'different burger profile \(changed: lidar_min\)'):
+    with pytest.raises(ValueError, match=r'different martha profile \(changed: lidar_min\)'):
         load_policy(other)
 
 
 def test_a_zip_trained_for_another_profile_is_refused_before_it_is_loaded(tmp_path):
-    other = {**asdict(ROBOTS['burger']), 'lidar_min': 0.16}
-    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'},
+    other = {**asdict(ROBOTS['martha']), 'lidar_min': 0.16}
+    (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'martha'},
                                                           'robot_profile': other}))
-    with pytest.raises(ValueError, match=r'different burger profile \(changed: lidar_min\)'):
+    with pytest.raises(ValueError, match=r'different martha profile \(changed: lidar_min\)'):
         load_policy(str(tmp_path / 'best_model.zip'))
 
 
@@ -109,9 +109,9 @@ def test_the_robot_side_never_imports_pytorch():
     assert done.returncode == 0, done.stderr
 
 
-def test_a_policy_of_another_architecture_fails_when_it_is_loaded(burger_npz, tmp_path):
+def test_a_policy_of_another_architecture_fails_when_it_is_loaded(martha_npz, tmp_path):
     from martha_nav.ros.numpy_policy import NumpyPolicy
-    data = dict(np.load(burger_npz))
+    data = dict(np.load(martha_npz))
     name = 'pi_features_extractor.lidar_head.0.weight'
     data[name] = data[name][:, :-1]
     np.savez(tmp_path / 'wrong.npz', **data)
@@ -121,17 +121,17 @@ def test_a_policy_of_another_architecture_fails_when_it_is_loaded(burger_npz, tm
 
 def test_export_returns_the_path_it_wrote(tmp_path):
     from martha_nav.learning.export import export
-    out = export(save_fresh_burger_policy(tmp_path), tmp_path / 'burger')
-    assert out == tmp_path / 'burger.npz' and out.exists()
+    out = export(save_fresh_martha_policy(tmp_path), tmp_path / 'martha')
+    assert out == tmp_path / 'martha.npz' and out.exists()
 
 
-def test_the_node_runs_an_exported_policy_without_pytorch(burger_npz):
+def test_the_node_runs_an_exported_policy_without_pytorch(martha_npz):
     code = ('import sys\n'
             'import rclpy\n'
             'from martha_nav.ros.ppo_local_planner import PpoLocalPlanner\n'
-            f"rclpy.init(args=['--ros-args', '-p', 'checkpoint:={burger_npz}'])\n"
+            f"rclpy.init(args=['--ros-args', '-p', 'checkpoint:={martha_npz}'])\n"
             'node = PpoLocalPlanner()\n'
-            "assert node.core.robot.name == 'burger'\n"
+            "assert node.core.robot.name == 'martha'\n"
             "heavy = [m for m in ('torch', 'stable_baselines3', 'gymnasium') if m in sys.modules]\n"
             'assert not heavy, heavy\n')
     done = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True)

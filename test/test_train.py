@@ -35,20 +35,9 @@ def test_experiment_flags_reach_the_env_config():
 
 def test_build_config_takes_the_robot_and_its_inflation():
     from martha_nav.learning.train import build_config
-    cfg = build_config('full', robot='burger')
-    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.40
+    cfg = build_config('full', robot='martha_tower')
+    assert cfg.robot == 'martha_tower' and cfg.scenario.inflation == 0.40
     assert build_config('full').scenario.inflation == 0.40
-
-
-def test_a_sideways_action_space_is_refused_before_a_run_is_created(tmp_path):
-    import pytest
-
-    from martha_nav.learning.train import build_config
-    with pytest.raises(ValueError, match='burger'):
-        build_config('full', action_dim=3, robot='burger')
-    with pytest.raises(ValueError, match='burger'):
-        train_main(['--robot', 'burger', '--action-dim', '3', '--runs-dir', str(tmp_path)])
-    assert list(tmp_path.iterdir()) == []
 
 
 def test_ppo_updates_are_kl_limited():

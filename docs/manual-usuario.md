@@ -1,7 +1,6 @@
 # Manual de usuario — Martha Nav
 
-`martha_nav` implementa un sistema de navegación para el robot móvil Martha y el
-TurtleBot3 Burger. Combina planificación global sobre un mapa con un planificador
+`martha_nav` implementa un sistema de navegación para el robot móvil Martha. Combina planificación global sobre un mapa con un planificador
 local aprendido mediante **PPO (Proximal Policy Optimization)**: la ruta indica por
 dónde llegar y la política usa el LiDAR para ajustar las velocidades ante obstáculos.
 
@@ -24,7 +23,7 @@ exactamente una corrida histórica.
 - [Requisitos e instalación](#requisitos-e-instalación)
 - [Manual de simulación](#manual-de-simulación)
 - [Entrenamiento y evaluación](#entrenamiento-y-evaluación)
-- [Uso en robots reales](#uso-en-robots-reales)
+- [Uso en el robot real](#uso-en-el-robot-real)
 - [Resultados](#resultados)
 - [Pruebas y solución de problemas](#pruebas-y-solución-de-problemas)
 - [Documentación complementaria](#documentación-complementaria)
@@ -40,7 +39,6 @@ exactamente una corrida histórica.
 | Navegación ROS 2 | Nodos de mapa, planificación global, inferencia de la política, publicación de velocidades, cancelación de metas y guarda direccional ante obstáculos. |
 | Localización | Integración con `slam_toolbox` para mapear y localizarse; en simulación también se puede utilizar la pose verdadera de Gazebo. |
 | Martha real | Firmware ESP32, control de motores, encoders, giroscopio, puente serial, RPLIDAR y fusión de odometría mediante EKF. |
-| TurtleBot3 Burger | Perfil propio de cuerpo y LiDAR, simulación, exportación de políticas a NumPy y herramientas de despliegue en Raspberry Pi. |
 | Análisis experimental | Comparación de configuraciones, transferencia 2D–Gazebo, trayectorias, éxito, colisiones, estancamientos, SPL y bitácoras de resultados. |
 | Verificación | Pruebas del simulador, recompensas, políticas, geometría, nodos, launch, URDF e interfaces de hardware. |
 
@@ -59,20 +57,18 @@ velocidad medida y acción anterior: 96 valores con dos acciones o 98 con tres.
 El nodo local calcula comandos a **10 Hz** y detiene el movimiento si faltan datos
 recientes de los sensores.
 
-Hay tres perfiles en [`martha_nav/robots.py`](../martha_nav/robots.py):
+Hay dos perfiles en [`martha_nav/robots.py`](../martha_nav/robots.py):
 
 | Perfil | Plataforma | Particularidad |
 |---|---|---|
 | `martha` | Base con ruedas mecanum | Permite acciones `(v, w)` o `(vx, vy, w)`, según el modelo entrenado. |
 | `martha_tower` | Martha con torre de aluminio | Modela los postes que atraviesan el plano del LiDAR. Requiere una política compatible con ese perfil. |
-| `burger` | TurtleBot3 Burger diferencial | Perfil configurado para LiDAR LDS-01 de 3,5 m y acciones `(v, w)`. |
 
-Se incluyen dos políticas listas para inferencia:
+Se incluye una política lista para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
 | [`policies/martha.npz`](../policies/martha.npz) | `wide_dyn_s0` | Avance/retroceso y giro; **no ordena movimiento lateral**. |
-| [`policies/burger.npz`](../policies/burger.npz) | `burger_s1` | Avance/retroceso y giro. |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye
@@ -88,10 +84,10 @@ martha_nav/
 │   ├── learning/    # Entrenamiento, evaluación y exportación
 │   ├── ros/         # Nodos e integración ROS 2
 │   └── robots.py    # Perfiles de robot
-├── launch/          # sim.launch.py, real.launch.py y burger.launch.py
+├── launch/          # sim.launch.py y real.launch.py
 ├── policies/        # Políticas NumPy incluidas
 ├── config/          # Controladores, EKF, LiDAR y puntos de evaluación
-├── urdf/            # Modelos de Martha y Burger
+├── urdf/            # Modelo de Martha
 ├── worlds/          # Escenarios de Gazebo
 ├── rviz/            # Configuración de visualización
 ├── firmware/        # Programa de la ESP32 y control de hardware
@@ -220,15 +216,15 @@ ros2 topic pub --once /cancel_goal std_msgs/msg/Empty '{}'
 El estado debe pasar a `idle`. Para cerrar la simulación, usar `Ctrl+C` en la
 terminal del launch.
 
-### 4. Cambiar de escenario o de robot
+### 4. Cambiar de escenario
 
 Los mundos disponibles son `lab`, `room`, `hall`, `multi`, `tube`, `four_rooms` y
-`roblab`. Para simular Burger, cerrar primero la simulación anterior y ejecutar:
+`roblab`. Para cambiar de mundo, cerrar primero la simulación anterior y ejecutar:
 
 ```bash
 ros2 launch martha_nav sim.launch.py \
-  world:=lab robot:=burger rviz:=true \
-  checkpoint:="$(pwd)/policies/burger.npz"
+  world:=hall rviz:=true \
+  checkpoint:="$(pwd)/policies/martha.npz"
 ```
 
 | Argumento de `sim.launch.py` | Uso |
@@ -236,7 +232,7 @@ ros2 launch martha_nav sim.launch.py \
 | `checkpoint` | Ruta absoluta al `.npz` o `.zip`; se necesita para la navegación. |
 | `world` | Nombre del mundo, sin extensión; por defecto `lab`. |
 | `robot` | Si se omite, se toma del checkpoint. Debe coincidir con él. |
-| `drive` | `mecanum` por defecto o `planar`; Burger utiliza su accionamiento diferencial. |
+| `drive` | `mecanum` por defecto o `planar`. |
 | `gui`, `rviz` | Activar la ventana de Gazebo y RViz; valores por defecto `true` y `false`. |
 | `x`, `y` | Posición inicial del robot. |
 | `slam` | `off`, `mapping` o `localization`; por defecto `off`. |
@@ -278,7 +274,6 @@ no reconstruye por sí solo el checkpoint histórico `wide_dyn_s0`.
 | `--steps N` | Cambia el presupuesto de pasos. |
 | `--n-envs N` | Cambia los entornos paralelos; por defecto 16. |
 | `--action-dim 3` | Añade velocidad lateral para Martha; por defecto se usan dos acciones. |
-| `--robot burger` | Entrena para el perfil Burger. |
 | `--robot martha_tower` | Entrena considerando la torre y sus retornos LiDAR. |
 | `--wide-dynamics` | Amplía la variación de la dinámica durante el entrenamiento. |
 | `--recurrent --device cpu` | Variante con memoria LSTM. |
@@ -336,8 +331,7 @@ ros2 run martha_nav evaluate_gazebo --ros-args \
 ```
 
 El evaluador mueve el robot y genera episodios: se utiliza en **simulación**.
-Para puntos fijos, cambiar a `-p mode:=points`. Con Burger, cambiar a
-`-p robot:=burger` y lanzar su política correspondiente. No mezclar perfiles,
+Para puntos fijos, cambiar a `-p mode:=points`. No mezclar perfiles,
 mundos ni condiciones al comparar resultados.
 
 Las métricas incluyen éxito, colisión, estancamiento, timeout, SPL, tiempo y
@@ -352,7 +346,7 @@ python3 tools/plot_report.py runs/martha_manual_s0
 tensorboard --logdir runs
 ```
 
-## Uso en robots reales
+## Uso en el robot real
 
 ### Martha: mapeo y navegación
 
@@ -405,43 +399,11 @@ ros2 topic pub --once /cancel_goal std_msgs/msg/Empty '{}'
 ros2 service call /esp32_bridge/reset std_srvs/srv/Trigger
 ```
 
-### TurtleBot3 Burger
-
-El bringup oficial del TurtleBot corre aparte en la Raspberry Pi. Robot y PC deben
-compartir `ROS_DOMAIN_ID`; las instrucciones del proyecto usan `30`. Consultar
-[comandos, sección 10](../docs/comandos.md#10-turtlebot3-burger) para despliegue,
-dependencias de la Pi, RViz remoto y medición de latencia.
-
-En terminales separadas de la Pi, después de cargar ROS y el workspace:
-
-```bash
-# Terminal 1: hardware del TurtleBot, mantener activo
-ros2 launch turtlebot3_bringup robot.launch.py
-
-# Terminal 2: mapeo; conducir con teleop en otra terminal
-ros2 launch martha_nav burger.launch.py
-```
-
-Guardar con `tools/save_map.sh`, cerrar el mapeo y la teleoperación, y navegar con
-las rutas del workspace de la Pi:
-
-```bash
-ros2 launch martha_nav burger.launch.py \
-  map:="$HOME/martha_ws/src/martha_nav/maps/sala" \
-  checkpoint:="$HOME/martha_ws/src/martha_nav/policies/burger.npz" \
-  speed_scale:=0.5
-```
-
-El launch real usa inflado de **0,15 m** y tolerancia de meta de **0,20 m**, mientras
-que el perfil de evaluación usa inflado de **0,40 m** y tolerancia de **0,30 m**.
-No atribuir los resultados de simulación a esa configuración real. La guarda
-permanece activa por defecto (`guard:=true`).
-
 ## Resultados
 
 La [bitácora de resultados](../docs/resultados.md) registra el estudio de codificación
 LiDAR, recompensa, estabilidad de PPO, CNN frente a MLP, acciones holonómicas,
-memoria recurrente, variación de dinámica, localización y soporte Burger.
+memoria recurrente, variación de dinámica y localización.
 
 Resultados principales:
 
@@ -450,12 +412,9 @@ Resultados principales:
 | Martha `wide_dyn_s0`, 2D `lab` con obstáculos | 200 | 85,5 % |
 | Martha `wide_dyn_s0`, Gazebo `lab`, evaluación `v5` | 100 | 87,0 % |
 | Martha `wide_dyn_s0`, Gazebo puntos fijos de `lab`, `v5` | 90 | 91,1 % |
-| Burger `burger_s1`, 2D `lab`, inflado 0,40 m | 200 | 88,0 % |
-| Burger `burger_s1`, Gazebo `lab`, inflado 0,40 m | 100 | 82,0 % |
-| Burger `burger_s1`, Gazebo puntos fijos de `lab`, inflado 0,40 m | 90 | 83,3 % |
 
-Consultar las condiciones y comparaciones en las secciones de reevaluación `v5`
-y Burger del 2026-10-07 de la bitácora. Las tablas de 200 episodios 2D y 100 de
+Consultar las condiciones y comparaciones en la sección de reevaluación `v5`
+de la bitácora. Las tablas de 200 episodios 2D y 100 de
 Gazebo no constituyen por sí solas una comparación pareada del mismo tamaño.
 
 ## Pruebas y solución de problemas
@@ -481,7 +440,6 @@ En el contenedor original, usar `./tools/ct_ros python3 -m pytest test -q`.
 | Error de perfil incompatible | Usar la política del robot correcto; cambios de cuerpo o LiDAR requieren reentrenar y reexportar. El inflado es una excepción. |
 | Falta `mecanum_drive_controller` | Preparar el controlador compatible; para una demo planar, utilizar `drive:=planar`. |
 | El robot permanece detenido | Revisar `/nav_status`, existencia de ruta, TF, mensajes del planificador y recepción reciente de LiDAR y odometría; comprobar la guarda y los eventos de la ESP32. |
-| No aparece el LiDAR en RViz real | Remapear el tópico del simulador `/gazebo_ros_lidar/out` a `/scan`, como indica el manual del Burger. |
 | No se encuentra un mapa | Crear o copiar sus cuatro archivos; `map:=` recibe el prefijo sin extensión. |
 | `tools/ct_ros` no encuentra el contenedor | El script supone `ros2_humble`; usar el entorno documentado o ejecutar ROS directamente en una instalación nativa. |
 | No se puede evaluar un modelo antiguo | Algunas configuraciones retiradas, como LiDAR lineal o señal de atasco, se rechazan en el código actual. Consultar el historial y `docs/comandos.md`. |
@@ -496,7 +454,6 @@ el paquete y volver a cargar el workspace.
 | [Comandos detallados](../docs/comandos.md) | Operación en el contenedor, evaluación, SLAM y robots reales. |
 | [Escenarios y referencias](../docs/escenarios-referencias.md) | Escenarios utilizados y contexto bibliográfico. |
 | [Resultados](../docs/resultados.md) | Bitácora experimental y correcciones posteriores. |
-| [Experimentos holonómicos y recurrentes](../docs/resultados-noche.md) | Variantes de política. |
 | [Análisis del atasco](../docs/resultados-atasco.md) | Ablaciones de memoria, objetivo y recompensa. |
 | [Paquete de evidencias](../docs/entrega/README.md) | Estructura y métricas de la entrega experimental. |
 | [Justificación de recompensa](../docs/entrega/recompensa.md) | Criterios usados para sus términos y pesos. |

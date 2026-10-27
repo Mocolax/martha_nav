@@ -18,7 +18,7 @@ class DynamicsRanges:
 
 
 # Also covers Gazebo's mecanum, which obeys in the same period with 2.5 m/s^2 and
-# 6.5 rad/s^2 (docs/resultados.md, "Por qué se atasca más en Gazebo").
+# 6.5 rad/s^2 (docs/resultados.md, "Causa de la brecha").
 WIDE_DYNAMICS = DynamicsRanges(tau=(0.02, 0.4), acc_v=(0.3, 3.0), acc_w=(1.0, 7.0), delay=(0, 2))
 
 

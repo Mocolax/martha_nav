@@ -110,31 +110,6 @@ def test_footprint_check_uses_the_lidar_offset_and_tells_the_side():
     assert beside == {'left'}
 
 
-def test_the_burger_guard_reacts_to_readings_its_lidar_can_produce():
-    burger = ROBOTS['burger']
-    angles = np.array([0.0, np.pi])
-    # LiDAR and footprint centre coincide and it reads nothing under 0.12 m: the guard reaches
-    # 0.07 + 0.10 = 0.17 m to the front and to the back.
-    assert footprint_blocked(np.array([0.15, 3.5]), angles, burger) == {'front'}
-    assert footprint_blocked(np.array([0.20, 3.5]), angles, burger) == set()
-    assert 'rear' in footprint_blocked(np.array([3.5, 0.15]), angles, burger)
-
-
-def test_the_burger_scan_points_start_at_its_lidar():
-    core = PolicyCore(FakeModel(), robot=ROBOTS['burger'])
-    points = core._scan_points(np.array([1.0]), np.zeros(1), (0.0, 0.0, 0.0))
-    assert np.allclose(points, [[1.0 - 0.032, 0.0]])
-    assert core._scan_points(np.array([3.5]), np.zeros(1), (0.0, 0.0, 0.0)).shape == (0, 2)
-
-
-def test_the_burger_core_commands_its_own_speeds():
-    burger = ROBOTS['burger']
-    core = PolicyCore(FakeModel((1.0, -1.0)), robot=burger)
-    angles = np.linspace(-np.pi, np.pi, 360, endpoint=False)
-    v, w, _ = core.compute(straight_path(), (0.0, 0.0, 0.0), np.full(360, 3.5), angles, (0.0, 0.0))
-    assert (v, w) == (burger.v_max, -burger.w_max)
-
-
 def test_the_carrot_skips_a_scanned_obstacle():
     """A box on the route pushes the carrot past it instead of into it."""
     model = FakeModel()
@@ -276,4 +251,3 @@ def test_the_carrot_does_not_skip_the_tower_posts():
     assert len(core._scan_points(ranges, angles, (0.0, 0.0, 0.0))) == 0
     ranges[0] = 1.0                                   # a real obstacle ahead still counts
     assert len(core._scan_points(ranges, angles, (0.0, 0.0, 0.0))) == 1
-

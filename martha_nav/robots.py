@@ -41,14 +41,6 @@ ROBOTS = {
                     lidar_offset_x=0.2325, lidar_range=8.0, lidar_min=0.0, lidar_rate=10.0,
                     v_max=0.35, v_reverse=0.15, v_lateral=0.25, w_max=0.8, inflation=0.40,
                     guard_margin=0.05),
-    # TurtleBot3 Burger: turtlebot3_burger.urdf (body 0.140 m centred at x = -0.032, wheels
-    # 0.178 m across, base_scan at x = -0.032) and its spec sheet (0.22 m/s; 2.84 rad/s, capped
-    # at 1.5 so the action keeps its resolution). LDS-01: 3.5 m, 0.12 m, 5 Hz (an LDS-02 is
-    # 8.0 m and 0.16 m). Its guard reaches 0.17 m ahead of the LiDAR, past the 0.12 m blind zone.
-    'burger': Robot('burger', length=0.14, width=0.178, footprint_offset_x=-0.032,
-                    lidar_offset_x=-0.032, lidar_range=3.5, lidar_min=0.12, lidar_rate=5.0,
-                    v_max=0.22, v_reverse=0.22, v_lateral=0.0, w_max=1.5, inflation=0.40,
-                    guard_margin=0.10),
 }
 
 # Martha as built (measured 2026-10-21 with the LiDAR, tools/check_tower_posts.py, and a tape):
@@ -75,8 +67,8 @@ def checkpoint_robot(path):
 def check_profile(recorded, name, path):
     """Refuse a checkpoint trained for another version of robot `name` (None: not recorded).
 
-    The inflation is left out: training with 0.30 or 0.40 m gave the same policy, while planning
-    with 0.40 m is what helps (docs/resultados.md)."""
+    The inflation is left out: it plans the routes the model follows, it is not part of the
+    trained model."""
     if recorded is None:
         return
     # A field added later with a default (posts) counts as that default in older recordings,

@@ -159,64 +159,6 @@ def test_an_evaluation_episode_records_its_trajectory():
     assert 'trajectory' not in info
 
 
-def test_the_burger_episode_uses_its_profile():
-    from martha_nav.robots import ROBOTS
-    from martha_nav.sim2d.env import episode_steps
-    env = NavEnv(EnvConfig(robot='burger',
-                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
-    env.reset(seed=3)
-    assert env.robot is ROBOTS['burger']
-    assert env.max_steps == episode_steps(env.sc.path.length, ROBOTS['burger'])
-    assert episode_steps(10.0, ROBOTS['burger']) > episode_steps(10.0)      # slower robot, more time
-    # Its LiDAR scans at 5 Hz: the scan changes every other control step.
-    scans = []
-    for _ in range(6):
-        env.step(np.array([1.0, 0.0]))
-        scans.append(env.ranges.copy())
-    changed = [not np.array_equal(a, b) for a, b in zip(scans, scans[1:])]
-    assert changed in ([True, False, True, False, True], [False, True, False, True, False])
-    assert env.ranges.max() <= 3.5 and (env.ranges >= 0.12).all()
-
-
-def test_a_holonomic_action_space_needs_a_holonomic_robot():
-    with pytest.raises(ValueError, match='burger'):
-        NavEnv(EnvConfig(robot='burger', action_dim=3))
-
-
-def test_the_burger_lidar_reads_nothing_inside_its_blind_zone():
-    from martha_nav.sim2d.geometry import draw_box
-    env = NavEnv(EnvConfig(robot='burger', lidar_noise=(0.0, 0.0), lidar_dropout=0.0,
-                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
-    env.reset(seed=3)
-    x, y, th = env.dyn.pose
-    ox, oy = x + env.robot.lidar_offset_x * np.cos(th), y + env.robot.lidar_offset_x * np.sin(th)
-    # A wall from 0.05 m to 0.50 m in front of the LiDAR: its nearest cells are under 0.12 m away.
-    draw_box(env.sc.full, ox + 0.275 * np.cos(th), oy + 0.275 * np.sin(th), 0.45, 2.0, th)
-    env._scan()
-    ahead = np.abs(env.ray_angles) < np.deg2rad(15)
-    assert (env.ranges[ahead] == env.robot.lidar_range).all()
-    assert (env.ranges >= env.robot.lidar_min).all()
-
-
-def test_the_burger_collides_with_its_own_outline_not_marthas():
-    from martha_nav.robots import ROBOTS
-    from martha_nav.sim2d.geometry import draw_box, footprint_collides, footprint_points
-    env = NavEnv(EnvConfig(robot='burger',
-                           scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
-    env.reset(seed=3)
-    assert np.array_equal(env.footprint, footprint_points(ROBOTS['burger']))
-    x, y, th = env.dyn.pose
-    # A wall 0.10 to 0.20 m ahead of base_link: Martha's rectangle reaches 0.28 m, the Burger's 0.04 m.
-    draw_box(env.sc.full, x + 0.15 * np.cos(th), y + 0.15 * np.sin(th), 0.10, 1.0, th)
-    assert footprint_collides(env.sc.full, x, y, th, footprint_points(ROBOTS['martha']))
-    assert not footprint_collides(env.sc.full, x, y, th, env.footprint)
-    for _ in range(30):
-        *_, term, _, info = env.step(np.array([1.0, 0.0]))
-        if term:
-            break
-    assert info['outcome'] == 'collision'
-
-
 def test_the_tower_posts_appear_in_the_scan_wherever_the_robot_is():
     env = NavEnv(EnvConfig(robot='martha_tower', lidar_noise=(0.0, 0.0), lidar_dropout=0.0,
                            scenario=ScenarioConfig(sources=('open_room',), obstacle_mode='none')))
@@ -235,4 +177,3 @@ def test_the_tower_posts_are_in_the_scan_but_not_in_the_carrots_obstacles():
     x, y, th = env.dyn.pose
     ox, oy = x + env.robot.lidar_offset_x * np.cos(th), y + env.robot.lidar_offset_x * np.sin(th)
     assert np.hypot(env.scan_points[:, 0] - ox, env.scan_points[:, 1] - oy).min() > 0.5
-

@@ -43,12 +43,10 @@ def launch_setup(context, *args, **kwargs):
     share = Path(FindPackageShare('martha_nav').perform(context))
     saved_map = LaunchConfiguration('map').perform(context)
     checkpoint = LaunchConfiguration('checkpoint').perform(context)
-    # The planners take martha_tower when the checkpoint was trained for it and martha
-    # otherwise, so a policy for another robot (the Burger) is still refused. The model
-    # always carries the tower, which the real robot has.
+    # The planners take the checkpoint's robot, martha or martha_tower. The model always
+    # carries the tower, which the real robot has.
     inflation = LaunchConfiguration('inflation').perform(context)
-    trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
-    robot = trained if trained in ('martha', 'martha_tower') else 'martha'
+    robot = checkpoint_robot(checkpoint) if checkpoint else 'martha'
     urdf = ParameterValue(Command(['xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
                                    ' drive:=planar tower:=true']), value_type=str)
     actions = [

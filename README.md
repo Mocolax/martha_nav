@@ -6,7 +6,7 @@
 
 **Del mapa al movimiento: un robot que sigue una ruta y responde a los obstáculos.**
 
-Sistema de navegación para **Martha** y **TurtleBot3 Burger** que combina planificación
+Sistema de navegación para el robot **Martha** que combina planificación
 sobre un mapa con una política **PPO** de aprendizaje por refuerzo. El planificador
 global calcula la ruta y la política local usa el LiDAR para decidir las velocidades.
 
@@ -33,7 +33,7 @@ Elige un apartado para consultar las instrucciones, entender el sistema o revisa
 | Instalar y probar el proyecto | [Requisitos e instalación](docs/manual-usuario.md#requisitos-e-instalación) |
 | Ver el robot navegar | [Manual de simulación](docs/manual-usuario.md#manual-de-simulación) |
 | Entrenar una política | [Entrenamiento y evaluación](docs/manual-usuario.md#entrenamiento-y-evaluación) |
-| Utilizar Martha o Burger reales | [Uso en robots reales](docs/manual-usuario.md#uso-en-robots-reales) |
+| Utilizar Martha real | [Uso en el robot real](docs/manual-usuario.md#uso-en-el-robot-real) |
 | Resolver un problema | [Pruebas y solución de problemas](docs/manual-usuario.md#pruebas-y-solución-de-problemas) |
 
 ### Primera demostración
@@ -68,20 +68,18 @@ velocidad medida y acción anterior: 96 valores con dos acciones o 98 con tres.
 El nodo local calcula comandos a **10 Hz** y detiene el movimiento si faltan datos
 recientes de los sensores.
 
-Hay tres perfiles en [`martha_nav/robots.py`](martha_nav/robots.py):
+Hay dos perfiles en [`martha_nav/robots.py`](martha_nav/robots.py):
 
 | Perfil | Plataforma | Particularidad |
 |---|---|---|
 | `martha` | Base con ruedas mecanum | Permite acciones `(v, w)` o `(vx, vy, w)`, según el modelo entrenado. |
 | `martha_tower` | Martha con torre de aluminio | Modela los postes que atraviesan el plano del LiDAR. Requiere una política compatible con ese perfil. |
-| `burger` | TurtleBot3 Burger diferencial | Perfil configurado para LiDAR LDS-01 de 3,5 m y acciones `(v, w)`. |
 
-Se incluyen dos políticas listas para inferencia:
+Se incluye una política lista para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
 | [`policies/martha.npz`](policies/martha.npz) | `wide_dyn_s0` | Avance/retroceso y giro; **no ordena movimiento lateral**. |
-| [`policies/burger.npz`](policies/burger.npz) | `burger_s1` | Avance/retroceso y giro. |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye
@@ -103,12 +101,8 @@ no basta con cambiar el nombre del robot para reutilizar una política.
 | Navegación ROS 2 | Nodos de mapa, planificación global, inferencia de la política, publicación de velocidades, cancelación de metas y guarda direccional ante obstáculos. |
 | Localización | Integración con `slam_toolbox` para mapear y localizarse; en simulación también se puede utilizar la pose verdadera de Gazebo. |
 | Martha real | Firmware ESP32, control de motores, encoders, giroscopio, puente serial, RPLIDAR y fusión de odometría mediante EKF. |
-| TurtleBot3 Burger | Perfil propio de cuerpo y LiDAR, simulación, exportación de políticas a NumPy y herramientas de despliegue en Raspberry Pi. |
 | Análisis experimental | Comparación de configuraciones, transferencia 2D–Gazebo, trayectorias, éxito, colisiones, estancamientos, SPL y bitácoras de resultados. |
 | Verificación | Pruebas del simulador, recompensas, políticas, geometría, nodos, launch, URDF e interfaces de hardware. |
-
-La existencia de los componentes de hardware no equivale a una validación experimental
-completa del robot real. El alcance de los resultados se detalla más adelante.
 
 [↑ Volver al menú](#explora-el-proyecto)
 
@@ -123,10 +117,10 @@ martha_nav/
 │   ├── learning/    # Entrenamiento, evaluación y exportación
 │   ├── ros/         # Nodos e integración ROS 2
 │   └── robots.py    # Perfiles de robot
-├── launch/          # sim.launch.py, real.launch.py y burger.launch.py
+├── launch/          # sim.launch.py y real.launch.py
 ├── policies/        # Políticas NumPy incluidas
 ├── config/          # Controladores, EKF, LiDAR y puntos de evaluación
-├── urdf/            # Modelos de Martha y Burger
+├── urdf/            # Modelo de Martha
 ├── worlds/          # Escenarios de Gazebo
 ├── rviz/            # Configuración de visualización
 ├── firmware/        # Programa de la ESP32 y control de hardware
@@ -148,7 +142,7 @@ pero no contiene ese paquete completo.
 
 La [bitácora de resultados](docs/resultados.md) registra el estudio de codificación
 LiDAR, recompensa, estabilidad de PPO, CNN frente a MLP, acciones holonómicas,
-memoria recurrente, variación de dinámica, localización y soporte Burger.
+memoria recurrente, variación de dinámica y localización.
 
 Resultados principales:
 
@@ -157,12 +151,9 @@ Resultados principales:
 | Martha `wide_dyn_s0`, 2D `lab` con obstáculos | 200 | 85,5 % |
 | Martha `wide_dyn_s0`, Gazebo `lab`, evaluación `v5` | 100 | 87,0 % |
 | Martha `wide_dyn_s0`, Gazebo puntos fijos de `lab`, `v5` | 90 | 91,1 % |
-| Burger `burger_s1`, 2D `lab`, inflado 0,40 m | 200 | 88,0 % |
-| Burger `burger_s1`, Gazebo `lab`, inflado 0,40 m | 100 | 82,0 % |
-| Burger `burger_s1`, Gazebo puntos fijos de `lab`, inflado 0,40 m | 90 | 83,3 % |
 
-Consultar las condiciones y comparaciones en las secciones de reevaluación `v5`
-y Burger del 2026-10-07 de la bitácora. Las tablas de 200 episodios 2D y 100 de
+Consultar las condiciones y comparaciones en la sección de reevaluación `v5`
+de la bitácora. Las tablas de 200 episodios 2D y 100 de
 Gazebo no constituyen por sí solas una comparación pareada del mismo tamaño.
 
 [↑ Volver al menú](#explora-el-proyecto)
@@ -200,7 +191,6 @@ en simulación y no constituyen una batería cuantitativa equivalente.
 | [Comandos detallados](docs/comandos.md) | Operación en el contenedor, evaluación, SLAM y robots reales. |
 | [Escenarios y referencias](docs/escenarios-referencias.md) | Escenarios utilizados y contexto bibliográfico. |
 | [Resultados](docs/resultados.md) | Bitácora experimental y correcciones posteriores. |
-| [Experimentos holonómicos y recurrentes](docs/resultados-noche.md) | Variantes de política. |
 | [Análisis del atasco](docs/resultados-atasco.md) | Ablaciones de memoria, objetivo y recompensa. |
 | [Paquete de evidencias](docs/entrega/README.md) | Estructura y métricas de la entrega experimental. |
 | [Justificación de recompensa](docs/entrega/recompensa.md) | Criterios usados para sus términos y pesos. |

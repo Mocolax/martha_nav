@@ -33,8 +33,8 @@ CONFIGS = [
     ('armG_goal_s0', 'Brazo G: holonómico, la política ve la meta en vez de la zanahoria',
      'resultados-atasco.md, "Brazo G"', True),
     ('armH_holonomic_s0', 'Brazo H: acción holonómica (vx, vy, w)',
-     'resultados-noche.md, "Brazo H"', True),
-    ('armL_lstm_s0', 'Brazo L: política recurrente (LSTM)', 'resultados-noche.md, "Brazo L"', True),
+     'resultados.md, "Brazo H"', True),
+    ('armL_lstm_s0', 'Brazo L: política recurrente (LSTM)', 'resultados.md, "Brazo L"', True),
 ]
 # evaluation set -> (file in v5/, scenario of its episodes)
 SETS = {

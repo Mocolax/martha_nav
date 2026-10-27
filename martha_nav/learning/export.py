@@ -1,7 +1,7 @@
 """export_policy: a trained policy's actor, settings and robot profile in one .npz, for the robot.
 
-    ros2 run martha_nav export_policy --model runs/burger_s0/best_model.zip
--> runs/burger_s0/policy.npz, run with ppo_local_planner checkpoint:=.../policy.npz.
+    ros2 run martha_nav export_policy --model runs/wide_dyn_s0/best_model.zip
+-> runs/wide_dyn_s0/policy.npz, run with ppo_local_planner checkpoint:=.../policy.npz.
 """
 import argparse
 import json

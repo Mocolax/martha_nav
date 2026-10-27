@@ -5,7 +5,7 @@ from martha_nav.sim2d.geometry import draw_box, empty_grid, post_ranges, raycast
 from martha_nav.sim2d.observation import (OBS_DIM, action_to_cmd, build_observation, post_rays,
                                           post_sectors, reduce_scan)
 
-MARTHA, BURGER = ROBOTS['martha'], ROBOTS['burger']
+MARTHA = ROBOTS['martha']
 LIDAR_MAX, V_MAX, W_MAX, V_LATERAL = MARTHA.lidar_range, MARTHA.v_max, MARTHA.w_max, MARTHA.v_lateral
 
 
@@ -82,18 +82,10 @@ def test_holonomic_observation_carries_three_velocities_and_actions():
     assert np.allclose(obs[95:], [0.1, 0.2, 0.3])
 
 
-def test_the_burger_scales_actions_and_velocities_to_its_own_limits():
-    assert action_to_cmd([1.0, -1.0], BURGER) == (0.22, -1.5)
-    assert action_to_cmd([-1.0, 0.0], BURGER) == (-0.22, 0.0)
-    obs = build_observation(np.full(4, 2.0), np.zeros(4), (0.11, 0.75), (1.0, 0.0), (0, 0),
-                            robot=BURGER)
-    assert np.allclose(obs[92:94], [0.5, 0.5])
-
-
 def test_an_empty_sector_reads_the_robots_range():
     assert reduce_scan(np.array([np.inf]), np.zeros(1), max_range=3.5)[0] == 3.5
-    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0), robot=BURGER)
-    assert np.isclose(empty[45], 3.5 / 4.5)
+    empty = build_observation(np.array([np.inf]), np.zeros(1), (0, 0), (1, 0), (0, 0), robot=MARTHA)
+    assert np.isclose(empty[45], 8.0 / 9.0)
 
 
 TOWER = ROBOTS['martha_tower']
@@ -140,4 +132,3 @@ def test_the_tower_observation_ignores_what_the_lidar_reads_on_its_posts():
     behind = np.where(np.abs(angles) > np.deg2rad(178), 1.0, seen)
     assert not np.array_equal(build_observation(behind, angles, (0.0, 0.0), (1.0, 0.0), (0.0, 0.0),
                                                 robot=TOWER), obs[0])
-

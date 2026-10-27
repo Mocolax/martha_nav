@@ -8,7 +8,7 @@ mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 "points" plays the hand-placed start/goal pairs of config/training_points.yaml. Both build
 the episode with scenarios.generate, so the same seed is the same episode as in the
 2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
-in simulated time (the "seconds" column too). robot:=burger gives the Burger's time limit and
+in simulated time (the "seconds" column too). robot:= picks the profile for the time limit and
 inflation; it must be the robot of the running sim.launch.py (evaluate_run_gazebo.sh passes it).
 
 The loc_err_* columns compare the localization (TF map -> base_link) with Gazebo's

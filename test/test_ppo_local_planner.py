@@ -57,10 +57,10 @@ def test_the_route_is_forgotten_when_the_episode_ends(node):
 
 def test_a_checkpoint_for_another_robot_is_refused(monkeypatch):
     monkeypatch.setattr(ppo_local_planner, 'load_policy',
-                        lambda path: (FakeModel(), settings_of(EnvConfig(robot='burger'))))
+                        lambda path: (FakeModel(), settings_of(EnvConfig(robot='martha_tower'))))
     rclpy.init(args=['--ros-args', '-p', 'checkpoint:=/fake/policy.npz', '-p', 'robot:=martha'])
     try:
-        with pytest.raises(RuntimeError, match='burger'):
+        with pytest.raises(RuntimeError, match='martha_tower'):
             ppo_local_planner.PpoLocalPlanner()
     finally:
         rclpy.try_shutdown()
@@ -68,11 +68,11 @@ def test_a_checkpoint_for_another_robot_is_refused(monkeypatch):
 
 def test_the_core_drives_the_models_robot(monkeypatch):
     monkeypatch.setattr(ppo_local_planner, 'load_policy',
-                        lambda path: (FakeModel(), settings_of(EnvConfig(robot='burger'))))
+                        lambda path: (FakeModel(), settings_of(EnvConfig(robot='martha_tower'))))
     rclpy.init(args=['--ros-args', '-p', 'checkpoint:=/fake/policy.npz'])
     try:
         node = ppo_local_planner.PpoLocalPlanner()
-        assert node.core.robot.name == 'burger'
+        assert node.core.robot.name == 'martha_tower'
         node.destroy_node()
     finally:
         rclpy.try_shutdown()

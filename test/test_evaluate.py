@@ -48,9 +48,9 @@ def test_evaluation_drives_the_robot_the_model_was_trained_for(tmp_path):
     model = tmp_path / 'best_model.zip'
     (tmp_path / 'config.yaml').write_text('env:\n  lidar_encoding: inverse\n')
     assert trained_env_config(model).robot == 'martha'
-    (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
+    (tmp_path / 'config.yaml').write_text('env:\n  robot: martha_tower\n')
     cfg = trained_env_config(model)
-    assert cfg.robot == 'burger' and cfg.scenario.inflation == 0.40
+    assert cfg.robot == 'martha_tower' and cfg.scenario.inflation == 0.40
 
 
 def test_a_model_trained_for_another_profile_of_its_robot_is_refused(tmp_path):
@@ -61,17 +61,17 @@ def test_a_model_trained_for_another_profile_of_its_robot_is_refused(tmp_path):
     from martha_nav.learning.evaluate import trained_env_config
     from martha_nav.robots import ROBOTS
     model = tmp_path / 'best_model.zip'
-    profile = asdict(ROBOTS['burger'])
+    profile = asdict(ROBOTS['martha_tower'])
 
     def write(**extra):
-        (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'burger'}, **extra}))
+        (tmp_path / 'config.yaml').write_text(yaml.safe_dump({'env': {'robot': 'martha_tower'}, **extra}))
 
     write(robot_profile=profile)
-    assert trained_env_config(model).robot == 'burger'
+    assert trained_env_config(model).robot == 'martha_tower'
     write()                                                        # run from before profiles
-    assert trained_env_config(model).robot == 'burger'
+    assert trained_env_config(model).robot == 'martha_tower'
     write(robot_profile={**profile, 'guard_margin': 0.15})
-    with pytest.raises(ValueError, match=r'different burger profile \(changed: guard_margin\)'):
+    with pytest.raises(ValueError, match=r'different martha_tower profile \(changed: guard_margin\)'):
         trained_env_config(model)
 
 
@@ -99,7 +99,7 @@ def test_cli_builds_the_point_pairs_with_the_robots_inflation(tmp_path, monkeypa
     monkeypatch.setattr(evaluate, 'load_model', lambda path: None)
     monkeypatch.setattr(evaluate, 'run_episodes', lambda model, cfg, seeds, n_envs: [
         {'episode_seed': s, 'outcome': 'success', 'spl': 1.0, 'trajectory': []} for s in seeds])
-    (tmp_path / 'config.yaml').write_text('env:\n  robot: burger\n')
+    (tmp_path / 'config.yaml').write_text('env:\n  robot: martha_tower\n')
     evaluate.main(['--model', str(tmp_path / 'best_model.zip'), '--points', 'lab', '--episodes', '2'])
     assert inflations == [0.40]
 

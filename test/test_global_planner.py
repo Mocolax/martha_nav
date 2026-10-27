@@ -62,7 +62,7 @@ def test_every_cancel_is_acknowledged(node):
 
 
 def test_the_inflation_comes_from_the_robot():
-    rclpy.init(args=['--ros-args', '-p', 'robot:=burger'])
+    rclpy.init(args=['--ros-args', '-p', 'robot:=martha_tower'])
     try:
         node = GlobalPlanner()
         assert node.core.inflation == 0.40

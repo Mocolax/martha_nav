@@ -1,13 +1,12 @@
-"""Gazebo + Martha or the Burger + map + ground-truth TF + the two navigation nodes.
+"""Gazebo + Martha + map + ground-truth TF + the two navigation nodes.
 
 ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip
 
-robot:=burger simulates the TurtleBot3 Burger (urdf/burger.urdf.xacro) and robot:=martha_tower
-Martha with the aluminium tower; by default the robot is the one the checkpoint was trained for.
+robot:=martha_tower simulates Martha with the aluminium tower; by default the robot is the one the checkpoint was trained for.
 
 For Martha, drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
 drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
-dynamics. The Burger ignores drive:=. sim_speed_factor and physics_step_size rewrite the
+dynamics. sim_speed_factor and physics_step_size rewrite the
 world's physics.
 
 Localization is Gazebo's true pose unless slam:=localization slam_map:=/abs/maps/lab,
@@ -41,7 +40,7 @@ ARGUMENTS = [
     DeclareLaunchArgument('world', default_value='lab'),
     DeclareLaunchArgument('drive', default_value='mecanum', choices=['mecanum', 'planar']),
     DeclareLaunchArgument('robot', default_value='',
-                          description="martha, martha_tower or burger; empty: the checkpoint's"),
+                          description="martha or martha_tower; empty: the checkpoint's"),
     DeclareLaunchArgument('gui', default_value='true'),
     DeclareLaunchArgument('rviz', default_value='false'),
     DeclareLaunchArgument('checkpoint', default_value=''),
@@ -66,7 +65,7 @@ def launch_setup(context, *args, **kwargs):
     if checkpoint and name != trained:
         raise RuntimeError(f'{checkpoint} drives {trained}, not {name}')
     robot = ROBOTS[name]
-    drive = LaunchConfiguration('drive').perform(context) if name != 'burger' else 'diff'
+    drive = LaunchConfiguration('drive').perform(context)
     slam = LaunchConfiguration('slam').perform(context)
     odom_remap = [('/odom', MECANUM_ODOM)] if drive == 'mecanum' else []
     world = create_scaled_world(
@@ -74,21 +73,13 @@ def launch_setup(context, *args, **kwargs):
         speed_factor=LaunchConfiguration('sim_speed_factor').perform(context),
         physics_step_size=LaunchConfiguration('physics_step_size').perform(context))
 
-    if name == 'burger':
-        urdf = ParameterValue(Command([
-            'xacro ', str(share / 'urdf' / 'burger.urdf.xacro'),
-            ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
-            f' lidar_range:={robot.lidar_range} lidar_min:={robot.lidar_min}',
-            f' lidar_rate:={robot.lidar_rate:g}',
-        ]), value_type=str)
-    else:
-        urdf = ParameterValue(Command([
-            'xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
-            ' drive:=', drive,
-            ' controllers_file:=', str(share / 'config' / 'controllers.yaml'),
-            ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
-            f" tower:={'true' if robot.posts else 'false'}",
-        ]), value_type=str)
+    urdf = ParameterValue(Command([
+        'xacro ', str(share / 'urdf' / 'martha.urdf.xacro'),
+        ' drive:=', drive,
+        ' controllers_file:=', str(share / 'config' / 'controllers.yaml'),
+        ' lidar_samples:=', LaunchConfiguration('lidar_samples'),
+        f" tower:={'true' if robot.posts else 'false'}",
+    ]), value_type=str)
 
     spawn = Node(package='gazebo_ros', executable='spawn_entity.py', output='screen',
                  arguments=['-topic', 'robot_description', '-entity', 'robot',
