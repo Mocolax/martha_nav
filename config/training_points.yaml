@@ -88,3 +88,19 @@ worlds:
       - {id: 7, x: 7, y: -3, yaw: null}
       - {id: 8, x: -8, y: -8, yaw: null}
       - {id: 9, x: 0, y: 0, yaw: null}
+  # Casa RoboCup@Home (andesrobot_gazebo de AndesRobot-Oficial/Navegation, maps/casa_lugares.yaml):
+  # 12 de los 28 lugares con nombre, para evaluar la política en la casa (2026-10-26).
+  robocup_casa:
+    points:
+      - {id: living_room, x: -2.94, y: -2.38, yaw: null}
+      - {id: laundry, x: -3.08, y: 3.5, yaw: null}
+      - {id: bedroom, x: 3.36, y: 3.92, yaw: null}
+      - {id: kitchen, x: 1.96, y: -3.78, yaw: null}
+      - {id: tv_stand, x: -4.312, y: -0.358, yaw: null}
+      - {id: washing_machine, x: -2.31, y: 4.75, yaw: null}
+      - {id: shelf, x: -4.9, y: 2.142, yaw: null}
+      - {id: bed, x: 2.84, y: 1.612, yaw: null}
+      - {id: coat_rack, x: 5.143, y: 4.893, yaw: null}
+      - {id: refrigerator, x: 4.7, y: -0.35, yaw: null}
+      - {id: dishwasher, x: 4.34, y: -4.75, yaw: null}
+      - {id: base, x: -2.145, y: -1.77, yaw: null}

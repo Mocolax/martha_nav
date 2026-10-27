@@ -10,7 +10,7 @@ def test_package_imports():
 
 def test_worlds_copied():
     names = sorted(p.stem for p in (REPO / 'worlds').glob('*.world'))
-    assert names == ['four_rooms', 'hall', 'lab', 'multi', 'roblab', 'room', 'tube']
+    assert names == ['four_rooms', 'hall', 'lab', 'multi', 'roblab', 'robocup_casa', 'room', 'tube']
 
 
 EXECUTABLES = ['esp32_bridge', 'evaluate_2d', 'evaluate_gazebo', 'export_policy',
