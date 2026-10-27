@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bring-up checks of firmware/firmware.ino on the real robot, straight over serial (no ROS).
 
-The checks of docs/comandos.md section 9.4, in order, asking before anything moves:
+The checks of docs/manual-usuario.md, "Puesta en marcha", in order, asking before anything moves:
 link and arming, battery against the multimeter, gyro at rest, wheel polarity per axis
 and PI tracking (wheels in the air), cmd_vel timeout, and a turn on the floor that checks
 the gyro's sign against the wheels. Ctrl-C stops the wheels and exits.

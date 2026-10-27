@@ -22,7 +22,7 @@ Elige un apartado para consultar las instrucciones, entender el sistema o revisa
 |:---|:---|:---|
 | **[Instalación y primera prueba](#empieza-aquí)**<br>Requisitos, puesta en marcha y demostración. | **[Cómo funciona](#cómo-funciona)**<br>Planificación, LiDAR y políticas de navegación. | **[Evidencias del robot real](#evidencias-del-robot-real)**<br>Galería, registros y pruebas de MARTHA. |
 | **[Manual de usuario](docs/manual-usuario.md)**<br>Simulación, entrenamiento y uso en robots reales. | **[Trabajo realizado](#trabajo-realizado)**<br>Componentes desarrollados e integración. | **[Resultados](#resultados)**<br>Métricas y condiciones de evaluación. |
-| **[Referencia de comandos](docs/comandos.md)**<br>Comandos para operar y evaluar el sistema. | **[Organización del repositorio](#organización-del-repositorio)**<br>Carpetas y archivos principales. | **[Documentación complementaria](#documentación-complementaria)**<br>Bitácoras y material de consulta. |
+| **[Robot real](docs/manual-usuario.md#uso-en-el-robot-real)**<br>Puesta en marcha, mapeo y navegación con Martha. | **[Organización del repositorio](#organización-del-repositorio)**<br>Carpetas y archivos principales. | **[Documentación complementaria](#documentación-complementaria)**<br>Bitácoras y material de consulta. |
 
 ---
 
@@ -126,7 +126,7 @@ martha_nav/
 ├── firmware/        # Programa de la ESP32 y control de hardware
 ├── tools/           # Evaluación, mapas, gráficas y despliegue
 ├── test/            # Pruebas automatizadas
-└── docs/            # Manual, comandos y resultados
+└── docs/            # Manual, resultados y referencias
 ```
 
 `runs/`, `maps/` y `entrega_tesis/` son salidas locales excluidas de Git. Un clon
@@ -188,7 +188,6 @@ en simulación y no constituyen una batería cuantitativa equivalente.
 |---|---|
 | [Evidencias del robot real](docs/evidencias/README.md) | Galería, inventario audiovisual y registro de pruebas físicas. |
 | [Manual de usuario](docs/manual-usuario.md) | Instalación, simulación, entrenamiento y operación paso a paso. |
-| [Comandos detallados](docs/comandos.md) | Operación en el contenedor, evaluación, SLAM y robots reales. |
 | [Escenarios y referencias](docs/escenarios-referencias.md) | Escenarios utilizados y contexto bibliográfico. |
 | [Resultados](docs/resultados.md) | Bitácora experimental y correcciones posteriores. |
 | [Análisis del atasco](docs/resultados-atasco.md) | Ablaciones de memoria, objetivo y recompensa. |
