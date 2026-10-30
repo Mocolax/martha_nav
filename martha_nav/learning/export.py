@@ -38,3 +38,7 @@ def main(argv=None):
     ap.add_argument('--out', default=None, help='default: policy.npz next to the model')
     args = ap.parse_args(argv)
     print(f'policy -> {export(args.model, args.out)}')
+
+
+if __name__ == '__main__':
+    main()

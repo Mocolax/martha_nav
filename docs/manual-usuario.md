@@ -61,7 +61,7 @@ Se incluye una política lista para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
-| [`policies/martha.npz`](../policies/martha.npz) | `wide_dyn_s0` | Avance/retroceso y giro; **no ordena movimiento lateral**. |
+| [`policies/martha.npz`](../policies/martha.npz) | `martha_tower_scratch_s0` (perfil `martha_tower`) | Avance/retroceso y giro; **no ordena movimiento lateral**. |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye
@@ -496,8 +496,7 @@ ros2 launch martha_nav real.launch.py rviz:=true \
 
 `map` es el prefijo **sin extensión**. Corregir la pose con **2D Pose Estimate** y
 enviar metas con **2D Goal Pose**. La política incluida corresponde al perfil
-`martha`, sin los postes de la torre en su observación; para `martha_tower`, entrenar
-y exportar su propia política.
+`martha_tower`: Martha con la torre, con el LiDAR a 0.19 m y los postes en su observación.
 
 Cancelar con `/cancel_goal` y cerrar con `Ctrl+C`. El paro físico es el interruptor
 de alimentación.

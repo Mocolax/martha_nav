@@ -16,8 +16,9 @@ determinista sobre semillas reservadas; las comparaciones pareadas usan McNemar 
 | **modelo final** | **`wide_dyn_s0`** | dinámica amplia | **0.896** | **0.855** | **0.87** |
 
 `lab` es el gemelo del laboratorio y nunca se usó para entrenar ni para elegir el modelo: es la
-medida de generalización. El modelo final (`policies/martha.npz`) transfiere a Gazebo sin pérdida
-significativa (sección 6).
+medida de generalización. `wide_dyn_s0` transfiere a Gazebo sin pérdida significativa (sección 6).
+Con la torre montada, `policies/martha.npz` es `martha_tower_scratch_s0`, la misma receta
+entrenada desde cero con el perfil `martha_tower` (sección 9).
 
 ## 1. Puerta de convergencia (`open_room`, sin obstáculos)
 
@@ -211,3 +212,41 @@ Mapa de `lab.world` hecho con `tools/map_world.py`; `sim.launch.py slam:=localiz
 Las cajas fuera del mapa no hacen que slam_toolbox se pierda: el error medio queda en centímetros.
 Solo dos episodios con 4 cajas se desvían (1.0 m, que llega igual, y 4.5 m, que se atasca), y
 ninguno termina `lost`. Con localización por SLAM el modelo final rinde como con la pose verdadera.
+
+## 9. Martha con la torre (`martha_tower_scratch_s0`)
+
+La torre de aluminio puso cuatro postes de 20 × 40 mm en el plano del LiDAR y lo movió a 0.19 m
+delante de `base_link` (perfil `martha_tower`). La observación pierde los sectores que tapan los
+postes, así que `wide_dyn_s0` no sirve tal cual. `martha_tower_scratch_s0` repite su receta
+desde cero (`--preset full --robot martha_tower --wide-dynamics`, 5M pasos, semilla 0): 71 min,
+~1 180 pasos/s. Pasa del 85 % en 600k pasos y del 90 % en 2M; el mejor punto, 91 % en 4.1M, es el
+exportado. En los últimos 1.5M pasos se mueve entre 87.5 y 91 %, dentro del ruido de 200
+episodios. Figuras: `docs/figures/martha_tower_scratch_s0.png` y
+`docs/figures/martha_tower_scratch_s0_ppo.png`.
+
+Evaluación 2D sobre las mismas semillas que `wide_dyn_s0`, que se evalúa sin postes:
+
+| evaluación | `wide_dyn_s0` | `martha_tower_scratch_s0` | ganados / perdidos |
+|---|---|---|---|
+| limpio (500) | 97.2 % | **98.2 %** | 12 / 7 (p = 0.36) |
+| obstáculos (500) | 89.6 % | **88.8 %** | 30 / 34 (p = 0.71) |
+| `lab` (200) | 85.5 % | **82.5 %** | 12 / 18 (p = 0.36) |
+| puntos de `lab` (90) | 85.6 % | **81.1 %** | 5 / 9 (p = 0.42) |
+
+Ninguna diferencia es significativa: con los postes en la observación, el modelo rinde como el de
+referencia sin ellos. Las colisiones en `lab` suben de 7.5 a 11.5 %, y en sus puntos fijos de 6.7
+a 14.4 %.
+
+En Gazebo (`tools/evaluate_run_gazebo.sh`, `runs/martha_tower_scratch_s0/v5/`), con la torre en el
+URDF, frente a la re-evaluación v5 de `wide_dyn_s0` sin ella:
+
+| condición | `wide_dyn_s0` | `martha_tower_scratch_s0` | ganados / perdidos |
+|---|---|---|---|
+| semillas de `lab` (100) | 87 % | **84 %** | 4 / 7 (p = 0.55) |
+| puntos fijos de `lab` (90) | 91.1 % | **82.2 %** | 2 / 10 (p = 0.04) |
+
+En los puntos fijos la pérdida es significativa: de los 10 episodios perdidos, 5 son choques y 5
+estancamientos, y las colisiones pasan de 3 a 7–8 % en los dos conjuntos. Los dos episodios
+`failed` de los puntos fijos fallan igual con los dos modelos. La comparación no es entre modelos
+sobre el mismo robot: `wide_dyn_s0` se evalúa en un robot que ve hacia atrás y no puede conducir
+a Martha con la torre, así que no separa cuánto cuesta la torre y cuánto el entrenamiento.

@@ -79,7 +79,7 @@ Se incluye una política lista para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
-| [`policies/martha.npz`](policies/martha.npz) | `wide_dyn_s0` | Avance/retroceso y giro; **no ordena movimiento lateral**. |
+| [`policies/martha.npz`](policies/martha.npz) | `martha_tower_scratch_s0` (perfil `martha_tower`) | Avance/retroceso y giro; **no ordena movimiento lateral**. |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye

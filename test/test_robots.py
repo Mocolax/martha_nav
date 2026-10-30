@@ -75,11 +75,11 @@ def test_martha_tower_is_martha_plus_the_posts_of_its_tower():
 
 
 def test_profiles_recorded_before_the_posts_still_load():
-    """policies/martha.npz was exported before the posts field existed."""
-    from pathlib import Path
-    npz = Path(__file__).resolve().parents[1] / 'policies' / 'martha.npz'
-    recorded = json.loads(str(np.load(npz)['settings']))['robot_profile']
-    assert 'posts' not in recorded
+    """wide_dyn_s0, the policy shipped before martha_tower, was exported before the posts field
+    existed: its recording is martha's profile without posts and post_pad."""
+    npz = 'wide_dyn_s0.npz'
+    recorded = {k: v for k, v in asdict(ROBOTS['martha']).items()
+                if k not in ('posts', 'post_pad')}
     check_profile(recorded, 'martha', npz)
     with pytest.raises(ValueError, match=r'changed: name, lidar_offset_x, posts'):
         check_profile(recorded, 'martha_tower', npz)
