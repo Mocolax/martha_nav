@@ -57,11 +57,12 @@ Hay dos perfiles en [`martha_nav/robots.py`](../martha_nav/robots.py):
 | `martha` | Base con ruedas mecanum | Permite acciones `(v, w)` o `(vx, vy, w)`, según el modelo entrenado. |
 | `martha_tower` | Martha con torre de aluminio | Modela los postes que atraviesan el plano del LiDAR. Requiere una política compatible con ese perfil. |
 
-Se incluye una política lista para inferencia:
+Se incluyen dos políticas listas para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
 | [`policies/martha.npz`](../policies/martha.npz) | `martha_tower_scratch_s0` (perfil `martha_tower`) | Avance/retroceso y giro; **no ordena movimiento lateral**. |
+| [`policies/martha_holo.npz`](../policies/martha_holo.npz) | `martha_tower_holo_s0` (perfil `martha_tower`) | Avance/retroceso, **lateral** y giro (acción holonómica). |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye

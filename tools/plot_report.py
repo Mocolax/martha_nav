@@ -8,7 +8,7 @@ reward terms, deterministic evaluation) and <run>/ppo_diagnostics.png (2x2:
 losses, exploration, update size, critic).
 
 The x axis is the episode, with a second axis in millions of steps on top. Rates
-are lines, one per outcome; spread is a percentile band, never a raw cloud.
+are lines, one per outcome; curves are rolling means, never a raw cloud.
 """
 import argparse
 import glob
@@ -55,23 +55,6 @@ def style(ax, title, ylabel=None, percent=False, steps_axis=None, xlabel='episod
         top.tick_params(colors=MUTED, labelsize=8, length=0)
 
 
-def trace(ax, x, series, color, label=None, window=WINDOW):
-    """Rolling mean, over a light band with the 10th to 90th percentile of the window.
-
-    With tens of thousands of episodes the raw per-episode line is an unreadable
-    blur in print, so the spread is shown as a band instead.
-    """
-    # Band: 10th to 90th percentile inside bins, so it stays smooth with 20k episodes.
-    bins = max(1, len(series) // max(window, len(series) // 300))
-    group = pd.Series(series.to_numpy()).groupby(np.minimum(np.arange(len(series)) // bins,
-                                                            len(series) // bins))
-    centre = group.apply(lambda g: g.index.to_numpy().mean() + 1)
-    ax.fill_between(centre, group.quantile(0.1), group.quantile(0.9), color=color, alpha=0.16,
-                    linewidth=0)
-    ax.plot(x, series.rolling(window, min_periods=max(3, window // 5)).mean(), color=color,
-            linewidth=1.8, label=label)
-
-
 def load(run):
     episodes = pd.read_csv(run / 'episodes.csv')
     episodes['x'] = np.arange(1, len(episodes) + 1)
@@ -107,7 +90,7 @@ def learning_report(run, episodes, terms, evals, out):
     fig, ax = plt.subplots(3, 2, figsize=(15, 13), facecolor=SURFACE, constrained_layout=True)
     steps_axis = (episodes.x.to_numpy(), episodes.timesteps.to_numpy())
 
-    trace(ax[0, 0], episodes.x, episodes.reward, SLOTS[0])
+    ax[0, 0].plot(episodes.x, rolling(episodes.reward), color=SLOTS[0], linewidth=1.8)
     style(ax[0, 0], f'Recompensa por episodio (media móvil de {WINDOW})',
           'recompensa', steps_axis=steps_axis)
 
@@ -119,12 +102,12 @@ def learning_report(run, episodes, terms, evals, out):
     style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', 'tasa', percent=True,
           steps_axis=steps_axis)
 
-    trace(ax[1, 0], episodes.x, episodes.steps, SLOTS[0])
+    ax[1, 0].plot(episodes.x, rolling(episodes.steps), color=SLOTS[0], linewidth=1.8)
     style(ax[1, 0], 'Duración de los episodios', 'pasos', steps_axis=steps_axis)
 
     # SPL is 0 on every failure, so averaging it over all episodes hides the shape.
     spl = episodes.spl.where(episodes.outcome == 'success')
-    trace(ax[1, 1], episodes.x, spl, SLOTS[2])
+    ax[1, 1].plot(episodes.x, rolling(spl), color=SLOTS[2], linewidth=1.8)
     style(ax[1, 1], 'Eficiencia de ruta (SPL entre los éxitos)', percent=True,
           steps_axis=steps_axis)
 

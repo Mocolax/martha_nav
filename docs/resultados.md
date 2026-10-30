@@ -250,3 +250,43 @@ estancamientos, y las colisiones pasan de 3 a 7–8 % en los dos conjuntos. Los 
 `failed` de los puntos fijos fallan igual con los dos modelos. La comparación no es entre modelos
 sobre el mismo robot: `wide_dyn_s0` se evalúa en un robot que ve hacia atrás y no puede conducir
 a Martha con la torre, así que no separa cuánto cuesta la torre y cuánto el entrenamiento.
+
+## 10. Vuelta a la acción holonómica (`martha_tower_holo_s0`)
+
+El brazo H (sección 5) se descartó por sus choques en 2D, pero en su re-evaluación v5 en Gazebo
+tuvo 0 choques (88 y 89 %). En sus choques en 2D el robot iba hacia adelante en 22 de 26, no de
+lado, y se movía con más de 30° de componente lateral el 50 % del tiempo en 2D frente al 20 % en
+Gazebo. `martha_tower_holo_s0` repite la receta de la sección 9 con `--action-dim 3`: 67 min. Su
+mejor punto, 90.5 %, llega a 1.2M pasos; tras una racha de choques hacia 2.2M (evaluación al 73 %)
+se queda en 83–87 % hasta el final. Figuras: `docs/figures/martha_tower_holo_s0.png` y
+`docs/figures/martha_tower_holo_s0_ppo.png`. `policies/martha_holo.npz` es ese mejor punto.
+
+Frente a `martha_tower_scratch_s0`, sobre las mismas semillas:
+
+| evaluación | `(v, w)` | `(vx, vy, w)` | ganados / perdidos |
+|---|---|---|---|
+| 2D limpio (500) | **98.2 %** | 97.2 % | 5 / 10 (p = 0.30) |
+| 2D obstáculos (500) | 88.8 % | **89.2 %** | 34 / 32 (p = 0.90) |
+| 2D `lab` (200) | 82.5 % | 82.5 % | 13 / 13 (p = 1.0) |
+| 2D puntos fijos (90) | 81.1 % | **82.2 %** | 9 / 8 (p = 1.0) |
+| Gazebo `lab` (100) | 84 %, 8 % choques | **87 %, 1 % choques** | 6 / 3 (p = 0.51) |
+| Gazebo puntos fijos (90) | 82.2 %, 6.7 % choques | **88.9 %, 1.1 % choques** | 10 / 4 (p = 0.18) |
+
+En 2D empatan; en Gazebo el holonómico casi no choca: en 12 episodios choca `(v, w)` y él no, y
+en ninguno al revés (p = 0.0005). Con la torre recupera las cifras de `wide_dyn_s0` sin ella. Se
+mueve de lado el 14 % del tiempo en 2D y el 9 % en Gazebo.
+
+### Respuesta del mecanum en Gazebo
+
+`tools/step_response_gazebo.sh` manda escalones de 3 s, un eje a la vez, y mide la velocidad real
+de Gazebo (pose a 10 Hz):
+
+| eje | ganancia en régimen | acople con los otros ejes |
+|---|---|---|
+| `vx` (+0.35, −0.15 m/s) | 1.03 | ninguno |
+| `vy` (±0.25, ±0.125 m/s) | **0.84–0.87** | ≤ 0.007 |
+| `w` (±0.8 rad/s) | 0.94–0.95 | ninguno |
+
+Los tres ejes responden en menos de un periodo de control. El eje lateral entrega el 85 % de lo
+pedido, por debajo del rango de ganancia del 2D (0.9–1.1, compartido con `vx`): la brecha que queda
+es de ganancia lateral, no de retardo. Falta medirlo en el robot real.
