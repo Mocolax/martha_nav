@@ -6,45 +6,65 @@ octubre de 2026). Corresponden a la sección 6.4.4 y al Anexo E de la tesis.
 
 **9 videos y 21 imágenes disponibles.** Los archivos MP4 están alojados en
 [la publicación de evidencias](https://github.com/Mocolax/martha_nav/releases/tag/evidencias-pruebas-fisicas).
-El inventario conserva los 12 registros documentados; V1, V4 y V6 siguen pendientes.
+El apartado de videos reúne únicamente los nueve archivos seleccionados para consulta.
 
 [🎬 Videos](#videos) · [📷 Fotografías](#galería-visual) · [📊 Aciertos y fallas](#aciertos-y-fallas)
 
 ## Videos
 
-Selecciona **Descargar MP4** para guardar y reproducir un video. Los nueve archivos
-se encuentran en la tabla; las imágenes siguientes son fotogramas de tres registros.
+**9 videos seleccionados:** una captura de RViz, cuatro registros del laboratorio y
+cuatro del salón. Los códigos originales se conservan para relacionar cada video
+con sus fotografías y con el inventario.
 
-| R1 · Navegación en RViz | V2 · Prueba en laboratorio | V7 · Seguimiento del robot |
-|:---:|:---:|:---:|
-| [<img src="fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="R1 · Navegación en RViz" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4) | [<img src="fotos/12_video2_01m24s_martha_fisico.png" alt="V2 · Prueba en laboratorio" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4) | [<img src="fotos/15_video7_00m47s_martha_fisico.png" alt="V7 · Seguimiento del robot" width="240">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4)<br>[▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4) |
+[Captura de RViz](#captura-de-rviz) · [Laboratorio](#laboratorio) · [Salón](#salón)
 
+### Captura de RViz
+
+**R1 · Ejecución completa en pantalla.** Permite seguir el robot, la ruta y la meta
+en RViz. El recorrido medido va de 6,4 s a 35,8 s: **29,4 s de movimiento** dentro
+de una grabación de 45,1 s.
+
+[<img src="fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="R1: robot siguiendo la ruta hacia la meta en RViz" width="480">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)
+
+**[Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)**
+
+### Laboratorio
+
+Registros de la preparación y del desplazamiento de MARTHA. No permiten medir
+el recorrido completo.
+
+| Registro | Duración | Qué muestra | Video |
+|---|---:|---|---|
+| V2 | 124,2 s | Partida con obstáculos y meta; movimiento visto en RViz. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4) |
+| V3 | 73,9 s | Preparación y parte del desplazamiento. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V03_laboratorio.mp4) |
+| V5 | 47,8 s | Seguimiento parcial del robot. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V05_laboratorio.mp4) |
+| V7 | 55,2 s | Seguimiento parcial del robot. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4) |
+
+### Salón
+
+| Registro | Duración | Qué muestra | Video |
+|---|---:|---|---|
+| V8 | 75,0 s | RViz muestra A y B; pasa entre la mochila y el cubo. Movimiento estimado: ≈22 s. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V08_salon.mp4) |
+| V9 | 33,2 s | Cámara casi fija; pasa junto a la mochila. Movimiento estimado: ≈18 s. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V09_salon.mp4) |
+| V10 | 37,9 s | Cubo junto a la partida; llega al extremo opuesto. Movimiento estimado: ≈23 s. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V10_salon.mp4) |
+| V11 | 50,9 s | Video vertical; no delimita el recorrido. | [Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V11_salon_vertical.mp4) |
+
+**Cómo consultar los videos.** Los enlaces descargan los MP4; las imágenes de esta
+página son fotogramas, no reproductores integrados.
+
+**Duración y movimiento.** La duración incluye preparación y movimientos de cámara.
+Los tiempos de movimiento de V8 a V10 son estimaciones con un margen de ±3 s;
+entre los videos seleccionados, solo R1 permite medir el recorrido completo.
 
 Los videos de teléfono están estabilizados, con reducción leve de ruido, audio
 normalizado y un rótulo inferior con el nombre y el tiempo. Conservan la duración
-original: no se cortó nada. R1 es una grabación de pantalla de RViz (1920×1080) con
-el mismo rótulo, sin estabilizar.
+original. R1 es una grabación de pantalla de RViz (1920×1080), con el mismo rótulo
+y sin estabilizar.
 
-| Registro | Escenario | Duración (s) | Movimiento (s) | Observación | Video |
-|---|---|---:|---:|---|---|
-| V1 | Laboratorio | 77.8 | – | Preparación y mapa en pantalla. | `V01_laboratorio.mp4` · pendiente |
-| V2 | Laboratorio | 124.2 | – | Partida con obstáculos y meta; movimiento visto en RViz. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V02_laboratorio.mp4) |
-| V3 | Laboratorio | 73.9 | – | Preparación y parte del desplazamiento. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V03_laboratorio.mp4) |
-| V4 | Laboratorio | 84.3 | – | Preparación y parte del desplazamiento. | `V04_laboratorio.mp4` · pendiente |
-| V5 | Laboratorio | 47.8 | – | Seguimiento parcial del robot. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V05_laboratorio.mp4) |
-| V6 | Laboratorio | 58.1 | – | Seguimiento parcial del robot. | `V06_laboratorio.mp4` · pendiente |
-| V7 | Laboratorio | 55.2 | – | Seguimiento parcial del robot. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V07_laboratorio.mp4) |
-| R1 | Laboratorio | 45.1 | 29.4 | Pantalla de RViz de una ejecución exitosa (inicio 6.4 s, llegada 35.8 s). | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4) |
-| V8 | Salón | 75.0 | ≈22 | RViz muestra A y B; pasa entre la mochila y el cubo. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V08_salon.mp4) |
-| V9 | Salón | 33.2 | ≈18 | Cámara casi fija; pasa junto a la mochila. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V09_salon.mp4) |
-| V10 | Salón | 37.9 | ≈23 | Cubo junto a la partida; llega al extremo opuesto. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V10_salon.mp4) |
-| V11 | Salón | 50.9 | – | Video vertical; no delimita el recorrido. | [▶ Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/V11_salon_vertical.mp4) |
-
-Los tiempos de movimiento de V8 a V10 se estimaron viendo el video (±3 s); solo R1
-permite medir el recorrido completo. La duración de un video de teléfono no equivale
-al tiempo de recorrido, porque incluye preparación y movimientos de cámara.
-[`registros_audiovisuales.csv`](registros_audiovisuales.csv) contiene el mismo
-inventario con el nombre del archivo original de cada registro.
+El [inventario histórico](registros_audiovisuales.csv) conserva los nombres originales
+de los 12 registros documentados. Esta selección utiliza únicamente los nueve
+videos publicados; V1, V4 y V6 quedan fuera de la selección. Sus fotogramas se
+conservan en la galería como evidencia fotográfica.
 
 ---
 
@@ -86,7 +106,7 @@ Se realizaron 12 pruebas de A a B: 10 alcanzaron la meta y 2 fallaron.
 **Todos los videos de esta página corresponden a aciertos.** Las dos fallas, ambas
 en el laboratorio, fueron una colisión con un obstáculo y el desprendimiento de una
 rueda (falla mecánica). **Las fallas no tienen video**: no se grabaron o no se
-conservaron, por lo que solo constan en el registro de los autores. Los 12 archivos
+conservaron, por lo que solo constan en el registro de los autores. Los registros audiovisuales
 no se corresponden uno a uno con las 12 pruebas: hay pruebas exitosas con más de un
 registro y fallas sin ninguno.
 
