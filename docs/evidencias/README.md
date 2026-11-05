@@ -4,15 +4,15 @@ Registros audiovisuales y fotografías de las pruebas de navegación de MARTHA e
 laboratorio de robótica (21 de octubre de 2026) y en un salón controlado (22 de
 octubre de 2026). Corresponden a la sección 6.4.4 y al Anexo E de la tesis.
 
-**9 videos y 21 imágenes disponibles.** Los archivos MP4 están alojados en
+**10 videos y 21 imágenes disponibles.** Los archivos MP4 están alojados en
 [la publicación de evidencias](https://github.com/Mocolax/martha_nav/releases/tag/evidencias-pruebas-fisicas).
-El apartado de videos reúne únicamente los nueve archivos seleccionados para consulta.
+El apartado de videos reúne únicamente los diez archivos seleccionados para consulta.
 
 [🎬 Videos](#videos) · [📷 Fotografías](#galería-visual) · [📊 Aciertos y fallas](#aciertos-y-fallas)
 
 ## Videos
 
-**9 videos seleccionados:** una captura de RViz, cuatro registros del laboratorio y
+**10 videos seleccionados:** dos capturas de RViz, cuatro registros del laboratorio y
 cuatro del salón. Los códigos originales se conservan para relacionar cada video
 con sus fotografías y con el inventario.
 
@@ -27,6 +27,12 @@ de una grabación de 45,1 s.
 [<img src="fotos/19_R1_00m27s_rviz_goal_ruta_robot.png" alt="R1: robot siguiendo la ruta hacia la meta en RViz" width="480">](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)
 
 **[Descargar MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R1_laboratorio_pantalla_rviz.mp4)**
+
+**R2 · Grabación complementaria de RViz.** Otra ejecución en el laboratorio,
+con una duración de **84,7 s** y resolución **1920×1080**. Complementa la captura
+R1; no corresponde a una segunda cámara sincronizada de la misma ejecución.
+
+**[Descargar R2 · MP4](https://github.com/Mocolax/martha_nav/releases/download/evidencias-pruebas-fisicas/R2_laboratorio_pantalla_rviz.mp4)**
 
 ### Laboratorio
 
@@ -54,15 +60,16 @@ página son fotogramas, no reproductores integrados.
 
 **Duración y movimiento.** La duración incluye preparación y movimientos de cámara.
 Los tiempos de movimiento de V8 a V10 son estimaciones con un margen de ±3 s;
-entre los videos seleccionados, solo R1 permite medir el recorrido completo.
+el tiempo de recorrido completo está documentado para R1. Para R2 se indica
+la duración del archivo, sin atribuirle un tiempo de movimiento.
 
 Los videos de teléfono están estabilizados, con reducción leve de ruido, audio
 normalizado y un rótulo inferior con el nombre y el tiempo. Conservan la duración
 original. R1 es una grabación de pantalla de RViz (1920×1080), con el mismo rótulo
-y sin estabilizar.
+y sin estabilizar. R2 se presenta como grabación complementaria de pantalla.
 
 El [inventario histórico](registros_audiovisuales.csv) conserva los nombres originales
-de los 12 registros documentados. Esta selección utiliza únicamente los nueve
+de los 13 registros documentados. Esta selección utiliza únicamente los diez
 videos publicados; V1, V4 y V6 quedan fuera de la selección. Sus fotogramas se
 conservan en la galería como evidencia fotográfica.
 
