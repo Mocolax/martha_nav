@@ -126,8 +126,13 @@ def trained_env_config(model_path):
 
 
 def load_model(path):
-    """PPO, or RecurrentPPO when the run's config says it was trained with an LSTM."""
-    if _run_config(path).get('recurrent', False):
+    """PPO, RecurrentPPO when the run's config says it was trained with an LSTM, or the PID
+    baseline when it says `controller: pid` (then the model file need not exist)."""
+    config = _run_config(path)
+    if config.get('controller') == 'pid':
+        from martha_nav.learning.pid import PidController
+        return PidController(ROBOTS[trained_env_config(path).robot])
+    if config.get('recurrent', False):
         from sb3_contrib import RecurrentPPO
         return RecurrentPPO.load(path, device='cpu')
     from stable_baselines3 import PPO
