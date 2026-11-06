@@ -4,11 +4,12 @@ python3 tools/plot_report.py runs/wide_dyn_s0
 python3 tools/plot_report.py --all
 
 Writes <run>/learning_report.png (3x2: reward, outcomes, episode length, SPL,
-reward terms, deterministic evaluation) and <run>/ppo_diagnostics.png (2x2:
-losses, exploration, update size, critic).
+reward terms, deterministic evaluation), <run>/ppo_diagnostics.png (2x2:
+losses, exploration, update size, critic), <run>/spl_training.png and
+<run>/spl_final.png (SPL during training and in the final evaluation).
 
-The x axis is the episode, with a second axis in millions of steps on top. Rates
-are lines, one per outcome; curves are rolling means, never a raw cloud.
+The x axis is always the training episode. Rates are lines, one per outcome;
+curves are rolling means, never a raw cloud.
 """
 import argparse
 import glob
@@ -27,10 +28,12 @@ COLORS = {'success': '#2a78d6', 'collision': '#eb6834', 'stalled': '#1baf7a', 't
 LABELS = {'success': 'éxito', 'collision': 'colisión', 'stalled': 'estancado', 'timeout': 'timeout'}
 SLOTS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7']
 INK, MUTED, GRID, SURFACE = '#0b0b0b', '#52514e', '#e4e3df', '#fcfcfb'
+FINAL_EVALS = [('eval_clean_train.csv', '2D sin obst.'), ('eval_obstacles_train.csv', '2D con obst.'),
+               ('eval_obstacles_lab.csv', '2D lab'), ('eval_obstacles_lab-points.csv', '2D lab pares'),
+               ('eval_gazebo_lab.csv', 'Gazebo lab'), ('eval_gazebo_lab_points.csv', 'Gazebo lab pares')]
 
 
-def style(ax, title, ylabel=None, percent=False, steps_axis=None, xlabel='episodio'):
-    """steps_axis: (episodes, timesteps) to add a second x axis in millions of steps."""
+def style(ax, title, ylabel=None, percent=False, xlabel='episodio'):
     ax.set_facecolor(SURFACE)
     ax.set_title(title, loc='left', color=INK, fontsize=11, fontweight='bold')
     ax.grid(axis='y', color=GRID, linewidth=0.8)
@@ -45,14 +48,7 @@ def style(ax, title, ylabel=None, percent=False, steps_axis=None, xlabel='episod
     if percent:
         ax.set_ylim(0, 1)
         ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    if steps_axis is not None:
-        episodes, timesteps = steps_axis
-        top = ax.secondary_xaxis(
-            'top',
-            functions=(lambda e: np.interp(e, episodes, timesteps / 1e6),
-                       lambda m: np.interp(m, timesteps / 1e6, episodes)))
-        top.set_xlabel('millones de pasos', color=MUTED, fontsize=8)
-        top.tick_params(colors=MUTED, labelsize=8, length=0)
+
 
 
 def load(run):
@@ -75,7 +71,7 @@ def scalars(run):
     out = {}
     for tag in ea.Tags()['scalars']:
         events = ea.Scalars(tag)
-        out[tag] = (np.array([e.step for e in events]) / 1e6, np.array([e.value for e in events]))
+        out[tag] = (np.array([e.step for e in events]), np.array([e.value for e in events]))
     if 'train/entropy_loss' in out:      # SB3 logs the loss, which is minus the entropy
         steps, values = out['train/entropy_loss']
         out['train/entropy'] = (steps, -values)
@@ -88,36 +84,32 @@ def rolling(series, window=WINDOW):
 
 def learning_report(run, episodes, terms, evals, out):
     fig, ax = plt.subplots(3, 2, figsize=(15, 13), facecolor=SURFACE, constrained_layout=True)
-    steps_axis = (episodes.x.to_numpy(), episodes.timesteps.to_numpy())
 
     ax[0, 0].plot(episodes.x, rolling(episodes.reward), color=SLOTS[0], linewidth=1.8)
     style(ax[0, 0], f'Recompensa por episodio (media móvil de {WINDOW})',
-          'recompensa', steps_axis=steps_axis)
+          'recompensa')
 
     # One line per outcome, no shading: a stacked area hides the small rates.
     for outcome in OUTCOMES:
         ax[0, 1].plot(episodes.x, rolling((episodes.outcome == outcome).astype(float)),
                       color=COLORS[outcome], linewidth=1.8, label=LABELS[outcome])
     ax[0, 1].legend(loc='center right', frameon=False, fontsize=9, ncol=2)
-    style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', 'tasa', percent=True,
-          steps_axis=steps_axis)
+    style(ax[0, 1], f'Resultados por episodio (media móvil de {WINDOW})', 'tasa', percent=True)
 
     ax[1, 0].plot(episodes.x, rolling(episodes.steps), color=SLOTS[0], linewidth=1.8)
-    style(ax[1, 0], 'Duración de los episodios', 'pasos', steps_axis=steps_axis)
+    style(ax[1, 0], 'Duración de los episodios', 'pasos')
 
     # SPL is 0 on every failure, so averaging it over all episodes hides the shape.
     spl = episodes.spl.where(episodes.outcome == 'success')
     ax[1, 1].plot(episodes.x, rolling(spl), color=SLOTS[2], linewidth=1.8)
-    style(ax[1, 1], 'Eficiencia de ruta (SPL entre los éxitos)', percent=True,
-          steps_axis=steps_axis)
+    style(ax[1, 1], 'Eficiencia de ruta (SPL entre los éxitos)', percent=True)
 
     for term, color in zip(terms, SLOTS):
         ax[2, 0].plot(episodes.x, rolling(episodes[term]), color=color, linewidth=2,
                       label=term.replace('r_', ''))
     ax[2, 0].legend(loc='upper left', frameon=False, fontsize=9, ncol=3)
     ax[2, 0].axhline(0, color=MUTED, linewidth=0.8)
-    style(ax[2, 0], 'Contribución de cada término de recompensa', 'por episodio',
-          steps_axis=steps_axis)
+    style(ax[2, 0], 'Contribución de cada término de recompensa', 'por episodio')
 
     if evals is not None:
         at_episode = np.interp(evals.timesteps, episodes.timesteps, episodes.x)
@@ -128,15 +120,71 @@ def learning_report(run, episodes, terms, evals, out):
         ax[2, 1].plot(at_episode[best], evals.success[best], 'o', markersize=9,
                       markerfacecolor='none', markeredgecolor=INK, markeredgewidth=1.5)
         ax[2, 1].legend(loc='center right', frameon=False, fontsize=9)
-    style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True,
-          steps_axis=steps_axis)
+    style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True)
 
     fig.suptitle(f'Run {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
 
 
-def diagnostics_report(run, tb, out):
+def find_eval(run, name):
+    """The v5 re-evaluation wins over the first one when both exist."""
+    return next((p for p in (run / 'v5' / name, run / name) if p.exists()), None)
+
+
+def spl_report(run, episodes, evals):
+    """Path efficiency: spl_training.png and spl_final.png (final evaluation, bootstrap CI)."""
+    fig, ax = plt.subplots(figsize=(10, 5), facecolor=SURFACE, constrained_layout=True)
+
+    at_episode = np.interp(evals.timesteps, episodes.timesteps, episodes.x)
+    ax.plot(at_episode, evals.success, color=SLOTS[0], marker='o', markersize=4, linewidth=2,
+            label='tasa de éxito')
+    ax.plot(at_episode, evals.spl, color=SLOTS[1], marker='o', markersize=4, linewidth=2,
+            label='SPL')
+    ax.plot(at_episode, evals.spl / evals.success, color=MUTED, linewidth=1.5, linestyle='--',
+            label='eficiencia de los éxitos (SPL / éxito)')
+    best = evals.success.idxmax()
+    ax.plot(at_episode[best], evals.spl[best], 'o', markersize=9, markerfacecolor='none',
+            markeredgecolor=INK, markeredgewidth=1.5)
+    ax.legend(loc='lower right', frameon=False, fontsize=9)
+    style(ax, f'SPL durante el entrenamiento · {run.name}', percent=True)
+    fig.savefig(run / 'spl_training.png', dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+    rng = np.random.default_rng(0)
+    rows = []
+    for name, label in FINAL_EVALS:
+        path = find_eval(run, name)
+        if path is None:
+            continue
+        ev = pd.read_csv(path)
+        spl = ev.spl.to_numpy()
+        boot = spl[rng.integers(0, len(spl), (4000, len(spl)))].mean(axis=1)
+        rows.append((f'{label}\n({len(ev)})', (ev.outcome == 'success').mean(), spl.mean(),
+                     *np.percentile(boot, [2.5, 97.5])))
+    fig, ax = plt.subplots(figsize=(10, 5), facecolor=SURFACE, constrained_layout=True)
+    xs = np.arange(len(rows))
+    success, spl, low, high = (np.array(c) for c in list(zip(*rows))[1:])
+    ax.bar(xs - 0.2, success, width=0.38, color=SLOTS[0], label='tasa de éxito')
+    ax.bar(xs + 0.2, spl, width=0.38, color=SLOTS[1], label='SPL (IC 95 %)')
+    ax.errorbar(xs + 0.2, spl, yerr=[spl - low, high - spl], fmt='none', ecolor=INK,
+                elinewidth=1.2, capsize=4)
+    for x, s, v, h in zip(xs, success, spl, high):
+        ax.annotate(f'{s:.0%}', (x - 0.2, s), xytext=(0, 3), textcoords='offset points',
+                    ha='center', color=INK, fontsize=8)
+        ax.annotate(f'{v:.2f}', (x + 0.2, h), xytext=(0, 3), textcoords='offset points',
+                    ha='center', color=INK, fontsize=8)
+    ax.set_xticks(xs)
+    ax.set_xticklabels([r[0] for r in rows], fontsize=9)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2, frameon=False, fontsize=9)
+    style(ax, f'SPL en la evaluación final · {run.name}', percent=True, xlabel='')
+    fig.savefig(run / 'spl_final.png', dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+    for label, s, v, lo, hi in rows:
+        print(f"  {label.replace(chr(10), ' '):28} éxito {s:.1%}  SPL {v:.3f} [{lo:.3f}, {hi:.3f}]")
+
+
+def diagnostics_report(run, tb, episodes, out):
     fig, ax = plt.subplots(2, 2, figsize=(14, 9), facecolor=SURFACE, constrained_layout=True)
     groups = [
         ((0, 0), 'Pérdidas', [('train/policy_gradient_loss', 'actor'), ('train/value_loss', 'crítico'),
@@ -152,13 +200,14 @@ def diagnostics_report(run, tb, out):
             if tag not in tb:
                 continue
             steps, values = tb[tag]
-            axis.plot(steps, values, color=color, linewidth=2, label=label)
+            x = np.interp(steps, episodes.timesteps, episodes.x)
+            axis.plot(x, values, color=color, linewidth=2, label=label)
         if reference is not None:
             axis.axhline(reference, color=MUTED, linewidth=1, linestyle='--')
-            axis.annotate(f'objetivo {reference}', (steps[-1], reference), xytext=(-70, 4),
+            axis.annotate(f'objetivo {reference}', (x[-1], reference), xytext=(-70, 4),
                           textcoords='offset points', color=MUTED, fontsize=8)
         axis.legend(loc='best', frameon=False, fontsize=9)
-        style(axis, title, xlabel='millones de pasos')
+        style(axis, title)
     fig.suptitle(f'PPO · {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
@@ -174,8 +223,10 @@ def main():
     for run in runs:
         episodes, terms, evals = load(run)
         learning_report(run, episodes, terms, evals, run / 'learning_report.png')
-        diagnostics_report(run, scalars(run), run / 'ppo_diagnostics.png')
+        diagnostics_report(run, scalars(run), episodes, run / 'ppo_diagnostics.png')
         print(run / 'learning_report.png')
+        if evals is not None and 'spl' in evals:
+            spl_report(run, episodes, evals)
 
 
 if __name__ == '__main__':

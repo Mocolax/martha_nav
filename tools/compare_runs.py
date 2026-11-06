@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 import pandas as pd
 
 matplotlib.use('Agg')
@@ -36,16 +37,19 @@ def style(ax, title):
 
 
 def curve(ax, runs, key, title, max_steps, end_labels=True):
+    last = 0
     for (label, run), color in zip(runs, SLOTS):
         ev = pd.read_csv(run / 'evals.csv')
         ev = ev[ev.timesteps <= max_steps]
-        x = ev.timesteps / 1e6
+        steps = pd.read_csv(run / 'episodes.csv', usecols=['timesteps']).timesteps
+        x = np.interp(ev.timesteps, steps, np.arange(1, len(steps) + 1))
         ax.plot(x, ev[key], color=color, linewidth=2, marker='o', markersize=4, label=label)
         if end_labels:
-            ax.annotate(label, (x.iloc[-1], ev[key].iloc[-1]), xytext=(6, 0), textcoords='offset points',
+            ax.annotate(label, (x[-1], ev[key].iloc[-1]), xytext=(6, 0), textcoords='offset points',
                         va='center', color=INK, fontsize=9)
-    ax.set_xlim(0, max_steps / 1e6 * (1.45 if end_labels else 1.05))
-    ax.set_xlabel('millones de pasos', color=MUTED, fontsize=9)
+        last = max(last, x[-1])
+    ax.set_xlim(0, last * (1.45 if end_labels else 1.05))
+    ax.set_xlabel('episodio', color=MUTED, fontsize=9)
     style(ax, title)
 
 

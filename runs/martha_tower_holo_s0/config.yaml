@@ -1,0 +1,118 @@
+preset: full
+recurrent: false
+seed: 0
+steps: 5000000
+n_envs: 16
+learning_rate: 0.0003
+ppo:
+  n_steps: 512
+  batch_size: 256
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  target_kl: 0.02
+eval_every: 100000
+eval_episodes: 200
+env:
+  scenario:
+    sources:
+    - corridor
+    - doorway
+    - l_turn
+    - furniture_walls
+    - furniture_center
+    - narrow_passage
+    - four_rooms
+    - hall
+    - multi
+    - roblab
+    - room
+    - tube
+    obstacle_mode: mixed
+    p_no_obstacles: 0.2
+    max_obstacles: 4
+    route_min: 3.0
+    route_max: 12.0
+    inflation: 0.4
+    obstacle_attempts: 20
+    start_clearance: 1.0
+    goal_clearance: 0.6
+    lateral_offset: 0.5
+    point_pairs: []
+  dynamics:
+    tau:
+    - 0.02
+    - 0.4
+    acc_v:
+    - 0.3
+    - 3.0
+    acc_w:
+    - 1.0
+    - 7.0
+    gain:
+    - 0.9
+    - 1.1
+    delay:
+    - 0
+    - 2
+  reward:
+    progress: 1.0
+    progress_mode: route
+    goal: 20.0
+    collision: -20.0
+    step: -0.005
+  carrot_range:
+  - 1.0
+  - 2.5
+  carrot_clearance: 0.4
+  goal_tolerance: 0.3
+  no_progress_time: 15.0
+  n_rays: 180
+  lidar_noise:
+  - 0.01
+  - 0.02
+  lidar_dropout: 0.01
+  vel_noise: 0.05
+  action_dim: 3
+  target: carrot
+  robot: martha_tower
+  episode_seeds: []
+  record_trajectory: false
+robot_profile:
+  name: martha_tower
+  length: 0.56
+  width: 0.41
+  footprint_offset_x: 0.0
+  lidar_offset_x: 0.19
+  lidar_range: 8.0
+  lidar_min: 0.0
+  lidar_rate: 10.0
+  v_max: 0.35
+  v_reverse: 0.15
+  v_lateral: 0.25
+  w_max: 0.8
+  inflation: 0.4
+  guard_margin: 0.05
+  posts:
+  - - -0.033
+    - 0.11
+    - 0.04
+    - 0.02
+  - - -0.033
+    - -0.11
+    - 0.04
+    - 0.02
+  - - -0.208
+    - 0.11
+    - 0.04
+    - 0.02
+  - - -0.208
+    - -0.11
+    - 0.04
+    - 0.02
+  post_pad: 0.05
+init_from: null

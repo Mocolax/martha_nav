@@ -1,0 +1,6 @@
+[INFO] [1793337713.469883670] [evaluate_gazebo]: done: {'failed': 0.029411764705882353, 'stalled': 0.11764705882352941, 'success': 0.8529411764705882} -> /home/
+[INFO] [1793337729.049677141] [evaluate_gazebo]: done: {'collision': 0.030303030303030304, 'failed': 0.030303030303030304, 'stalled': 0.030303030303030304, 'suc
+[INFO] [1793337727.452257215] [evaluate_gazebo]: done: {'stalled': 0.15151515151515152, 'success': 0.8484848484848485} -> /home/ros/ros2_ws/src/martha_nav/runs/
+[INFO] [1793338082.595246337] [evaluate_gazebo]: done: {'failed': 0.06666666666666667, 'stalled': 0.03333333333333333, 'success': 0.9} -> /home/ros/ros2_ws/src/
+[INFO] [1793338033.742475138] [evaluate_gazebo]: done: {'stalled': 0.06666666666666667, 'success': 0.9333333333333333} -> /home/ros/ros2_ws/src/martha_nav/runs/
+[INFO] [1793338133.916601531] [evaluate_gazebo]: done: {'collision': 0.03333333333333333, 'stalled': 0.13333333333333333, 'success': 0.8333333333333334} -> /hom
