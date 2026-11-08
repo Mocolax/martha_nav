@@ -1,0 +1,9 @@
+condicion,controlador,episodios,exito,exito_ic95_bajo,exito_ic95_alto,colision,atasco,tiempo_agotado,spl
+Limpio,PPO,500,0.982,0.966,0.991,0.008,0.01,0.0,0.963
+Limpio,PID,500,0.91,0.882,0.932,0.012,0.07,0.008,0.91
+Con obstáculos,PPO,500,0.888,0.857,0.913,0.074,0.038,0.0,0.862
+Con obstáculos,PID,500,0.61,0.567,0.652,0.022,0.292,0.076,0.608
+Lab no visto,PPO,200,0.825,0.766,0.871,0.115,0.06,0.0,0.806
+Lab no visto,PID,200,0.515,0.446,0.583,0.01,0.345,0.13,0.513
+Puntos fijos del lab,PPO,90,0.811,0.718,0.879,0.144,0.044,0.0,0.797
+Puntos fijos del lab,PID,90,0.489,0.388,0.59,0.011,0.344,0.156,0.487
