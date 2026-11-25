@@ -74,7 +74,7 @@ Hay dos perfiles en [`martha_nav/robots.py`](martha_nav/robots.py):
 | `martha` | Base con ruedas mecanum | Permite acciones `(v, w)` o `(vx, vy, w)`, según el modelo entrenado. |
 | `martha_tower` | Martha con torre de aluminio y elevador de la garra | Modela los postes y los motores del elevador que atraviesan el plano del LiDAR, con el LiDAR a 0.195 m (medido el 2026-11-24). Requiere una política compatible con ese perfil. |
 
-Se incluyen cuatro políticas listas para inferencia:
+Se incluyen cinco políticas listas para inferencia:
 
 | Archivo | Entrenamiento de origen | Acciones |
 |---|---|---|
@@ -82,6 +82,7 @@ Se incluyen cuatro políticas listas para inferencia:
 | [`policies/martha_holo.npz`](policies/martha_holo.npz) | `martha_tower_holo_s0` (perfil `martha_tower`) | Avance/retroceso, **lateral** y giro (acción holonómica). |
 | [`policies/martha_tower_holo_5m.npz`](policies/martha_tower_holo_5m.npz) | `martha_claw_holo_5m_s0` (torre con la garra) | Holonómica, 5M pasos. |
 | [`policies/martha_tower_holo_rev.npz`](policies/martha_tower_holo_rev.npz) | `martha_claw_holo_rev_s0` (torre con la garra) | Holonómica, 5M pasos, castigo por metro en reversa (`--reward-reverse 1.0`). |
+| [`policies/martha_tower_holo_clear.npz`](policies/martha_tower_holo_clear.npz) | `martha_claw_holo_clear_s0` (torre con la garra) | Holonómica, 5M pasos, castigo denso por cercanía a obstáculos (`--reward-clearance 0.05`). |
 
 Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. El cargador comprueba
@@ -89,7 +90,8 @@ la compatibilidad del perfil; no basta con cambiar el nombre del robot para reut
 
 `martha.npz` y `martha_holo.npz` se entrenaron con la torre antes del elevador de la garra (LiDAR a 0.19 m,
 solo los cuatro postes). Con el perfil actual el cargador las rechaza: en la torre de hoy
-se usan `martha_tower_holo_5m.npz` o `martha_tower_holo_rev.npz`.
+se usan `martha_tower_holo_5m.npz`, `martha_tower_holo_rev.npz` o
+`martha_tower_holo_clear.npz`.
 
 [↑ Volver al menú](#explora-el-proyecto)
 
