@@ -2,10 +2,11 @@
 
 python3 tools/plot_report.py runs/wide_dyn_s0
 python3 tools/plot_report.py --all
+python3 tools/plot_report.py runs/wide_dyn_s0 --episodes 5000
 
 Writes <run>/learning_report.png (3x2: reward, outcomes, episode length, SPL,
 reward terms, deterministic evaluation), <run>/ppo_diagnostics.png (2x2:
-losses, exploration, update size, critic), <run>/spl_training.png and
+critic loss, exploration, update size, critic), <run>/spl_training.png and
 <run>/spl_final.png (SPL during training and in the final evaluation).
 
 The x axis is always the training episode. Rates are lines, one per outcome;
@@ -120,6 +121,7 @@ def learning_report(run, episodes, terms, evals, out):
         ax[2, 1].plot(at_episode[best], evals.success[best], 'o', markersize=9,
                       markerfacecolor='none', markeredgecolor=INK, markeredgewidth=1.5)
         ax[2, 1].legend(loc='center right', frameon=False, fontsize=9)
+    ax[2, 1].set_xlim(ax[0, 0].get_xlim())     # same episode range as the other panels
     style(ax[2, 1], 'Evaluación determinista (semillas fijas)', percent=True)
 
     fig.suptitle(f'Run {run.name}', x=0.01, ha='left', color=INK, fontsize=14, fontweight='bold')
@@ -187,8 +189,7 @@ def spl_report(run, episodes, evals):
 def diagnostics_report(run, tb, episodes, out):
     fig, ax = plt.subplots(2, 2, figsize=(14, 9), facecolor=SURFACE, constrained_layout=True)
     groups = [
-        ((0, 0), 'Pérdidas', [('train/policy_gradient_loss', 'actor'), ('train/value_loss', 'crítico'),
-                              ('train/entropy', 'entropía')], None),
+        ((0, 0), 'Pérdida del crítico', [('train/value_loss', 'value_loss')], None),
         ((0, 1), 'Exploración', [('train/std', 'std de la política')], None),
         ((1, 0), 'Magnitud de las actualizaciones', [('train/approx_kl', 'approx_kl'),
                                                      ('train/clip_fraction', 'clip_fraction')], 0.02),
@@ -217,15 +218,25 @@ def main():
     ap = argparse.ArgumentParser(description='Learning and PPO reports for a run.')
     ap.add_argument('run', nargs='?')
     ap.add_argument('--all', action='store_true', help='every run under runs/')
+    ap.add_argument('--episodes', type=int,
+                    help='only the first N episodes; writes *_<N>ep.png beside the full reports')
     args = ap.parse_args()
     runs = ([p.parent for p in sorted(Path('runs').glob('*/episodes.csv'))] if args.all
             else [Path(args.run)])
+    suffix = f'_{args.episodes}ep' if args.episodes else ''
     for run in runs:
         episodes, terms, evals = load(run)
-        learning_report(run, episodes, terms, evals, run / 'learning_report.png')
-        diagnostics_report(run, scalars(run), episodes, run / 'ppo_diagnostics.png')
-        print(run / 'learning_report.png')
-        if evals is not None and 'spl' in evals:
+        tb = scalars(run)
+        if args.episodes:
+            episodes = episodes.head(args.episodes)
+            last = episodes.timesteps.iloc[-1]
+            if evals is not None:
+                evals = evals[evals.timesteps <= last]
+            tb = {tag: (s[s <= last], v[s <= last]) for tag, (s, v) in tb.items()}
+        learning_report(run, episodes, terms, evals, run / f'learning_report{suffix}.png')
+        diagnostics_report(run, tb, episodes, run / f'ppo_diagnostics{suffix}.png')
+        print(run / f'learning_report{suffix}.png')
+        if evals is not None and 'spl' in evals and not args.episodes:   # whole runs only
             spl_report(run, episodes, evals)
 
 

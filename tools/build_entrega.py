@@ -1,9 +1,9 @@
 """Build entrega_tesis/: per configuration its data, plus summary, paired and verification tables.
 
-    ./tools/ct_ros python3 tools/build_entrega.py [--out entrega_tesis]
+    python3 tools/build_entrega.py [--out entrega_tesis]      (in the container: ./sim.sh shell)
 
 Reads runs/<run>/{config.yaml, best_model.zip, vecnormalize.pkl, evals.csv, episodes.csv} and the
-evaluations in runs/<run>/v5/ (tools/evaluate_run_gazebo.sh, evaluate_2d --out).
+evaluations in runs/<run>/v5/ (./sim.sh eval-gazebo, evaluate_2d --out).
 """
 import argparse
 import csv
@@ -113,26 +113,28 @@ def commit_for(run_dir):
 def commands(run, gazebo, commit):
     lines = [
         '#!/usr/bin/env bash',
-        f'# {run}. Desde martha_nav/, con el contenedor ros2_humble levantado.',
+        f'# {run}. Desde martha_nav/.',
         '# Entrenamiento: el código de la época (commit aproximado, por la fecha de inicio);',
         '# config.yaml tiene todos los parámetros con que corrió.',
         f'git checkout {commit.split()[0]}',
         f'#   train_policy con los flags de su config.yaml y --name {run} (docs/manual-usuario.md)',
         'git checkout -',
-        '# Evaluación 2D (código actual; determinista: repite los mismos números):',
+        '# Evaluación 2D (código actual; determinista: repite los mismos números),',
+        '# dentro del contenedor (./sim.sh shell):',
         f'm=runs/{run}/best_model.zip; o=runs/{run}/v5',
-        './tools/ct_ros ros2 run martha_nav evaluate_2d --model $m --episodes 500 --condition clean '
+        'ros2 run martha_nav evaluate_2d --model $m --episodes 500 --condition clean '
         '--out $o/eval_clean_train.csv',
-        './tools/ct_ros ros2 run martha_nav evaluate_2d --model $m --episodes 500 --condition obstacles '
+        'ros2 run martha_nav evaluate_2d --model $m --episodes 500 --condition obstacles '
         '--out $o/eval_obstacles_train.csv',
-        './tools/ct_ros ros2 run martha_nav evaluate_2d --model $m --episodes 200 --condition obstacles '
+        'ros2 run martha_nav evaluate_2d --model $m --episodes 200 --condition obstacles '
         '--sources lab --out $o/eval_obstacles_lab.csv',
-        './tools/ct_ros ros2 run martha_nav evaluate_2d --model $m --condition obstacles --points lab '
+        'ros2 run martha_nav evaluate_2d --model $m --condition obstacles --points lab '
         '--out $o/eval_obstacles_lab-points.csv',
     ]
     if gazebo:
-        lines += ['# Gazebo (3 simulaciones en paralelo; Gazebo no es determinista: ~±4 puntos):',
-                  f'./tools/evaluate_run_gazebo.sh runs/{run} "" 3 runs/{run}/v5']
+        lines += ['# Gazebo, desde el host (3 simulaciones en paralelo; Gazebo no es determinista:',
+                  '# ~±4 puntos):',
+                  f'./sim.sh eval-gazebo runs/{run} "" 3 runs/{run}/v5']
     return '\n'.join(lines) + '\n'
 
 

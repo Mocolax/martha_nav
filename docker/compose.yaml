@@ -1,0 +1,54 @@
+# The ros2_humble container: ROS 2 Humble, Gazebo Classic 11, PyTorch (CPU) and this package.
+# Use it through ../sim.sh and ../robot.sh, which set the variables below (docker/lib.sh).
+# The repository lives in a colcon workspace, $WS/src/martha_nav, and the whole workspace is
+# mounted, so the container builds into $WS/build and $WS/install.
+name: ros2_ws
+
+services:
+  ros2_humble:
+    image: ros2_ws-ros2_humble:cpu
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        USERNAME: ros
+        USER_UID: ${UID}
+        USER_GID: ${GID}
+        DIALOUT_GID: ${DIALOUT_GID}
+        VIDEO_GID: ${VIDEO_GID}
+        RENDER_GID: ${RENDER_GID}
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+
+    container_name: ros2_humble
+
+    network_mode: host
+    ipc: host
+    privileged: true
+
+    environment:
+      ROS_DOMAIN_ID: "0"
+      RMW_IMPLEMENTATION: "rmw_fastrtps_cpp"
+
+      DISPLAY: "${DISPLAY}"
+      WAYLAND_DISPLAY: "${WAYLAND_DISPLAY}"
+      XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR}"
+      QT_QPA_PLATFORM: "xcb"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+
+    volumes:
+      - ${WS}/src:/home/ros/ros2_ws/src
+      - ${WS}/build:/home/ros/ros2_ws/build
+      - ${WS}/install:/home/ros/ros2_ws/install
+      - ${WS}/log:/home/ros/ros2_ws/log
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}
+      - /dev:/dev
+
+    group_add:
+      - "${DIALOUT_GID}"
+      - "${VIDEO_GID}"
+
+    stdin_open: true
+    tty: true
+
+    command: bash

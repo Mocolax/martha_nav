@@ -1,5 +1,5 @@
 """Episodic evaluation in Gazebo, against a running sim.launch.py. For a whole run without
-launching anything, N simulations in parallel: tools/evaluate_run_gazebo.sh.
+launching anything, N simulations in parallel: ./sim.sh eval-gazebo.
 
 ros2 run martha_nav evaluate_gazebo --ros-args -p episodes:=100 -p out:=/tmp/eval.csv
 ros2 run martha_nav evaluate_gazebo --ros-args -p mode:=points -p out:=/tmp/eval_points.csv
@@ -9,10 +9,11 @@ mode "seeds" plays the generated episodes of the reserved evaluation seeds; mode
 the episode with scenarios.generate, so the same seed is the same episode as in the
 2D simulator and the comparison is paired. Episodes end by the 2D environment's rules,
 in simulated time (the "seconds" column too). robot:= picks the profile for the time limit and
-inflation; it must be the robot of the running sim.launch.py (evaluate_run_gazebo.sh passes it).
+inflation; it must be the robot of the running sim.launch.py (sim.sh eval-gazebo passes it).
 
 The loc_err_* columns compare the localization (TF map -> base_link) with Gazebo's
-true pose: zero with sim.launch.py's default, the test with slam:=localization.
+true pose: zero while sim.launch.py localizes with the true pose (docs/resultados.md, section 8,
+has the test with slam_toolbox).
 """
 import math
 from dataclasses import replace

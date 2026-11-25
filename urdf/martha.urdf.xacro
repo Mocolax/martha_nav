@@ -62,6 +62,10 @@
          With the tower, scan_z is the scan plane, 3.1 cm above the upper board it rests on. -->
     <xacro:property name="built" value="${'$(arg tower)' == 'true'}" />
     <xacro:property name="lidar_x" value="${0.19 if built else 0.2325}" />
+    <!-- As built the LiDAR is mounted turned 180 degrees. The lidar frame turns with it, so
+         RViz and slam_toolbox place every beam through TF, and the policy reads the yaw from
+         TF too (ppo_local_planner). The driver must not flip the scan as well. -->
+    <xacro:property name="lidar_yaw" value="${pi if built else 0}" />
     <!-- Collision envelope used for contacts, held above the floor so wheel support
          never counts as a collision. It is 0.58 m long, not the 0.56 m of the 2D
          footprint, so a wall always touches the shell before a wheel and the bumper
@@ -167,7 +171,8 @@
         <child link="lidar" />
         <!-- x is the value lidar_offset_x uses. The scan plane sits above the contact shell
              so the robot never sees itself, only the tower's posts. -->
-        <origin xyz="${lidar_x} 0 ${scan_z if built else contact_shell_center_z + contact_shell_height/2 + lidar_length/2 + lidar_shell_clearance}"/>
+        <origin xyz="${lidar_x} 0 ${scan_z if built else contact_shell_center_z + contact_shell_height/2 + lidar_length/2 + lidar_shell_clearance}"
+                rpy="0 0 ${lidar_yaw}"/>
     </joint>
 
     <!-- One straight aluminium profile, fixed to base_link and centred on (x, y, z). -->

@@ -38,18 +38,17 @@ Elige un apartado para consultar las instrucciones, entender el sistema o revisa
 
 ### Primera demostración
 
-Con ROS 2 Humble y el workspace **ya instalados y cargados**, desde la raíz del
-repositorio:
+Con Docker instalado y el repositorio clonado en `~/ros2_ws/src/martha_nav`, desde su
+raíz (la primera vez construye el contenedor y compila):
 
 ```bash
-ros2 launch martha_nav sim.launch.py \
-  world:=lab drive:=planar rviz:=true \
-  checkpoint:="$(pwd)/policies/martha.npz"
+./sim.sh            # Gazebo + RViz con Martha en el mundo lab
+./sim.sh policy     # en otra terminal: la política incluida
 ```
 
 En RViz, selecciona **2D Goal Pose** sobre una zona libre para enviar una meta.
-La modalidad `planar` permite probar navegación sin simular la dinámica de ruedas.
-Para instalación desde cero, cancelación de metas y otras opciones, sigue el
+`./sim.sh teleop` maneja con el teclado y `./sim.sh` sin argumentos válidos muestra todo lo
+que hace. Para la instalación, otros mundos y opciones, sigue el
 [manual paso a paso](docs/manual-usuario.md#manual-de-simulación).
 
 [↑ Volver al menú](#explora-el-proyecto)
@@ -113,19 +112,22 @@ no basta con cambiar el nombre del robot para reutilizar una política.
 
 ```text
 martha_nav/
+├── sim.sh           # Simulación en el PC: Gazebo, política, teleop, evaluaciones
+├── robot.sh         # Robot real: mapear, localizar, política, teleop, pruebas de la ESP32
+├── docker/          # Imagen y contenedor ros2_humble (los usan sim.sh y robot.sh)
 ├── martha_nav/
 │   ├── sim2d/       # Simulador, observaciones, recompensa y planificación
 │   ├── learning/    # Entrenamiento, evaluación y exportación
 │   ├── ros/         # Nodos e integración ROS 2
 │   └── robots.py    # Perfiles de robot
-├── launch/          # sim.launch.py y real.launch.py
+├── launch/          # sim.launch.py, real.launch.py y policy.launch.py
 ├── policies/        # Políticas NumPy incluidas
 ├── config/          # Controladores, EKF, LiDAR y puntos de evaluación
 ├── urdf/            # Modelo de Martha
 ├── worlds/          # Escenarios de Gazebo
 ├── rviz/            # Configuración de visualización
 ├── firmware/        # Programa de la ESP32 y control de hardware
-├── tools/           # Evaluación, mapas, gráficas y despliegue
+├── tools/           # Gráficas, paquete de entrega y comprobaciones del hardware
 ├── test/            # Pruebas automatizadas
 └── docs/            # Manual, resultados y referencias
 ```

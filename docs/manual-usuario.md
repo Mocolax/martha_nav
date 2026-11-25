@@ -33,7 +33,7 @@ de Martha. Este manual describe la rama `feat/sim2d-training`.
 | Aprendizaje | PPO con extractor CNN para el LiDAR, registro de recompensas, evaluación periódica y selección del mejor modelo; variantes con movimiento lateral, memoria LSTM y recompensa geodésica. |
 | Transferencia a Gazebo | Modelos de robot, mundos, sensores, control mecanum o movimiento planar, transformaciones TF y evaluación por episodios. |
 | Navegación ROS 2 | Nodos de mapa, planificación global, inferencia de la política, publicación de velocidades, cancelación de metas y guarda direccional ante obstáculos. |
-| Localización | Integración con `slam_toolbox` para mapear y localizarse; en simulación también se puede utilizar la pose verdadera de Gazebo. |
+| Localización | Integración con `slam_toolbox` para mapear y localizarse en el robot real; en simulación se usa la pose verdadera de Gazebo. |
 | Martha real | Firmware ESP32, control de motores, encoders, giroscopio, puente serial, RPLIDAR y fusión de odometría mediante EKF. |
 | Análisis experimental | Comparación de configuraciones, transferencia 2D–Gazebo, trayectorias, éxito, colisiones, estancamientos, SPL y bitácoras de resultados. |
 | Verificación | Pruebas del simulador, recompensas, políticas, geometría, nodos, launch, URDF e interfaces de hardware. |
@@ -73,19 +73,22 @@ no basta con cambiar el nombre del robot para reutilizar una política.
 
 ```text
 martha_nav/
+├── sim.sh           # Simulación en el PC: Gazebo, política, teleop, evaluaciones
+├── robot.sh         # Robot real: mapear, localizar, política, teleop, pruebas de la ESP32
+├── docker/          # Imagen y contenedor ros2_humble (los usan sim.sh y robot.sh)
 ├── martha_nav/
 │   ├── sim2d/       # Simulador, observaciones, recompensa y planificación
 │   ├── learning/    # Entrenamiento, evaluación y exportación
 │   ├── ros/         # Nodos e integración ROS 2
 │   └── robots.py    # Perfiles de robot
-├── launch/          # sim.launch.py y real.launch.py
+├── launch/          # sim.launch.py, real.launch.py y policy.launch.py
 ├── policies/        # Políticas NumPy incluidas
 ├── config/          # Controladores, EKF, LiDAR y puntos de evaluación
 ├── urdf/            # Modelo de Martha
 ├── worlds/          # Escenarios de Gazebo
 ├── rviz/            # Configuración de visualización
 ├── firmware/        # Programa de la ESP32 y control de hardware
-├── tools/           # Evaluación, mapas, gráficas y despliegue
+├── tools/           # Gráficas, paquete de entrega y comprobaciones del hardware
 ├── test/            # Pruebas automatizadas
 └── docs/            # Manual, resultados y referencias
 ```
@@ -97,15 +100,40 @@ pero no contiene ese paquete completo.
 
 ## Requisitos e instalación
 
-### Entorno ROS 2
+### Con Docker (recomendado)
+
+Todo corre en el contenedor `ros2_humble` (ROS 2 Humble, Gazebo Classic 11 y PyTorch
+para CPU), definido en [`docker/`](../docker/). Solo se necesitan Docker con el plugin
+`compose` y una sesión gráfica. El repositorio va dentro de un workspace de colcon,
+porque el contenedor monta el workspace completo y compila en él:
+
+```bash
+mkdir -p ~/ros2_ws/src
+git clone --branch feat/sim2d-training https://github.com/Mocolax/martha_nav.git ~/ros2_ws/src/martha_nav
+cd ~/ros2_ws/src/martha_nav
+./sim.sh test
+```
+
+La primera vez construye la imagen y compila el workspace; después arranca el
+contenedor si está detenido. Los comandos se escriben **en el anfitrión**, desde la raíz
+del repositorio. `./sim.sh` y `./robot.sh` sin argumentos válidos muestran su ayuda.
+
+| Comando | Uso |
+|---|---|
+| `./sim.sh shell` | Terminal dentro del contenedor, en el repositorio, con ROS cargado. |
+| `./sim.sh build` | Recompilar después de cambiar `setup.py`, launch, URDF, configuración o mundos. |
+| `./sim.sh stop` | Detener el contenedor; el código, `runs/` y `maps/` quedan en el anfitrión. |
+
+### Instalación nativa
 
 El entorno documentado del proyecto utiliza **ROS 2 Humble** y **Gazebo Classic**.
 Para una instalación nativa, la base habitual es Ubuntu 22.04 con ROS 2 Humble ya
 instalado. Se necesitan `colcon`, `rosdep`, NumPy, SciPy, PyYAML y las dependencias
 de [`package.xml`](../package.xml). RViz requiere además `rviz2` y una sesión gráfica.
 
-Los siguientes comandos preparan un workspace nativo. No crean el contenedor del
-autor ni instalan ROS desde cero:
+Sin Docker, los siguientes comandos preparan un workspace nativo. No instalan ROS
+desde cero, y `sim.sh` y `robot.sh` no sirven en ese caso: se usan los `ros2 launch`
+que esos scripts muestran en su código.
 
 ```bash
 source /opt/ros/humble/setup.bash
@@ -154,118 +182,83 @@ aprendizaje. Los ejemplos 2D de este manual usan `python3 -m` desde la raíz del
 repositorio para seleccionar el intérprete del entorno activado. No es necesario
 tener Gazebo abierto para entrenar.
 
-### Si ya existe el contenedor del proyecto
-
-Las notas originales usan un contenedor llamado `ros2_humble`, con el repositorio
-en `/home/ros/ros2_ws/src/martha_nav`. Los scripts `tools/ct` y `tools/ct_ros`
-dependen de ese nombre y esa ruta; **no crean el contenedor**. El Dockerfile citado
-en `requirements.txt` está fuera de este repositorio.
-
-```bash
-docker start ros2_humble
-./tools/ct_ros ros2 pkg prefix martha_nav
-```
-
-`tools/ct` ejecuta comandos dentro del contenedor y `tools/ct_ros` carga además ROS
-y el workspace. En ese entorno, anteponer `./tools/ct_ros` a los comandos ROS y
-usar rutas visibles dentro del contenedor para modelos y mapas.
-
 ## Manual de simulación
 
-### 1. Iniciar Martha con la política incluida
+Cada comando en su propia terminal: primero el mundo y, encima, la política o el
+teclado.
 
-Desde la raíz del repositorio, con ROS y el workspace cargados:
+### 1. Abrir un mundo
 
 ```bash
-ros2 launch martha_nav sim.launch.py \
-  world:=lab drive:=planar rviz:=true \
-  checkpoint:="$(pwd)/policies/martha.npz"
+./sim.sh            # lab
+./sim.sh hall
 ```
 
-Debe abrirse Gazebo y RViz; el planificador local debe registrar `policy loaded`.
-`planar` permite probar navegación sin simular la dinámica de las ruedas. Para
-evaluar el accionamiento mecanum, cambiar a `drive:=mecanum` con sus controladores
-instalados. Las métricas históricas dependen de la configuración usada en cada prueba.
+Abre Gazebo y RViz con Martha, sin política. Los mundos son `lab`, `room`, `hall`,
+`multi`, `tube`, `four_rooms`, `roblab` y `robocup_casa` (`worlds/`). Martha aparece
+donde empieza el primer episodio de evaluación de ese mundo, así que nunca dentro de
+una pared. Para cambiar de mundo, cerrar el anterior con `Ctrl+C`.
 
-### 2. Indicar una meta
+| Variable | Por defecto | Uso |
+|---|---|---|
+| `GUI` | `true` | `GUI=false ./sim.sh` no abre la ventana de Gazebo (más liviano). |
+| `ROBOT` | `martha_tower` | `martha` simula a Martha sin la torre. |
+| `DRIVE` | `mecanum` | `planar` mueve el cuerpo directo, sin dinámica de ruedas. |
 
-En RViz, usar **2D Goal Pose** sobre una zona libre del mapa. Como alternativa,
-en otra terminal preparada:
+### 2. Navegar con la política
+
+```bash
+./sim.sh policy                          # policies/martha.npz
+./sim.sh policy policies/martha_holo.npz
+./sim.sh policy runs/<nombre>/best_model.zip
+```
+
+El planificador local debe registrar `policy loaded`. Antes de lanzar, `sim.sh`
+comprueba que el robot de Gazebo sea aquel para el que se entrenó la política (con o
+sin torre) y detecta el `drive`. Después, en RViz, **2D Goal Pose** sobre una zona
+libre del mapa. Como alternativa, desde `./sim.sh shell`:
 
 ```bash
 ros2 topic pub --once /goal_pose geometry_msgs/msg/PoseStamped \
   "{header: {frame_id: map}, pose: {position: {x: 2.0, y: 2.0}, orientation: {w: 1.0}}}"
 ros2 topic echo /nav_status
+ros2 topic pub --once /cancel_goal std_msgs/msg/Empty '{}'      # cancelar: pasa a idle
 ```
 
-Las coordenadas son un ejemplo: elegir una posición alcanzable en el mundo activo.
-RViz permite ver mapa, robot, LiDAR, ruta y objetivo intermedio.
+RViz muestra mapa, robot, LiDAR, ruta y objetivo intermedio.
 
-### 3. Cancelar y detener
+### 3. Manejar con el teclado
 
 ```bash
-ros2 topic pub --once /cancel_goal std_msgs/msg/Empty '{}'
+./sim.sh teleop
 ```
 
-El estado debe pasar a `idle`. Para cerrar la simulación, usar `Ctrl+C` en la
-terminal del launch.
+`teleop_twist_keyboard`: con `Shift` las teclas mueven de lado. Publica en `/cmd_vel`,
+igual que la política: usar uno u otro, no los dos a la vez.
 
-### 4. Cambiar de escenario
+### Los launch por dentro
 
-Los mundos disponibles son `lab`, `room`, `hall`, `multi`, `tube`, `four_rooms`,
-`roblab` y `robocup_casa`. Para cambiar de mundo, cerrar primero la simulación anterior y ejecutar:
-
-```bash
-ros2 launch martha_nav sim.launch.py \
-  world:=hall rviz:=true \
-  checkpoint:="$(pwd)/policies/martha.npz"
-```
+`sim.sh` lanza `sim.launch.py` (Gazebo, Martha, mapa y TF verdadera) y
+`policy.launch.py sim:=true` (planificador global y local). Con `checkpoint:=`,
+`sim.launch.py` incluye la política directamente, como hace `./sim.sh eval-gazebo`.
 
 | Argumento de `sim.launch.py` | Uso |
 |---|---|
-| `checkpoint` | Ruta absoluta al `.npz` o `.zip`; se necesita para la navegación. |
 | `world` | Nombre del mundo, sin extensión; por defecto `lab`. |
-| `robot` | Si se omite, se toma del checkpoint. Debe coincidir con él. |
+| `robot` | `martha` o `martha_tower`; si se omite, el del checkpoint o `martha_tower`. |
 | `drive` | `mecanum` por defecto o `planar`. |
-| `gui`, `rviz` | Activar la ventana de Gazebo y RViz; valores por defecto `true` y `false`. |
+| `gui`, `rviz` | Ventana de Gazebo y RViz; por defecto `true` y `false`. |
 | `x`, `y` | Posición inicial del robot. |
-| `slam` | `off`, `mapping` o `localization`; por defecto `off`. |
-| `slam_map` | Prefijo del mapa serializado para localizarse, sin extensión. |
+| `checkpoint` | Ruta absoluta al `.npz` o `.zip`: lanza también la política. |
 | `sim_speed_factor`, `physics_step_size` | Ajustes de la física y velocidad de simulación. |
 | `action_delay` | Retardo del control en períodos; permite estudiar transferencia. |
-
-Para abrir RViz contra una simulación ya lanzada:
-`ros2 run rviz2 rviz2 -d rviz/nav.rviz --ros-args -p use_sim_time:=true`.
-
-### 5. Localizar con slam_toolbox
-
-Con `slam:=off` se usa la pose verdadera de Gazebo. Para probar la localización
-estimada, primero se mapea el mundo con el robot en el origen, de modo que el mapa
-quede en el marco de Gazebo. `map_world.py` recorre los puntos fijos y guarda el mapa
-al terminar (unos 2 minutos):
-
-```bash
-ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.0 y:=0.0 \
-  slam:=mapping checkpoint:="$(pwd)/policies/martha.npz"
-python3 tools/map_world.py --world lab --out "$(pwd)/maps/lab"   # en otra terminal
-```
-
-Después se relanza localizando con ese mapa:
-
-```bash
-ros2 launch martha_nav sim.launch.py world:=lab gui:=false x:=0.95 y:=1.35 \
-  slam:=localization slam_map:="$(pwd)/maps/lab" checkpoint:="$(pwd)/policies/martha.npz"
-```
-
-`evaluate_gazebo` (ver [Evaluar en Gazebo](#5-evaluar-en-gazebo)) envía la pose inicial de cada episodio a
-`/initialpose` y compara la pose de SLAM con la verdadera en las columnas
-`loc_err_mean`, `loc_err_max` y `yaw_err_max_deg`.
 
 ## Entrenamiento y evaluación
 
 ### 1. Comprobar que el aprendizaje converge
 
-Con el entorno Python de aprendizaje activado y desde la raíz del repositorio:
+Dentro del contenedor (`./sim.sh shell`), o con el entorno Python de aprendizaje
+activado, desde la raíz del repositorio:
 
 ```bash
 python3 -m martha_nav.learning.train --preset gate --seed 0 --name gate_check
@@ -325,8 +318,9 @@ python3 -m martha_nav.learning.evaluate \
   --condition obstacles --points lab
 ```
 
-También se puede usar `--condition clean`. `tools/evaluate_run.sh runs/<nombre>`
-corre la batería completa (limpio, obstáculos, `lab` y sus puntos) con su informe. La evaluación con puntos de `lab`
+También se puede usar `--condition clean`. `./sim.sh eval runs/<nombre>` corre la
+batería completa (limpio y con obstáculos, 500 episodios cada uno; `lab`, 200; y sus
+puntos fijos) y después el informe de `plot_report.py`. La evaluación con puntos de `lab`
 utiliza los 90 pares de inicio y meta de `config/training_points.yaml`. Estos
 comandos esperan un checkpoint de entrenamiento `.zip`, no los `.npz` incluidos.
 
@@ -342,51 +336,37 @@ al launch. **La exportación actual no admite políticas LSTM.**
 
 ### 5. Evaluar en Gazebo
 
-Iniciar `sim.launch.py` con la política que se desea evaluar. Para comparar con las
-corridas mecanum, usar `drive:=mecanum`. En otra terminal con ROS cargado:
+```bash
+./sim.sh eval-gazebo runs/martha_manual_s0
+EPISODES=20 ./sim.sh eval-gazebo runs/martha_manual_s0 _corta 3 runs/martha_manual_s0/prueba
+```
+
+Sin lanzar nada antes, juega los episodios de `lab` (100 semillas y los 90 puntos
+fijos) en ~13 min en lugar de ~1.5 h: levanta 3 Gazebos sin GUI, cada uno con su
+`ROS_DOMAIN_ID`, con la física a 3× tiempo real, y les reparte las semillas. Deja
+`eval_gazebo_lab<sufijo>.csv` y `eval_gazebo_lab_points<sufijo>.csv` en el run (o en
+la carpeta indicada), con sus `_traj`, `_route` y `_obstacles`. Los argumentos son el
+run, el sufijo, el número de Gazebos y la carpeta de salida.
+
+Para un solo Gazebo, con `./sim.sh` y `./sim.sh policy <modelo>` corriendo, desde
+`./sim.sh shell`:
 
 ```bash
 mkdir -p runs/evaluacion_manual
 ros2 run martha_nav evaluate_gazebo --ros-args \
-  -p robot:=martha -p episodes:=100 -p mode:=seeds -p condition:=obstacles \
+  -p robot:=martha_tower -p episodes:=100 -p mode:=seeds -p condition:=obstacles \
   -p out:="$(pwd)/runs/evaluacion_manual/gazebo_lab.csv"
 ```
 
 El evaluador mueve el robot y genera episodios: se utiliza en **simulación**.
-Para puntos fijos, cambiar a `-p mode:=points`. No mezclar perfiles,
-mundos ni condiciones al comparar resultados.
+Para puntos fijos, cambiar a `-p mode:=points`; `robot` debe ser el de la política.
+No mezclar perfiles, mundos ni condiciones al comparar resultados.
 
 Las métricas incluyen éxito, colisión, estancamiento, timeout, SPL, tiempo y
 distancia. La evaluación pareada compara los mismos inicios, metas y obstáculos
 en 2D y Gazebo.
 
-Sin lanzar nada antes, `tools/evaluate_run_gazebo.sh` hace las dos evaluaciones de un
-run en ~13 min en lugar de ~1.5 h: levanta 3 Gazebos sin GUI a 3× tiempo real y les
-reparte las semillas. Usa el contenedor `ros2_humble` y deja los CSV en el run:
-
-```bash
-./tools/evaluate_run_gazebo.sh runs/martha_manual_s0 ""
-```
-
-### 6. Demostración en todos los mundos
-
-`tools/run_demo_worlds.sh` recorre los mundos uno a uno: lanza la simulación, juega
-unos episodios con `evaluate_gazebo` y deja un CSV por mundo y una tabla en
-`runs/demo_worlds/resumen.md`. Se ejecuta dentro del contenedor, porque abre Gazebo:
-
-```bash
-docker exec -it ros2_humble bash -lc 'cd /home/ros/ros2_ws/src/martha_nav && \
-  MODEL=policies/martha.npz EPISODES=5 GUI=true WORLDS="lab room tube" ./tools/run_demo_worlds.sh'
-```
-
-| Variable | Por defecto | Uso |
-|---|---|---|
-| `MODEL` | `runs/wide_dyn_s0/best_model.zip` | Política, relativa al repositorio. |
-| `EPISODES`, `WORLDS` | `10`, los siete de entrenamiento y `lab` | Episodios por mundo y lista de mundos. |
-| `GUI`, `RVIZ` | `false`, igual que `GUI` | Abrir Gazebo y RViz. |
-| `SPEED`, `CONDITION`, `OUT` | `1.0`, `obstacles`, `runs/demo_worlds` | Tiempo real, obstáculos y salida. |
-
-### 7. Gráficas
+### 6. Gráficas
 
 ```bash
 python3 tools/plot_report.py runs/martha_manual_s0        # o --all
@@ -400,8 +380,11 @@ tensorboard --logdir runs
 
 ## Uso en el robot real
 
-Todo lo de ROS corre en el PC montado sobre Martha; la ESP32 solo controla motores,
-encoders, giroscopio y protecciones. Los valores `REEMPLAZAR_...` deben sustituirse.
+Todo lo de ROS corre en el PC montado sobre Martha, en el mismo contenedor, con
+`./robot.sh`; la ESP32 solo controla motores, encoders, giroscopio y protecciones.
+`robot.sh` usa por defecto los puertos `/dev/serial/by-id/` de Martha (en el script);
+otros se indican con `ESP32=... LIDAR=... ./robot.sh ...`. Los valores `REEMPLAZAR_...`
+deben sustituirse.
 
 ### 1. Puertos y firmware
 
@@ -433,11 +416,12 @@ protocolo completo está en [`esp32_bridge.py`](../martha_nav/ros/esp32_bridge.p
 
 ### 3. Puesta en marcha
 
-`tools/bringup_esp32.py` recorre estas comprobaciones por el puerto serie, sin ROS, y
-pregunta antes de mover nada (detener antes `esp32_bridge`, que ocupa el puerto):
+`./robot.sh check` (`tools/bringup_esp32.py`) recorre estas comprobaciones por el puerto
+serie, sin ROS, y pregunta antes de mover nada. Corre en el anfitrión y necesita el
+puerto libre: cerrar antes `./robot.sh mapping` o `./robot.sh <mapa>`.
 
 ```bash
-python3 tools/bringup_esp32.py --port /dev/serial/by-id/REEMPLAZAR_ESP32
+./robot.sh check
 ```
 
 1. Ruedas al aire: aparece `ready` y `battery,V` coincide con el multímetro (si no,
@@ -453,8 +437,10 @@ python3 tools/bringup_esp32.py --port /dev/serial/by-id/REEMPLAZAR_ESP32
    `cmd_vel_timeout`; D23 a GND → `motor_overcurrent`, y `reset` → `ready`; fuente
    por debajo de 11 V → `battery_too_low`.
 6. Con ROS en modo mapeo y RViz: árbol TF `map → odom → base_link → lidar`, el scan
-   alineado con el frente (si sale girado 180°, `flip_x_axis: true` en
-   `config/rplidar.yaml`) y sin puntos sobre el propio robot. Empujarlo 1 m da ~1 m en
+   alineado con el frente y sin puntos sobre el propio robot. El LiDAR va montado girado
+   180°: eso lo dice el URDF (yaw de `base_link → lidar`) y lo leen por TF RViz, SLAM y la
+   política. Si el scan sale girado, revisar el URDF, no `flip_x_axis` de
+   `config/rplidar.yaml` (debe quedar en `false`, o lo giraría dos veces). Empujarlo 1 m da ~1 m en
    `/odom` y girarlo una vuelta da ~2π.
 
 ### 4. Mapear un lugar
@@ -463,44 +449,45 @@ Colocar el robot sobre una marca de cinta que indique también su orientación: 
 arrancará la navegación, porque el mapa guardado empieza en (0, 0, 0).
 
 ```bash
-ros2 launch martha_nav real.launch.py rviz:=true joy:=true \
-  esp32_port:=/dev/serial/by-id/REEMPLAZAR_ESP32 \
-  lidar_port:=/dev/serial/by-id/REEMPLAZAR_RPLIDAR
+./robot.sh mapping
 ```
 
-Con `joy:=true` se conduce con un control de Xbox (`config/xbox_teleop.yaml`): stick
-izquierdo adelante, atrás y de lado; stick derecho, giro; RB/LB, más o menos rápido;
-Start detiene y reanuda. Sin control, en otra terminal:
-`ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p speed:=0.2 -p turn:=0.5`.
-
-RViz muestra el mapa creciendo en `/slam_map`. Con el mapeo todavía activo, guardar
-desde la raíz del repositorio:
+Levanta la base (ESP32), el RPLIDAR, el EKF, `slam_toolbox` mapeando y RViz, donde el
+mapa crece en `/slam_map`. Para manejar, en otra terminal:
 
 ```bash
-./tools/save_map.sh "$(pwd)/maps/sala_real"
+./robot.sh teleop
 ```
 
-Se crean `.pgm` y `.yaml` (el mapa del planificador global, que puede retocarse en un
-editor de imágenes) y `.posegraph` y `.data` (para localizarse).
+Con un control de Xbox conectado (`config/xbox_teleop.yaml`): stick izquierdo adelante,
+atrás y de lado; stick derecho, giro; RB/LB, más o menos rápido; Start detiene y
+reanuda. Sin control, abre `teleop_twist_keyboard`. Con el mapeo todavía activo,
+guardar:
+
+```bash
+./robot.sh save-map sala_real
+```
+
+Se crean en `maps/` `.pgm` y `.yaml` (el mapa del planificador global, que puede
+retocarse en un editor de imágenes) y `.posegraph` y `.data` (para localizarse).
 
 ### 5. Navegar
 
 Con el robot sobre la marca de cinta y sin obstáculos nuevos en el mapa:
 
 ```bash
-ros2 launch martha_nav real.launch.py rviz:=true \
-  map:="$(pwd)/maps/sala_real" \
-  checkpoint:="$(pwd)/policies/martha.npz" \
-  esp32_port:=/dev/serial/by-id/REEMPLAZAR_ESP32 \
-  lidar_port:=/dev/serial/by-id/REEMPLAZAR_RPLIDAR
+./robot.sh sala_real        # base, LiDAR, EKF, localización en maps/sala_real y RViz
+./robot.sh policy           # en otra terminal; SPEED=0.5 ./robot.sh policy, a media velocidad
 ```
 
-`map` es el prefijo **sin extensión**. Corregir la pose con **2D Pose Estimate** y
-enviar metas con **2D Goal Pose**. La política incluida corresponde al perfil
-`martha_tower`: Martha con la torre, con el LiDAR a 0.19 m y los postes en su observación.
+Si el robot no arrancó sobre la marca, corregir la pose con **2D Pose Estimate**.
+Enviar metas con **2D Goal Pose**. La política incluida corresponde al perfil
+`martha_tower`: Martha con la torre, con el LiDAR a 0.19 m y los postes en su
+observación. `./robot.sh teleop` y la política publican los dos en `/cmd_vel`: usar uno
+a la vez.
 
-Cancelar con `/cancel_goal` y cerrar con `Ctrl+C`. El paro físico es el interruptor
-de alimentación.
+Cancelar con `/cancel_goal` (desde `./robot.sh shell`) y cerrar con `Ctrl+C`. El paro
+físico es el interruptor de alimentación.
 
 ### 6. Tras una protección (`motor_overcurrent` o `battery_too_low`)
 
@@ -535,11 +522,13 @@ Gazebo no constituyen por sí solas una comparación pareada del mismo tamaño.
 
 ## Pruebas y solución de problemas
 
-Pruebas completas en el entorno ROS con las dependencias de aprendizaje instaladas:
+Pruebas completas, en el contenedor:
 
 ```bash
-python3 -m pytest test -q
+./sim.sh test
 ```
+
+En una instalación nativa, con las dependencias de aprendizaje: `python3 -m pytest test -q`.
 
 Un subconjunto de simulación y aprendizaje que no necesita ROS:
 
@@ -547,22 +536,20 @@ Un subconjunto de simulación y aprendizaje que no necesita ROS:
 python3 -m pytest test/test_env.py test/test_reward.py test/test_scenarios.py -q
 ```
 
-En el contenedor original, usar `./tools/ct_ros python3 -m pytest test -q`.
-
 | Problema | Qué revisar |
 |---|---|
 | `Package 'martha_nav' not found` | Compilar y cargar `install/setup.bash` en esa terminal. |
-| `parameter "checkpoint" is required` | Proporcionar una ruta absoluta a un modelo existente. |
+| `the policy drives martha_tower, Gazebo has martha` | Abrir el mundo con el robot de la política: `ROBOT=martha_tower ./sim.sh`. |
 | Error de perfil incompatible | Usar la política del robot correcto; cambios de cuerpo o LiDAR requieren reentrenar y reexportar. El inflado es una excepción. |
 | Falta `mecanum_drive_controller` | Preparar el controlador compatible; para una demo planar, utilizar `drive:=planar`. |
 | El robot permanece detenido | Revisar `/nav_status`, existencia de ruta, TF, mensajes del planificador y recepción reciente de LiDAR y odometría; comprobar la guarda y los eventos de la ESP32. |
-| No se encuentra un mapa | Crear o copiar sus cuatro archivos; `map:=` recibe el prefijo sin extensión. |
-| `tools/ct_ros` no encuentra el contenedor | El script supone `ros2_humble`; usar el entorno documentado o ejecutar ROS directamente en una instalación nativa. |
+| No se encuentra un mapa | `./robot.sh` lista los mapas de `maps/`; cada uno necesita sus cuatro archivos. |
+| `... is not plugged in` | Revisar `ls -l /dev/serial/by-id/` y pasar los puertos: `ESP32=... LIDAR=... ./robot.sh mapping`. |
 | No se puede evaluar un modelo antiguo | Las configuraciones retiradas (LiDAR lineal, señal de atasco, `full_cnn_s0`, `gate_cnn_s0`) se rechazan. Los parámetros de cada run están en su `config.yaml` y los guiones de los experimentos en `git log --diff-filter=D --name-only -- tools/experiments`. |
-| Gazebo queda colgado | `pkill -f '[g]zserver'; pkill -f '[g]zclient'`; en el contenedor, `docker restart ros2_humble`. |
+| Gazebo queda colgado | Desde `./sim.sh shell`: `pkill -f '[g]zserver'; pkill -f '[g]zclient'`; si no basta, `./sim.sh stop`. |
 
-Después de cambiar `setup.py`, launch, URDF, configuración, RViz o mundos, recompilar
-el paquete y volver a cargar el workspace.
+Después de agregar un archivo nuevo a `launch/`, `config/`, `urdf/`, `rviz/` o `worlds/`, o de
+cambiar `setup.py`, recompilar con `./sim.sh build`.
 
 ## Documentación complementaria
 

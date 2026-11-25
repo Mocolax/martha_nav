@@ -60,6 +60,8 @@ del modelo final dieron 83 % y 87 % de éxito, con el mismo resultado en 94 de 1
 
 ## Regenerar este paquete
 
+En el contenedor (`./sim.sh shell`):
+
 ```bash
-./tools/ct_ros python3 tools/build_entrega.py
+python3 tools/build_entrega.py
 ```

@@ -12,7 +12,7 @@ const int SLEEP_PIN = 17;        // nSLEEP of the four drivers
 const int OVERCURRENT_PIN = 23;  // LM339, low = overcurrent; powered only while awake
 const int BATTERY_PIN = 34;      // 39k / 10k divider
 const int SDA_PIN = 25, SCL_PIN = 26;
-// The IMU board stands on its side with +X up (imu_test_uno, 2026-10-20): yaw is gyro X.
+// The IMU board stands on its side with +X up (measured 2026-10-20): yaw is gyro X.
 const uint8_t IMU_UP_REG = 0x43;  // GYRO_XOUT_H
 const float IMU_UP_SIGN = 1.0f;
 

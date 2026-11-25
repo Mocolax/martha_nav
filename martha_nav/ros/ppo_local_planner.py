@@ -75,6 +75,7 @@ class PpoLocalPlanner(Node):
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self)
         self.scan = self.scan_time = self.odom_time = self.scan_stamp = None
+        self.lidar_yaw = None   # the LiDAR frame's yaw in base_frame, read once from TF
         self.latencies = []
         self.velocity = (0.0, 0.0)
         self.path = None
@@ -91,7 +92,21 @@ class PpoLocalPlanner(Node):
 
     # ---- inputs ----
     def on_scan(self, msg):
-        self.scan = scan_to_arrays(msg)
+        # The policy wants beam angles from the robot's forward axis; the URDF says how the
+        # LiDAR is mounted (on Martha as built, turned 180 degrees). Without that transform
+        # the scan is dropped, and the robot stops on stale data.
+        if self.lidar_yaw is None:
+            try:
+                tf = self.buffer.lookup_transform(self.base_frame, msg.header.frame_id,
+                                                  rclpy.time.Time())
+            except Exception:                  # noqa: BLE001 - TF errors are expected at startup
+                self.get_logger().warning(f'no {self.base_frame} -> {msg.header.frame_id} '
+                                          'transform yet', throttle_duration_sec=2.0)
+                return
+            self.lidar_yaw = yaw_of(tf.transform.rotation)
+            self.get_logger().info(f'LiDAR yaw in {self.base_frame}: '
+                                   f'{np.degrees(self.lidar_yaw):+.1f} deg')
+        self.scan = scan_to_arrays(msg, self.lidar_yaw)
         self.scan_time = self.get_clock().now()
         self.scan_stamp = rclpy.time.Time.from_msg(msg.header.stamp)
 

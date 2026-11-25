@@ -5,11 +5,12 @@ Everything the LiDAR sees within --radius of itself, steadily over a few seconds
 as the robot's own structure. Each such blob is reported with its bearing, nearest range,
 width and how often it shows, matched to the profile's nearest post, and turned into a post
 centre in base_link; at the end it prints the posts= line for robots.py. Left/right pairs
-also give the LiDAR's mounting yaw, which post_pad has to cover.
+also give what is left of the LiDAR's mounting yaw after the URDF's (base_link -> lidar,
+180 degrees on Martha as built), which post_pad has to cover.
 
 Robot in open space: nothing but the robot within --radius of the LiDAR. With the RPLIDAR
-publishing /scan (tools/teleop_test.sh, or real.launch.py), in the container:
-    ./tools/ct_ros python3 tools/check_tower_posts.py [--scans 60] [--radius 0.6]
+publishing /scan (./robot.sh mapping), in the container (./robot.sh shell):
+    python3 tools/check_tower_posts.py [--scans 60] [--radius 0.6]
 """
 import argparse
 import math
@@ -23,28 +24,40 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # this checkout, n
 import rclpy  # noqa: E402
 from rclpy.qos import qos_profile_sensor_data  # noqa: E402
 from sensor_msgs.msg import LaserScan  # noqa: E402
+from tf2_ros import Buffer, TransformListener  # noqa: E402
 
 from martha_nav.robots import ROBOTS  # noqa: E402
+from martha_nav.ros.common import yaw_of  # noqa: E402
 from martha_nav.ros.scan_adapter import scan_to_arrays  # noqa: E402
 from martha_nav.sim2d.observation import post_shadows  # noqa: E402
 
 
 def collect(count, timeout):
+    """The scans, and the LiDAR frame's yaw in base_link from TF (None if TF never came)."""
     rclpy.init()
     node = rclpy.create_node('check_tower_posts')
-    scans = []
+    buffer = Buffer()
+    TransformListener(buffer, node)
+    scans, yaw = [], None
     node.create_subscription(LaserScan, '/scan', scans.append, qos_profile_sensor_data)
     end = node.get_clock().now().nanoseconds + timeout * 1e9
-    while len(scans) < count and node.get_clock().now().nanoseconds < end:
+    while (len(scans) < count or yaw is None) and node.get_clock().now().nanoseconds < end:
         rclpy.spin_once(node, timeout_sec=0.1)
+        if scans and yaw is None:
+            try:
+                tf = buffer.lookup_transform('base_link', scans[0].header.frame_id,
+                                             rclpy.time.Time())
+                yaw = yaw_of(tf.transform.rotation)
+            except Exception:                  # noqa: BLE001 - not published yet
+                pass
     node.destroy_node()
     rclpy.shutdown()
-    return scans
+    return scans, yaw
 
 
-def blobs(scans, radius, min_rate):
+def blobs(scans, radius, min_rate, lidar_yaw):
     """Runs of beams that see something within radius in at least min_rate of the scans."""
-    angles = scan_to_arrays(scans[0])[1]
+    angles = scan_to_arrays(scans[0], lidar_yaw)[1]
     ranges = np.array([scan_to_arrays(s)[0] for s in scans if len(s.ranges) == len(angles)])
     near = np.isfinite(ranges) & (ranges > 0) & (ranges <= radius)
     rate = near.mean(axis=0)
@@ -90,13 +103,17 @@ def main():
     args = parser.parse_args()
 
     robot = ROBOTS['martha_tower']
-    scans = collect(args.scans, timeout=args.scans / 5 + 5)
+    scans, lidar_yaw = collect(args.scans, timeout=args.scans / 5 + 5)
     if not scans:
         print('No /scan in time: is the RPLIDAR node running?')
         return 1
+    if lidar_yaw is None:
+        print('No base_link -> lidar transform: is robot_state_publisher running? Without it '
+              'the posts cannot be matched if the LiDAR is mounted turned.')
+        return 1
     print(f'{len(scans)} scans, {len(scans[0].ranges)} beams, range_min '
-          f'{scans[0].range_min:.2f} m')
-    _, found = blobs(scans, args.radius, args.min_rate)
+          f'{scans[0].range_min:.2f} m, LiDAR yaw in the URDF {math.degrees(lidar_yaw):+.1f} deg')
+    _, found = blobs(scans, args.radius, args.min_rate, lidar_yaw)
 
     sx, sy = robot.posts[0][2:] if robot.posts else (0.04, 0.02)
     expected = [(x, y, mid, near) for (x, y, *_), (mid, _, near)
@@ -123,14 +140,15 @@ def main():
                 'rate': max(w)}
 
     # A left/right pair mirrors about x in base_link; the LiDAR's yaw turns both scan bearings
-    # the same way (scan bearing = base_link bearing - yaw), so the pair's mean is -yaw.
+    # the same way (scan bearing = base_link bearing - yaw), so the pair's mean is -yaw. The
+    # bearings already carry the URDF's yaw, so this yaw is what the mounting is off by.
     yaws = [-wrap(matched[k]['bearing'] + matched[j]['bearing']) / 2
             for k in matched for j in matched
             if j > k and expected[k][0] == expected[j][0] and expected[k][1] == -expected[j][1]]
     yaw = sum(yaws) / len(yaws) if yaws else 0.0
 
-    print(f'\nSeen within {args.radius} m (centres in base_link, LiDAR yaw '
-          f'{math.degrees(yaw):+.1f} deg taken out):')
+    print(f'\nSeen within {args.radius} m (bearings in base_link, extra LiDAR yaw '
+          f'{math.degrees(yaw):+.1f} deg not yet taken out):')
     for b in sorted(found, key=lambda b: b['bearing']):
         tag = (f'post {b["post"]}' if 'post' in b else 'not a post (nothing expected here)')
         print(f'  bearing {math.degrees(b["bearing"]):+7.1f} deg, range {b["range"]:.3f} m '
@@ -160,7 +178,8 @@ def main():
     missing = [k for k in range(len(expected)) if k not in measured]
 
     if yaws:
-        print(f'\nLiDAR mounting yaw from the left/right pairs: {math.degrees(yaw):+.1f} deg '
+        print(f'\nLiDAR mounting yaw beyond the URDF, from the left/right pairs: '
+              f'{math.degrees(yaw):+.1f} deg '
               f'(post_pad covers {math.degrees(robot.post_pad):.1f} deg)')
         if abs(yaw) > robot.post_pad:
             print('  -> more than post_pad: turn the LiDAR straight, or raise post_pad')

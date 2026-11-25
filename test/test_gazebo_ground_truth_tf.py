@@ -16,10 +16,6 @@ def subscribed(*params):
         rclpy.try_shutdown()
 
 
-def test_by_default_it_publishes_map_to_odom_from_the_true_pose():
+def test_it_publishes_map_to_odom_from_the_true_pose():
     assert subscribed() == {'/gazebo/model_states', '/odom', RELAY}
 
-
-def test_with_slam_it_only_relays_the_odometry_tf():
-    """slam_toolbox owns map -> odom then; two publishers would fight over it."""
-    assert subscribed('-p', 'publish_map_odom:=false') == {RELAY}

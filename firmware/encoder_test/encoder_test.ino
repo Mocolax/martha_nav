@@ -21,7 +21,7 @@ const int IN1[4] = {27, 32, 15, 18};
 const int IN2[4] = {14, 33, 2, 19};
 const int SLEEP_PIN = 17;  // nSLEEP of the four drivers
 
-const int MOTOR_SIGN[4] = {1, -1, 1, -1};    // as in motor_test: the right motors are mirrored
+const int MOTOR_SIGN[4] = {1, -1, 1, -1};    // as in ../firmware.ino: the right motors are mirrored
 const int ENCODER_SIGN[4] = {-1, 1, -1, 1};  // the left encoders count backwards
 const float COUNTS_PER_REV = 3200.0f;        // 64 CPR x 50:1
 const unsigned long PRINT_MS = 200;

@@ -1,5 +1,7 @@
 # RPLIDAR A2M8. serial_port comes from the launch.
-# flip_x_axis: true if the scan shows up rotated 180 degrees in RViz.
+# flip_x_axis stays false: the LiDAR's mounting (turned 180 degrees as built) is the URDF's
+# base_link -> lidar yaw, which RViz, slam_toolbox and the policy all read from TF. Flipping
+# here as well would turn the scan twice.
 rplidar_node:
   ros__parameters:
     channel_type: serial

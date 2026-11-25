@@ -1,38 +1,33 @@
-"""Gazebo + Martha + map + ground-truth TF + the two navigation nodes.
+"""Gazebo + Martha + map + ground-truth TF; with a checkpoint, policy.launch.py on top.
 
-ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip
+ros2 launch martha_nav sim.launch.py [world:=lab]               then policy.launch.py sim:=true
+ros2 launch martha_nav sim.launch.py checkpoint:=/abs/path/best_model.zip     both at once
 
-robot:=martha_tower simulates Martha with the aluminium tower; by default the robot is the one the checkpoint was trained for.
+robot:=martha simulates Martha without the aluminium tower; by default the robot is the one the
+checkpoint was trained for, or martha_tower (Martha as built) without one.
 
 For Martha, drive:=mecanum (default) simulates the wheels and rollers through ros2_control;
 drive:=planar uses gazebo_ros_planar_move, which is much faster but has no wheel
 dynamics. sim_speed_factor and physics_step_size rewrite the
-world's physics.
-
-Localization is Gazebo's true pose unless slam:=localization slam_map:=/abs/maps/lab,
-where slam_toolbox localizes in a map made with slam:=mapping (tools/map_world.py).
-Map it with the robot at the origin (x:=0 y:=0) so its map frame is Gazebo's.
+world's physics. Localization is Gazebo's true pose.
 """
 from pathlib import Path
 
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, ExecuteProcess, OpaqueFunction,
-                            RegisterEventHandler)
+from launch.actions import (DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription,
+                            OpaqueFunction, RegisterEventHandler)
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnShutdown
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from martha_nav.robots import ROBOTS, checkpoint_robot
-from martha_nav.ros.slam import slam_toolbox
 from martha_nav.ros.world_speed import create_scaled_world
 
-# The sensor plugins keep their default topics so the URDF has no ":=" in it
-# (gazebo_ros2_control cannot parse a robot_description containing one).
-SCAN_TOPIC = '/gazebo_ros_lidar/out'
-# With the mecanum drive the odometry comes from the controller, not from planar_move.
+# Topic names as in policy.launch.py.
 MECANUM_ODOM = '/mecanum_drive_controller/odometry'
 MECANUM_ODOM_TF = '/mecanum_drive_controller/tf_odometry'
 
@@ -40,7 +35,8 @@ ARGUMENTS = [
     DeclareLaunchArgument('world', default_value='lab'),
     DeclareLaunchArgument('drive', default_value='mecanum', choices=['mecanum', 'planar']),
     DeclareLaunchArgument('robot', default_value='',
-                          description="martha or martha_tower; empty: the checkpoint's"),
+                          description="martha or martha_tower; empty: the checkpoint's"
+                                      ' or martha_tower'),
     DeclareLaunchArgument('gui', default_value='true'),
     DeclareLaunchArgument('rviz', default_value='false'),
     DeclareLaunchArgument('checkpoint', default_value=''),
@@ -49,24 +45,22 @@ ARGUMENTS = [
     DeclareLaunchArgument('lidar_samples', default_value='360'),
     DeclareLaunchArgument('sim_speed_factor', default_value='1.0'),
     DeclareLaunchArgument('physics_step_size', default_value='0.001'),
-    DeclareLaunchArgument('slam', default_value='off', choices=['off', 'mapping', 'localization']),
     DeclareLaunchArgument('action_delay', default_value='0',
                           description='control periods ppo_local_planner holds each command back'),
-    DeclareLaunchArgument('slam_map', default_value='',
-                          description='slam_toolbox map without extension, for slam:=localization'),
+    DeclareLaunchArgument('guard', default_value='true', choices=['true', 'false'],
+                          description="ppo_local_planner's directional safety guard"),
 ]
 
 
 def launch_setup(context, *args, **kwargs):
     share = Path(FindPackageShare('martha_nav').perform(context))
     checkpoint = LaunchConfiguration('checkpoint').perform(context)
-    trained = checkpoint_robot(checkpoint) if checkpoint else 'martha'
+    trained = checkpoint_robot(checkpoint) if checkpoint else 'martha_tower'
     name = LaunchConfiguration('robot').perform(context) or trained
     if checkpoint and name != trained:
         raise RuntimeError(f'{checkpoint} drives {trained}, not {name}')
     robot = ROBOTS[name]
     drive = LaunchConfiguration('drive').perform(context)
-    slam = LaunchConfiguration('slam').perform(context)
     odom_remap = [('/odom', MECANUM_ODOM)] if drive == 'mecanum' else []
     world = create_scaled_world(
         share / 'worlds' / f"{LaunchConfiguration('world').perform(context)}.world",
@@ -100,16 +94,8 @@ def launch_setup(context, *args, **kwargs):
              parameters=[{'world': LaunchConfiguration('world'), 'use_sim_time': True}]),
         Node(package='martha_nav', executable='gazebo_ground_truth_tf', output='screen',
              remappings=odom_remap,
-             parameters=[{'use_sim_time': True, 'publish_map_odom': slam != 'localization',
+             parameters=[{'use_sim_time': True,
                           'odom_tf_topic': MECANUM_ODOM_TF if drive == 'mecanum' else ''}]),
-        Node(package='martha_nav', executable='global_planner', output='screen',
-             parameters=[{'use_sim_time': True, 'robot': name}]),
-        Node(package='martha_nav', executable='ppo_local_planner', output='screen',
-             remappings=[('/scan', SCAN_TOPIC)] + odom_remap,
-             parameters=[{'checkpoint': LaunchConfiguration('checkpoint'), 'use_sim_time': True,
-                          'robot': name,
-                          'action_delay': ParameterValue(LaunchConfiguration('action_delay'),
-                                                         value_type=int)}]),
         Node(package='rviz2', executable='rviz2', output='screen',
              condition=IfCondition(LaunchConfiguration('rviz')),
              arguments=['-d', str(share / 'rviz' / 'nav.rviz')],
@@ -118,12 +104,12 @@ def launch_setup(context, *args, **kwargs):
             missing_ok=True))),
     ]
 
-    if slam != 'off':
-        actions.append(slam_toolbox(
-            slam, SCAN_TOPIC, use_sim_time=True, publish_tf=False, max_range=robot.lidar_range,
-            map_file=LaunchConfiguration('slam_map').perform(context),
-            start_pose=(float(LaunchConfiguration('x').perform(context)),
-                        float(LaunchConfiguration('y').perform(context)), 0.0)))
+    if checkpoint:
+        actions.append(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(str(share / 'launch' / 'policy.launch.py')),
+            launch_arguments={'checkpoint': checkpoint, 'sim': 'true', 'drive': drive,
+                              'action_delay': LaunchConfiguration('action_delay'),
+                              'guard': LaunchConfiguration('guard')}.items()))
     if drive == 'mecanum':
         # The controller manager only exists once the robot is in Gazebo, and the
         # controllers must be spawned one after the other.

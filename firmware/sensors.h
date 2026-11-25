@@ -71,7 +71,7 @@ struct Gyro {
          && write(0x1B, 0x00); // +-250 deg/s
     if (!ok) return false;
     delay(100);
-    // 1000 samples, ~5 s: a finer zero than 200 (checked with imu_test_uno). The robot
+    // 1000 samples, ~5 s: a finer zero than 200 (checked on an Arduino Uno, 2026-10-20). The robot
     // must stay still meanwhile; any movement shows up later as drift.
     long sum = 0;
     int16_t z;

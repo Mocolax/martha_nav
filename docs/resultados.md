@@ -173,7 +173,7 @@ referencia, también para el robot real.
 
 ### Evaluación rápida y repetibilidad de Gazebo
 
-`tools/evaluate_run_gazebo.sh` corre 3 Gazebos en paralelo, cada uno con su `ROS_DOMAIN_ID`, con la
+`./sim.sh eval-gazebo` corre 3 Gazebos en paralelo, cada uno con su `ROS_DOMAIN_ID`, con la
 física sin límite (~3× tiempo real) y reparte las semillas con `shard:=i/n`: los 190 episodios
 pasan de ~1.5 h a ~13 min. Con `wide_dyn_s0`, 100 semillas:
 
@@ -202,7 +202,8 @@ las semillas de `lab` arranca con menos de 0.45 m.
 Mapa de `lab.world` hecho con `tools/map_world.py`; `sim.launch.py slam:=localization` y
 `evaluate_gazebo` comparando la pose de SLAM con la verdadera. El éxito exige que la pose
 **verdadera** quede a menos de 0.5 m de la meta. 100 semillas, pareadas
-(`runs/wide_dyn_s0/eval_gazebo_lab_slam{_clean,}_v2.csv`):
+(`runs/wide_dyn_s0/eval_gazebo_lab_slam{_clean,}_v2.csv`). `map_world.py` y el `slam:=` de
+`sim.launch.py` se retiraron después de esta prueba; están en el commit `ea34bc4`:
 
 | condición | `long_c_kl_s0` | `wide_dyn_s0` | ganados / perdidos | error medio | error máximo |
 |---|---|---|---|---|---|
@@ -237,7 +238,7 @@ Ninguna diferencia es significativa: con los postes en la observación, el model
 referencia sin ellos. Las colisiones en `lab` suben de 7.5 a 11.5 %, y en sus puntos fijos de 6.7
 a 14.4 %.
 
-En Gazebo (`tools/evaluate_run_gazebo.sh`, `runs/martha_tower_scratch_s0/v5/`), con la torre en el
+En Gazebo (`./sim.sh eval-gazebo`, `runs/martha_tower_scratch_s0/v5/`), con la torre en el
 URDF, frente a la re-evaluación v5 de `wide_dyn_s0` sin ella:
 
 | condición | `wide_dyn_s0` | `martha_tower_scratch_s0` | ganados / perdidos |
@@ -278,8 +279,8 @@ mueve de lado el 14 % del tiempo en 2D y el 9 % en Gazebo.
 
 ### Respuesta del mecanum en Gazebo
 
-`tools/step_response_gazebo.sh` manda escalones de 3 s, un eje a la vez, y mide la velocidad real
-de Gazebo (pose a 10 Hz):
+`tools/step_response_gazebo.sh` (retirado después de esta medición; está en el commit `ea34bc4`)
+mandaba escalones de 3 s, un eje a la vez, y medía la velocidad real de Gazebo (pose a 10 Hz):
 
 | eje | ganancia en régimen | acople con los otros ejes |
 |---|---|---|
