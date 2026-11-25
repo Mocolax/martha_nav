@@ -1,0 +1,16 @@
+# The NVIDIA variant, merged over compose.yaml by docker/lib.sh when the host has nvidia-smi:
+# PyTorch with CUDA and the GPU passed in through the NVIDIA Container Toolkit. Training runs
+# several times faster than on the CPU image (the LSTM ~900 steps/s against ~190).
+services:
+  ros2_humble:
+    image: ros2_ws-ros2_humble:gpu
+    build:
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

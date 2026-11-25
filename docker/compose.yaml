@@ -1,4 +1,5 @@
-# The ros2_humble container: ROS 2 Humble, Gazebo Classic 11, PyTorch (CPU) and this package.
+# The ros2_humble container: ROS 2 Humble, Gazebo Classic 11, PyTorch (CPU) and this package;
+# on a host with an NVIDIA GPU, lib.sh merges compose.gpu.yaml over it for PyTorch with CUDA.
 # Use it through ../sim.sh and ../robot.sh, which set the variables below (docker/lib.sh).
 # The repository lives in a colcon workspace, $WS/src/martha_nav, and the whole workspace is
 # mounted, so the container builds into $WS/build and $WS/install.

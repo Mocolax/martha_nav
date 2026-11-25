@@ -4,6 +4,8 @@
 CT=ros2_humble
 CT_REPO=/home/ros/ros2_ws/src/martha_nav        # this repository, inside the container
 DC="docker compose -f $PWD/docker/compose.yaml"
+# With an NVIDIA GPU, the CUDA image (compose.gpu.yaml): training is several times faster.
+command -v nvidia-smi > /dev/null && DC="$DC -f $PWD/docker/compose.gpu.yaml"
 
 # compose.yaml's variables. The repository sits in a colcon workspace, $WS/src/martha_nav.
 gid() { getent group "$1" | cut -d: -f3 | grep . || echo "$2"; }
