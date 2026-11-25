@@ -26,14 +26,26 @@ const float WHEEL_RADIUS = 0.075f;       // m
 const float LX_PLUS_LY = 0.385f;         // m
 const float COUNTS_PER_REV = 3200.0f;    // 64 CPR x 50:1
 const float MAX_V = 1.0f, MAX_W = 2.0f;  // safety ceiling, above the policy's limits and teleop
-const float KP = 1.0f, KI = 1.6f;        // PWM counts per RPM, on top of the feedforward
+const float KP = 1.0f, KI = 4.0f;        // PWM counts per RPM, on top of the feedforward
 // Slow decay, wheels in the air (2026-10-21): RPM ~ 1.15 x (PWM - 4) on all four wheels,
 // moving from PWM ~10. Fast decay needed PWM ~130 just to start, with hysteresis.
-const float RPM_PER_PWM = 1.15f, PWM_START = 4.0f;
+// On the floor, with Martha's weight (2026-11-25, vx steps from standstill), the drive only
+// broke away at PWM 55-150, so PWM_START carries the floor's friction too, kept below the
+// lowest breakaway seen so a slow wheel does not jerk.
+const float RPM_PER_PWM = 1.15f, PWM_START = 40.0f;
+// A wheel told to move that turns at less than STALL_FRACTION of its reference (or the wrong
+// way) is held by static friction: its PWM climbs STALL_RISE per second, up to STALL_MAX more,
+// until it breaks away, and fades at STALL_FALL once it keeps up. A slow fade (150 per s) left
+// the drive 25-60 % above the command for over a second after breaking away (2026-11-25). Without it a slow wheel sat for seconds at a PWM too small to move it, whistling at
+// the PWM frequency, while the PI's integral crept up: a turn in place at 0.5 rad/s moved
+// Martha 2 degrees in 2 s, at 1.5 rad/s (PWM saturated at once) 38 degrees in 1 s (2026-11-25).
+// The speed it checks is low-passed over SPEED_TAU: at low speed a 10 ms tick holds 0-2 pulses.
+const float STALL_FRACTION = 0.5f, STALL_RISE = 400.0f, STALL_FALL = 800.0f;  // -, PWM per s
+const float STALL_MAX = 200.0f, SPEED_TAU = 0.05f;                           // PWM, s
 // Below these a command is a stop, and below PWM_MIN a wheel is coasted: a PWM too small to
 // turn the motor only heats it and whistles at the PWM frequency.
 const float V_DEADZONE = 0.01f, W_DEADZONE = 0.02f;  // m/s, rad/s
-const float PWM_MIN = 8.0f;
+const float PWM_MIN = 20.0f;
 const float BATTERY_GAIN = 4.9f;
 const float BATTERY_LOW = 12.5f, BATTERY_RESET = 13.0f;  // V
 // Circuits not fitted on the board yet (2026-10-21): the battery divider (R5/R6, GPIO34
@@ -52,6 +64,8 @@ Gyro gyro;
 
 float refRpm[4];
 int direction[4];         // sign of the last PWM, to coast one cycle on a reversal
+float stallBoost[4];      // PWM added while a wheel is held by static friction
+float speedLp[4];         // low-passed wheel speed, rpm, for the stall check
 long reportCounts[4];     // pulses since the last odom line
 float reportDt = 0, battery = 0;
 unsigned tick = 0;
@@ -174,14 +188,20 @@ void control() {
     reportCounts[i] += counts;
     if (counts != 0 || refRpm[i] != 0) lastMotionMs = millis();
     const float rpm = counts / COUNTS_PER_REV * 60.0f / dt;
-    // A wheel told to stand still coasts, with its PI cleared: no integral left over from
-    // the last motion keeps pushing it.
+    speedLp[i] += (rpm - speedLp[i]) * fminf(dt / SPEED_TAU, 1.0f);
+    // A wheel told to stand still coasts, with its PI and stall boost cleared: nothing left
+    // over from the last motion keeps pushing it.
     float out = 0;
     if (cmdActive && refRpm[i] != 0) {
-      out = feedforward(refRpm[i]) + wheelPI[i].update(refRpm[i] - rpm, dt);
+      const bool stalled = speedLp[i] * refRpm[i] < STALL_FRACTION * refRpm[i] * refRpm[i];
+      stallBoost[i] = constrain(stallBoost[i] + (stalled ? STALL_RISE : -STALL_FALL) * dt,
+                                0.0f, STALL_MAX);
+      out = feedforward(refRpm[i]) + copysignf(stallBoost[i], refRpm[i])
+            + wheelPI[i].update(refRpm[i] - rpm, dt);
       if (fabsf(out) < PWM_MIN) out = 0;
     } else {
       wheelPI[i].reset();
+      stallBoost[i] = 0;
     }
     drive(i, MOTOR_SIGN[i] * out);
   }

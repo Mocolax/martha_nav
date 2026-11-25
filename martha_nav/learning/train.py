@@ -22,7 +22,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNorma
 from martha_nav.learning.evaluate import run_episodes, summarize
 from martha_nav.learning.policy import policy_kwargs
 from martha_nav.robots import ROBOTS
-from martha_nav.sim2d.dynamics import WIDE_DYNAMICS
+from martha_nav.sim2d.dynamics import REAL_DYNAMICS, WIDE_DYNAMICS
 from martha_nav.sim2d.env import EnvConfig, NavEnv, eval_seeds
 from martha_nav.sim2d.scenarios import TRAIN_SOURCES
 
@@ -125,7 +125,7 @@ def build_model(venv, recurrent, seed, device, tensorboard_log):
 
 def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
                  wide_dynamics=False, robot='martha', clearance=None, reverse=None,
-                 thin=0.0, n_rays=180):
+                 thin=0.0, n_rays=180, real_dynamics=False):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     if action_dim == 3 and not ROBOTS[robot].holonomic:
@@ -138,8 +138,12 @@ def build_config(preset, collision=None, action_dim=2, target='carrot', progress
         reward = replace(reward, clearance=clearance)
     if reverse is not None:
         reward = replace(reward, reverse=reverse)
+    if wide_dynamics and real_dynamics:
+        raise ValueError('--wide-dynamics and --real-dynamics are two different ranges: pick one')
     if wide_dynamics:
         cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
+    if real_dynamics:
+        cfg = replace(cfg, dynamics=REAL_DYNAMICS)
     return replace(cfg, reward=reward, action_dim=action_dim, target=target, robot=robot,
                    n_rays=n_rays,
                    scenario=replace(cfg.scenario, sources=tuple(p['sources']), thin=thin,
@@ -177,6 +181,9 @@ def main(argv=None):
                     help='progress along the A* route, or drop in geodesic distance to the goal')
     ap.add_argument('--wide-dynamics', action='store_true',
                     help='delay 0-2 periods and faster responses, which cover the Gazebo mecanum')
+    ap.add_argument('--real-dynamics', action='store_true',
+                    help="Martha's measured floor response: weak sideways that turns her, slower "
+                         'turns, direction-dependent forward gain (docs/dinamica-real.md)')
     ap.add_argument('--recurrent', action='store_true',
                     help='train with an LSTM policy (RecurrentPPO); slower per step')
     ap.add_argument('--init-from', default=None,
@@ -189,7 +196,8 @@ def main(argv=None):
     env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
                            args.reward_progress, args.wide_dynamics, args.robot,
                            clearance=args.reward_clearance, reverse=args.reward_reverse,
-                           thin=args.thin_obstacles, n_rays=args.n_rays)
+                           thin=args.thin_obstacles, n_rays=args.n_rays,
+                           real_dynamics=args.real_dynamics)
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     config = {'preset': args.preset, 'recurrent': args.recurrent,

@@ -15,11 +15,24 @@ class DynamicsRanges:
     acc_w: tuple = (1.0, 3.0)     # rad/s^2
     gain: tuple = (0.9, 1.1)
     delay: tuple = (1, 1)         # control periods before a command acts, inclusive
+    # Empty: the same draw as gain_v (vy) or from gain (w), as before these existed.
+    gain_vy: tuple = ()
+    gain_w: tuple = ()
+    # rad/s of turn per m/s of commanded vy: on Martha a lateral command also turns her.
+    yaw_leak: tuple = (0.0, 0.0)
 
 
 # Also covers Gazebo's mecanum, which obeys in the same period with 2.5 m/s^2 and
 # 6.5 rad/s^2 (docs/resultados.md, "Causa de la brecha").
 WIDE_DYNAMICS = DynamicsRanges(tau=(0.02, 0.4), acc_v=(0.3, 3.0), acc_w=(1.0, 7.0), delay=(0, 2))
+
+# Martha on the lab floor with the claw tower (docs/dinamica-real.md, 2026-11-25): steps of
+# 1.2 s from standstill, wheel encoders and gyro against the LiDAR's own motion (ICP). Forward
+# gives 0.6-1.3 of the command depending on the direction, turning 0.45-0.85, sideways only
+# 0.1-0.35 and it turns her by 0.3-0.9 rad/s per m/s, either way; tau 0.15-0.6 s.
+REAL_DYNAMICS = DynamicsRanges(tau=(0.15, 0.6), acc_v=(0.5, 2.5), acc_w=(1.0, 5.0),
+                               gain=(0.6, 1.3), gain_w=(0.4, 0.9), gain_vy=(0.1, 0.35),
+                               yaw_leak=(-0.9, 0.9), delay=(0, 2))
 
 
 @dataclass
@@ -31,16 +44,22 @@ class DynamicsParams:
     gain_v: float = 1.0
     gain_w: float = 1.0
     delay: int = 1
+    gain_vy: float = None         # None: gain_v
+    yaw_leak: float = 0.0         # rad/s per m/s of commanded vy
 
 
 def sample_params(rng, r=DynamicsRanges()):
     p = DynamicsParams(
         tau_v=rng.uniform(*r.tau), tau_w=rng.uniform(*r.tau),
         acc_v=rng.uniform(*r.acc_v), acc_w=rng.uniform(*r.acc_w),
-        gain_v=rng.uniform(*r.gain), gain_w=rng.uniform(*r.gain),
+        gain_v=rng.uniform(*r.gain), gain_w=rng.uniform(*(r.gain_w or r.gain)),
     )
-    # Drawn only when it varies, so a fixed delay leaves the episodes as they were.
+    # Drawn only when they vary or are set, so the default ranges leave the episodes as they were.
     p.delay = int(r.delay[0] if r.delay[0] == r.delay[1] else rng.integers(r.delay[0], r.delay[1] + 1))
+    if r.gain_vy:
+        p.gain_vy = rng.uniform(*r.gain_vy)
+    if r.yaw_leak[0] != r.yaw_leak[1]:
+        p.yaw_leak = rng.uniform(*r.yaw_leak)
     return p
 
 
@@ -79,8 +98,8 @@ class Dynamics:
         self.pending.append((cmd_v, cmd_vy, cmd_w))
         acting_v, acting_vy, acting_w = self.pending.pop(0)
         target_v = self.p.gain_v * acting_v
-        target_vy = self.p.gain_v * acting_vy
-        target_w = self.p.gain_w * acting_w
+        target_vy = (self.p.gain_v if self.p.gain_vy is None else self.p.gain_vy) * acting_vy
+        target_w = self.p.gain_w * acting_w + self.p.yaw_leak * acting_vy
         for _ in range(self.substeps):
             self.v = self._approach(self.v, target_v, self.p.tau_v, self.p.acc_v)
             self.vy = self._approach(self.vy, target_vy, self.p.tau_v, self.p.acc_v)

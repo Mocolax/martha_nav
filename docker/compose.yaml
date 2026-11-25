@@ -29,6 +29,10 @@ services:
     environment:
       ROS_DOMAIN_ID: "0"
       RMW_IMPLEMENTATION: "rmw_fastrtps_cpp"
+      # Every node runs in this container, so DDS stays on loopback: a Wi-Fi that drops or
+      # changes network mid-run cuts running nodes off from new ones (2026-11-25), and other
+      # ROS machines on the same network would otherwise see Martha's topics and she theirs.
+      ROS_LOCALHOST_ONLY: "1"
 
       DISPLAY: "${DISPLAY}"
       WAYLAND_DISPLAY: "${WAYLAND_DISPLAY}"

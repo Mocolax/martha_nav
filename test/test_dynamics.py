@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from martha_nav.sim2d.dynamics import Dynamics, DynamicsParams, DynamicsRanges, sample_params
 
@@ -97,3 +98,25 @@ def test_wide_ranges_cover_the_gazebo_mecanum():
     assert {p.delay for p in samples} == {0, 1, 2}
     assert max(p.acc_v for p in samples) > 2.5 and max(p.acc_w for p in samples) > 6.5
     assert min(p.tau_v for p in samples) < 0.05
+
+
+def test_martha_on_the_floor_slides_weakly_and_turns_when_sliding():
+    from martha_nav.sim2d.dynamics import REAL_DYNAMICS
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        p = sample_params(rng, REAL_DYNAMICS)
+        assert REAL_DYNAMICS.gain_vy[0] <= p.gain_vy <= REAL_DYNAMICS.gain_vy[1] < p.gain_v + 1
+        assert REAL_DYNAMICS.gain_w[0] <= p.gain_w <= REAL_DYNAMICS.gain_w[1]
+        assert REAL_DYNAMICS.yaw_leak[0] <= p.yaw_leak <= REAL_DYNAMICS.yaw_leak[1]
+    d = Dynamics(DynamicsParams(tau_v=0.05, tau_w=0.05, acc_v=10, acc_w=10, delay=0,
+                                gain_vy=0.2, yaw_leak=-0.7))
+    for _ in range(30):
+        d.step_holonomic(0.0, 0.3, 0.0, lambda *a: False)
+    assert d.vy == pytest.approx(0.06, abs=1e-3) and d.w == pytest.approx(-0.21, abs=1e-3)
+
+
+def test_without_its_own_lateral_gain_vy_follows_gain_v_as_before():
+    d = Dynamics(DynamicsParams(tau_v=0.05, acc_v=10, delay=0, gain_v=0.8))
+    for _ in range(30):
+        d.step_holonomic(0.0, 0.3, 0.0, lambda *a: False)
+    assert d.vy == pytest.approx(0.24, abs=1e-3) and d.w == 0.0
