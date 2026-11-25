@@ -91,25 +91,38 @@ def test_an_empty_sector_reads_the_robots_range():
 TOWER = ROBOTS['martha_tower']
 
 
-def test_the_tower_posts_shadow_six_sectors_a_side_and_a_robot_without_posts_none():
+def test_the_tower_shadows_21_sectors_and_a_robot_without_posts_none():
     idx, values = post_sectors(TOWER)
-    degrees = np.minimum(idx * 4, 360 - idx * 4)           # both sides folded onto 0-180
-    assert sorted(degrees) == sorted([148, 152, 156, 160, 164, 168] * 2)
-    # Each sector reads the face of its post nearest the LiDAR.
-    # 160 deg is in both shadows and reads the nearer, front post.
-    assert np.allclose(values[degrees <= 160], 0.226, atol=0.001)
-    assert np.allclose(values[degrees > 160], 0.391, atol=0.001)
+    degrees = (idx * 4 + 180) % 360 - 180
+    # Left 132-168 deg, right 128-168 deg: the right motor reaches further forward.
+    assert sorted(degrees) == list(range(-168, -127, 4)) + list(range(132, 169, 4))
+    # Each sector reads the nearest face: the motors, then the front posts, and behind them the
+    # part between the left posts and the right rear post.
+    assert np.allclose(values[(degrees >= -152) & (degrees <= -128)], 0.186, atol=0.001)
+    assert np.allclose(values[(degrees >= 132) & (degrees <= 152)], 0.209, atol=0.001)
+    back = np.abs(degrees) >= 164
+    assert np.allclose(values[back], np.where(degrees[back] > 0, 0.264, 0.396), atol=0.001)
     assert len(post_sectors(MARTHA)[0]) == 0 and not post_rays(MARTHA, np.zeros(3)).any()
 
 
 def test_the_post_shadow_covers_every_beam_that_hits_a_post_with_room_to_spare():
+    robot = TOWER
     angles = np.deg2rad(np.arange(-180, 180, 0.1))
-    hits = np.isfinite(post_ranges(TOWER, angles))
-    shadow = post_rays(TOWER, angles)
+    hits = np.isfinite(post_ranges(robot, angles))
+    shadow = post_rays(robot, angles)
     assert shadow[hits].all()
     # Turning the posts by up to 2.5 deg (the LiDAR's mounting yaw) keeps them in the shadow.
     for turn in (-2.5, 2.5):
-        assert post_rays(TOWER, angles + np.deg2rad(turn))[hits].all()
+        assert post_rays(robot, angles + np.deg2rad(turn))[hits].all()
+
+
+def test_the_shadow_is_what_the_lidar_saw_of_martha_on_2026_11_24():
+    """From 150 scans, the LiDAR straight: the robot from 136 to 166 deg on the left and from 132
+    to 168 deg on the right; the room beside the motors (129 and -120 deg) and between the rear
+    posts (+-174 deg)."""
+    robot_seen = np.deg2rad([137, 140, 150, 155, 164, -133, -145, -155, -164, -168])
+    assert post_rays(TOWER, robot_seen).all()
+    assert not post_rays(TOWER, np.deg2rad([116, 129, -120, 174, -174])).any()
 
 
 def test_the_tower_observation_ignores_what_the_lidar_reads_on_its_posts():

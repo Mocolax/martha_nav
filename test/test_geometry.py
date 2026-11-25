@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from martha_nav.robots import ROBOTS
 from martha_nav.sim2d.geometry import (draw_box, draw_circle, empty_grid, footprint_collides,
@@ -72,10 +73,18 @@ def test_the_lidar_sees_the_tower_posts_behind_it():
     angles = np.deg2rad(np.arange(-180, 180))
     assert np.isinf(post_ranges(ROBOTS['martha'], angles)).all()
     r = post_ranges(ROBOTS['martha_tower'], angles)
-    seen = np.rad2deg(angles[np.isfinite(r)])
-    # Front posts: their front face 0.203 m behind the LiDAR, the inner face 0.10 m to the side.
-    front = np.abs(np.abs(seen) - 153.5) <= 3.5
-    rear = np.abs(np.abs(seen) - 164.5) <= 1.5
-    assert (front | rear).all() and front.sum() == 16 and rear.sum() == 8
-    assert 0.22 < r[np.isfinite(r)].min() < 0.23
-    assert 0.385 < r[np.isfinite(r)][rear].min() < 0.395
+    seen = np.abs(np.rad2deg(angles[np.isfinite(r)]))
+    # The posts and the lift's motors, from 132 to 166 deg a side. The right motor's box is the
+    # nearest, 0.19 m away (its corner; the A2M8 read 0.21 m there), and the right rear post
+    # 0.40 m, as the A2M8 read it.
+    assert seen.min() >= 132 and seen.max() <= 166
+    assert 0.18 < r[np.isfinite(r)].min() < 0.19
+    assert r[np.argmin(np.abs(angles + np.deg2rad(164)))] == pytest.approx(0.40, abs=0.01)
+
+
+def test_slam_toolbox_maps_nothing_of_the_tower():
+    from martha_nav.ros.slam import own_reach
+    tower = ROBOTS['martha_tower']
+    r = post_ranges(tower, np.deg2rad(np.arange(-180, 180, 0.1)))
+    assert r[np.isfinite(r)].max() < own_reach(tower) < 0.5
+    assert own_reach(ROBOTS['martha']) == 0.0

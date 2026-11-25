@@ -63,12 +63,14 @@ def test_the_guard_reaches_beyond_the_lidars_blind_zone(name):
 def test_martha_tower_is_martha_plus_the_posts_of_its_tower():
     m, t = asdict(ROBOTS['martha']), asdict(ROBOTS['martha_tower'])
     assert {k for k in m if m[k] != t[k]} == {'name', 'lidar_offset_x', 'posts'}
-    assert ROBOTS['martha'].posts == () and t['lidar_offset_x'] == 0.19
+    assert ROBOTS['martha'].posts == () and t['lidar_offset_x'] == 0.195
     # 20 x 40 mm posts, the long side along x, at x = -0.033 and -0.208 m, 0.24 m between
-    # outer faces across, inside the footprint (measured on the robot, 2026-10-21).
-    xs = sorted({x for x, *_ in t['posts']})
-    ys = sorted({y for _, y, *_ in t['posts']})
-    assert len(t['posts']) == 4 and all((sx, sy) == (0.04, 0.02) for *_, sx, sy in t['posts'])
+    # outer faces across, inside the footprint (measured on the robot, 2026-10-21); after them
+    # the claw lift's two motors and the part between the left posts (2026-11-24).
+    posts = t['posts'][:4]
+    xs = sorted({x for x, *_ in posts})
+    ys = sorted({y for _, y, *_ in posts})
+    assert len(t['posts']) == 7 and all((sx, sy) == (0.04, 0.02) for *_, sx, sy in posts)
     assert xs == pytest.approx([-0.208, -0.033]) and ys[1] - ys[0] + 0.02 == pytest.approx(0.24)
     assert max(map(abs, xs)) + 0.02 < ROBOTS['martha_tower'].length / 2
     assert ys[1] + 0.01 < ROBOTS['martha_tower'].width / 2

@@ -5,9 +5,10 @@
 
      tower false keeps the measurements of the original martha/urdf/learning.xacro, the
      robot ROBOTS['martha'] in martha_nav/robots.py was trained for, LiDAR 0.2325 m ahead
-     of base_link. tower true (the default) is the robot as built (measured 2026-10-21) and
-     ROBOTS['martha_tower'], with two 5 mm boards 10 cm apart, the LiDAR on the upper one 0.19 m
-     ahead of base_link, and the aluminium tower. The contact shell is 0.58 x 0.41 m, longer
+     of base_link. tower true (the default) is the robot as built (measured 2026-10-21 and,
+     after the claw lift, 2026-11-24) and ROBOTS['martha_tower'], with two 5 mm boards 10 cm
+     apart, the LiDAR on the upper one 0.195 m ahead of base_link, and the aluminium tower with
+     the claw lift's motors. The contact shell is 0.58 x 0.41 m, longer
      than the 0.56 m footprint so that it covers the wheels.
 
      IMPORTANT. Do not write a colon followed by a space anywhere in this file, not
@@ -61,7 +62,7 @@
     <!-- lidar_offset_x of ROBOTS['martha'] or ['martha_tower'] in martha_nav/robots.py.
          With the tower, scan_z is the scan plane, 3.1 cm above the upper board it rests on. -->
     <xacro:property name="built" value="${'$(arg tower)' == 'true'}" />
-    <xacro:property name="lidar_x" value="${0.19 if built else 0.2325}" />
+    <xacro:property name="lidar_x" value="${0.195 if built else 0.2325}" />
     <!-- As built the LiDAR is mounted turned 180 degrees. The lidar frame turns with it, so
          RViz and slam_toolbox place every beam through TF, and the policy reads the yaw from
          TF too (ppo_local_planner). The driver must not flip the scan as well. -->
@@ -215,6 +216,14 @@
         <xacro:profile_bar name="tower_crossbar_front_high" x="${post_x_front}" y="0" z="${upper_board_top + crossbar_high_front + crossbar_sz/2}" sx="${profile}" sy="${inner_y}" sz="${crossbar_sz}" />
         <xacro:profile_bar name="tower_crossbar_rear_low" x="${post_x_rear}" y="0" z="${upper_board_top + crossbar_low + crossbar_sz/2}" sx="${profile}" sy="${inner_y}" sz="${crossbar_sz}" />
         <xacro:profile_bar name="tower_crossbar_rear_high" x="${post_x_rear}" y="0" z="${upper_board_top + crossbar_high_rear + crossbar_sz/2}" sx="${profile}" sy="${inner_y}" sz="${crossbar_sz}" />
+        <!-- The claw lift's motors on the front posts and, on the left, the part between the
+             posts that seldom returns a reading, the boxes of ROBOTS['martha_tower'].posts after
+             the four posts, fitted to the scan. Their 6 cm height from the board is a guess;
+             it only has to cross the scan plane. -->
+        <xacro:property name="lift_z" value="${upper_board_top + 0.03}" />
+        <xacro:profile_bar name="tower_lift_motor_left" x="0.006" y="0.144" z="${lift_z}" sx="0.038" sy="0.044" sz="0.06" />
+        <xacro:profile_bar name="tower_lift_motor_right" x="0.022" y="-0.141" z="${lift_z}" sx="0.070" sy="0.032" sz="0.06" />
+        <xacro:profile_bar name="tower_lift_part_left" x="-0.1205" y="0.095" z="${lift_z}" sx="0.135" sy="0.010" sz="0.06" />
     </xacro:if>
 
     <!-- Fixed wheels for the planar drive: not actuated, they only carry the chassis. -->

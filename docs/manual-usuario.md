@@ -55,7 +55,7 @@ Hay dos perfiles en [`martha_nav/robots.py`](../martha_nav/robots.py):
 | Perfil | Plataforma | Particularidad |
 |---|---|---|
 | `martha` | Base con ruedas mecanum | Permite acciones `(v, w)` o `(vx, vy, w)`, según el modelo entrenado. |
-| `martha_tower` | Martha con torre de aluminio | Modela los postes que atraviesan el plano del LiDAR. Requiere una política compatible con ese perfil. |
+| `martha_tower` | Martha con torre de aluminio y elevador de la garra | Modela los postes y los motores del elevador que atraviesan el plano del LiDAR, con el LiDAR a 0.195 m (medido el 2026-11-24). Requiere una política compatible con ese perfil. |
 
 Se incluyen dos políticas listas para inferencia:
 
@@ -68,6 +68,10 @@ Los `.npz` ejecutan la inferencia con NumPy, sin PyTorch. Los checkpoints `.zip`
 necesitan las dependencias de aprendizaje y su `config.yaml` asociado. No se incluye
 una política para `martha_tower`. El cargador comprueba la compatibilidad del perfil;
 no basta con cambiar el nombre del robot para reutilizar una política.
+
+Las dos políticas se entrenaron con la torre antes del elevador de la garra (LiDAR a 0.19 m,
+solo los cuatro postes). Con el perfil actual el cargador las rechaza: hace falta entrenar una
+nueva con `--robot martha_tower`.
 
 ## Organización del repositorio
 
@@ -481,10 +485,11 @@ Con el robot sobre la marca de cinta y sin obstáculos nuevos en el mapa:
 ```
 
 Si el robot no arrancó sobre la marca, corregir la pose con **2D Pose Estimate**.
-Enviar metas con **2D Goal Pose**. La política incluida corresponde al perfil
-`martha_tower`: Martha con la torre, con el LiDAR a 0.19 m y los postes en su
-observación. `./robot.sh teleop` y la política publican los dos en `/cmd_vel`: usar uno
-a la vez.
+Enviar metas con **2D Goal Pose**. La política tiene que ser del perfil
+`martha_tower`: Martha con la torre y el elevador de la garra, con el LiDAR a 0.195 m y los
+postes y motores en su observación. Las políticas incluidas son de la torre anterior y el
+cargador las rechaza.
+`./robot.sh teleop` y la política publican los dos en `/cmd_vel`: usar uno a la vez.
 
 Cancelar con `/cancel_goal` (desde `./robot.sh shell`) y cerrar con `Ctrl+C`. El paro
 físico es el interruptor de alimentación.

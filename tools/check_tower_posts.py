@@ -115,7 +115,6 @@ def main():
           f'{scans[0].range_min:.2f} m, LiDAR yaw in the URDF {math.degrees(lidar_yaw):+.1f} deg')
     _, found = blobs(scans, args.radius, args.min_rate, lidar_yaw)
 
-    sx, sy = robot.posts[0][2:] if robot.posts else (0.04, 0.02)
     expected = [(x, y, mid, near) for (x, y, *_), (mid, _, near)
                 in zip(robot.posts, post_shadows(robot))]
     print(f'\nExpected (robots.py, LiDAR at x = {robot.lidar_offset_x} m):')
@@ -166,7 +165,8 @@ def main():
             continue
         m = matched[k]
         # The posts stand behind the LiDAR, which sees their front face: the centre lies half
-        # the post's length further back.
+        # the post's length further back (only roughly so for a box beside the LiDAR).
+        sx = robot.posts[k][2]
         bearing = m['bearing'] + yaw
         x = robot.lidar_offset_x + m['range'] * math.cos(bearing) - sx / 2
         y = m['range'] * math.sin(bearing)
@@ -186,7 +186,7 @@ def main():
 
     if measured and not missing:
         posts = ', '.join(f'({m["x"]:.3f}, {m["y"]:.3f}, {sx}, {sy})'
-                          for _, m in sorted(measured.items()))
+                          for (_, m), (*_, sx, sy) in zip(sorted(measured.items()), robot.posts))
         print(f'\nFor robots.py (rounded to the tape, and keep them symmetric if they are):'
               f'\n    posts=({posts})')
     return 0

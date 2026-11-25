@@ -43,14 +43,21 @@ ROBOTS = {
                     guard_margin=0.05),
 }
 
-# Martha as built (measured 2026-10-21 with the LiDAR, tools/check_tower_posts.py, and a tape):
-# the LiDAR moved back to 0.19 m ahead of base_link, and an aluminium tower of four 20 x 40 mm
-# posts, the long side along x, crosses its scan plane behind it: the front pair centred at
-# x = -0.033 m, the rear pair at -0.208 m, y = +-0.11 m. The body and the footprint do not
-# change.
+# Martha as built, with the aluminium tower and the claw lift (tools/check_tower_posts.py checks
+# it against the LiDAR, tools/align_lidar.py turns the LiDAR straight). Four 20 x 40 mm posts,
+# the long side along x, cross the LiDAR's scan plane behind it: the front pair centred at
+# x = -0.033 m, the rear pair at -0.208 m, y = +-0.11 m (measured 2026-10-21 with the LiDAR and
+# a tape). Since 2026-11-24 (150 raw scans) the LiDAR sits 0.195 m ahead of base_link, turned
+# 180 degrees, and the claw lift's two motors stand on the front posts, fitted to what the A2M8
+# sees: the left one 0.122-0.166 m to the side with its face at x = 0.025 m, the right one
+# 0.125-0.157 m to the side reaching x = 0.057 m. On the left, between the posts, a part along
+# their inner face returns a reading now and then (0.34 m from the LiDAR): a 1 cm box. The body
+# and the footprint are Martha's.
 ROBOTS['martha_tower'] = replace(
-    ROBOTS['martha'], name='martha_tower', lidar_offset_x=0.19,
-    posts=tuple((x, y, 0.04, 0.02) for x in (-0.033, -0.208) for y in (0.11, -0.11)))
+    ROBOTS['martha'], name='martha_tower', lidar_offset_x=0.195,
+    posts=tuple((x, y, 0.04, 0.02) for x in (-0.033, -0.208) for y in (0.11, -0.11))
+    + ((0.006, 0.144, 0.038, 0.044), (0.022, -0.141, 0.070, 0.032),
+       (-0.1205, 0.095, 0.135, 0.010)))
 
 
 def checkpoint_robot(path):

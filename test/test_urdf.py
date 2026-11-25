@@ -131,11 +131,16 @@ def box(doc, link):
     return joint_origin(doc, f'base_{link}_joint'), [float(v) for v in size.split()]
 
 
-def test_the_tower_posts_are_the_ones_the_2d_lidar_sees():
+def tower_links(doc):
+    links = [name.split('"', 1)[0] for name in doc.split('<link name="')[1:]]
+    return [n for n in links if n.startswith('tower_')]
+
+
+def test_the_tower_boxes_in_the_scan_plane_are_the_posts_the_2d_lidar_sees():
     doc = robot()
-    posts = sorted((x, y, sx, sy) for (x, y, _), (sx, sy, _) in (
-        box(doc, f'tower_post_{end}_{side}') for end in ('front', 'rear')
-        for side in ('left', 'right')))
+    scan_z = joint_origin(doc, 'base_lidar')[2]
+    posts = sorted((x, y, sx, sy) for (x, y, z), (sx, sy, sz) in map(lambda n: box(doc, n),
+                   tower_links(doc)) if abs(z - scan_z) < sz / 2)
     assert posts == pytest.approx(sorted(ROBOTS['martha_tower'].posts))
 
 
@@ -158,8 +163,7 @@ def test_the_lidar_scans_3_1_cm_above_the_upper_board_and_under_the_crossbars():
 
 def test_the_tower_stays_inside_the_2d_footprint():
     doc = robot()
-    links = [name.split('"', 1)[0] for name in doc.split('<link name="')[1:]]
-    for link in (n for n in links if n.startswith('tower_')):
+    for link in tower_links(doc):
         (x, y, _), (sx, sy, _) = box(doc, link)
         assert abs(x) + sx / 2 <= ROBOT_LENGTH / 2 and abs(y) + sy / 2 <= ROBOT_WIDTH / 2, link
 
