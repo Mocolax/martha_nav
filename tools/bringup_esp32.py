@@ -128,7 +128,7 @@ def check_link(esp, report):
         report.add('arming', True, 'reset -> ready')
         return True
     report.add('arming', False, f'reset -> {esp.events or "no answer"}: reset_blocked means '
-                                'battery < 11.5 V or GPIO23 low (R4 / RV1, design section 7)')
+                                'battery < 13.0 V or GPIO23 low (R4 / RV1, design section 7)')
     return False
 
 

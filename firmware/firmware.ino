@@ -35,7 +35,7 @@ const float RPM_PER_PWM = 1.15f, PWM_START = 4.0f;
 const float V_DEADZONE = 0.01f, W_DEADZONE = 0.02f;  // m/s, rad/s
 const float PWM_MIN = 8.0f;
 const float BATTERY_GAIN = 4.9f;
-const float BATTERY_LOW = 11.0f, BATTERY_RESET = 11.5f;  // V
+const float BATTERY_LOW = 12.5f, BATTERY_RESET = 13.0f;  // V
 // Circuits not fitted on the board yet (2026-10-21): the battery divider (R5/R6, GPIO34
 // floats) and the overcurrent comparator (LM339, R4, RV1). Off, their checks are skipped:
 // the robot arms without them and nothing stops it on a low battery or a stalled motor.
