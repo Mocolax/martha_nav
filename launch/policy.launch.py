@@ -33,6 +33,8 @@ ARGUMENTS = [
                           description="global planner inflation in m; empty: the robot's"),
     DeclareLaunchArgument('action_delay', default_value='0',
                           description='control periods between an action and its command'),
+    DeclareLaunchArgument('virtual_map', default_value='',
+                          description="a saved map's .yaml whose painted tables the policy sees"),
     DeclareLaunchArgument('guard', default_value='true', choices=['true', 'false'],
                           description='directional safety guard on the policy commands'),
 ]
@@ -57,6 +59,7 @@ def launch_setup(context, *args, **kwargs):
         Node(package='martha_nav', executable='ppo_local_planner', output='screen',
              remappings=remappings,
              parameters=[{'checkpoint': checkpoint, 'use_sim_time': sim, 'robot': robot,
+                          'virtual_map': LaunchConfiguration('virtual_map'),
                           'speed_scale': ParameterValue(LaunchConfiguration('speed_scale'),
                                                         value_type=float),
                           'action_delay': ParameterValue(LaunchConfiguration('action_delay'),

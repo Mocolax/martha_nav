@@ -484,15 +484,20 @@ Con el robot sobre la marca de cinta y sin obstáculos nuevos en el mapa:
 
 ```bash
 ./robot.sh sala_real        # base, LiDAR, EKF, localización en maps/sala_real y RViz
-./robot.sh policy           # en otra terminal; SPEED=0.5 ./robot.sh policy, a media velocidad
+./robot.sh policy policies/martha_tower_holo_5m.npz   # en otra terminal; SPEED=0.5 delante, a media velocidad
 ```
 
 Si el robot no arrancó sobre la marca, corregir la pose con **2D Pose Estimate**.
 Enviar metas con **2D Goal Pose**. La política tiene que ser del perfil
 `martha_tower`: Martha con la torre y el elevador de la garra, con el LiDAR a 0.195 m y los
-postes y motores en su observación. Las políticas incluidas son de la torre anterior y el
-cargador las rechaza.
+postes y motores en su observación (`martha_tower_holo_5m.npz`, `_rev` o `_clear`).
 `./robot.sh teleop` y la política publican los dos en `/cmd_vel`: usar uno a la vez.
+
+Una mesa por encima del plano del LiDAR solo deja ver sus patas. Con el mapa corriendo,
+`python3 tools/paint_map.py <mapa>` (en `./robot.sh shell`) la pinta en el `.pgm` con dos clics
+de **Publish Point** en esquinas opuestas, y el planificador global la rodea. Con
+`VIRTUAL=1 ./robot.sh policy …` la política y la protección también la ven: cada rayo del LiDAR
+lee lo más cercano entre lo medido y lo pintado (solo lo pintado después del mapeo, hasta 2.5 m).
 
 Cancelar con `/cancel_goal` (desde `./robot.sh shell`) y cerrar con `Ctrl+C`. El paro
 físico es el interruptor de alimentación.

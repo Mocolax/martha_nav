@@ -16,6 +16,7 @@ from martha_nav.ros.common import LATCHED, run_node, yaw_of
 from martha_nav.ros.numpy_policy import NumpyPolicy, settings_of
 from martha_nav.ros.policy_core import PolicyCore
 from martha_nav.ros.scan_adapter import scan_to_arrays
+from martha_nav.ros.virtual_obstacles import merge, painted
 from martha_nav.sim2d.planner import Path
 
 STALE = 0.3      # s; older sensor data stops the robot
@@ -70,6 +71,16 @@ class PpoLocalPlanner(Node):
         self.get_logger().info(f"robot {settings['robot']}, action space {self.action_dim}D, "
                                f'action delay {self.core.action_delay}, speed x{self.speed_scale}'
                                + ('' if self.core.guard else ', footprint guard OFF'))
+        # Tables painted into the map (tools/paint_map.py), merged into every scan: the
+        # map's .yaml, or empty for none.
+        virtual_map = self.declare_parameter('virtual_map', '').value
+        self.virtual_reach = self.declare_parameter('virtual_reach', 2.5).value
+        self.virtual = painted(virtual_map) if virtual_map else None
+        if virtual_map:
+            self.get_logger().info(
+                f'virtual obstacles: {int(self.virtual.occ.sum())} painted cells within '
+                f'{self.virtual_reach} m' if self.virtual is not None else
+                f'virtual obstacles: nothing painted in {virtual_map} (no .pgm.bak), none used')
         self.map_frame = self.declare_parameter('map_frame', 'map').value
         self.base_frame = self.declare_parameter('base_frame', 'base_link').value
         self.buffer = Buffer()
@@ -155,6 +166,9 @@ class PpoLocalPlanner(Node):
         if pose is None:
             return self.stop('no map -> base transform')
         ranges, angles = self.scan
+        if self.virtual is not None:
+            ranges = merge(ranges, angles, self.virtual, pose, self.core.robot.lidar_offset_x,
+                           self.virtual_reach)
         *velocities, info = self.core.compute(self.path, pose, ranges, angles, self.velocity)
         if info['blocked']:
             action = 'blocking those directions' if self.core.guard else 'guard off, not blocking'

@@ -12,7 +12,9 @@
 #   ./robot.sh shell | build | stop
 #
 # teleop and policy both drive /cmd_vel: use one at a time. SPEED=0.5 ./robot.sh policy commands
-# half the trained speeds. Other ports: ESP32=/dev/ttyUSB0 LIDAR=/dev/ttyUSB1 ./robot.sh mapping
+# half the trained speeds; VIRTUAL=1 ./robot.sh policy lets the policy see the tables painted into
+# the running map (tools/paint_map.py); INFLATION=0.30 lets the global planner through aisles
+# narrower than its default 0.40 m inflation allows. Other ports: ESP32=/dev/ttyUSB0 LIDAR=/dev/ttyUSB1 ./robot.sh mapping
 set -e
 cd "$(dirname "$0")"
 source docker/lib.sh
@@ -40,7 +42,15 @@ case "$1" in
       ros2 service call /slam_toolbox/serialize_map slam_toolbox/srv/SerializePoseGraph \
       \"{filename: '$CT_REPO/maps/$2'}\""
     say "saved maps/$2: ./robot.sh $2 navigates in it" ;;
-  policy) up; policy "$2" "speed_scale:=${SPEED:-1.0}" ;;
+  policy)
+    up
+    args="speed_scale:=${SPEED:-1.0}${INFLATION:+ inflation:=$INFLATION}"
+    if [ -n "$VIRTUAL" ]; then         # the map ./robot.sh <map> is localizing in
+      map=$(run 'ros2 param get /world_map_publisher map_yaml' < /dev/null | sed -n 's/^String value is: //p')
+      [ -n "$map" ] || { say "VIRTUAL=1 needs ./robot.sh <map> running"; exit 1; }
+      args="$args virtual_map:=$map"
+    fi
+    policy "$2" "$args" ;;
   teleop)
     up
     if compgen -G '/dev/input/js*' > /dev/null; then
