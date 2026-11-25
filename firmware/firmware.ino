@@ -42,6 +42,10 @@ const float RPM_PER_PWM = 1.15f, PWM_START = 40.0f;
 // The speed it checks is low-passed over SPEED_TAU: at low speed a 10 ms tick holds 0-2 pulses.
 const float STALL_FRACTION = 0.5f, STALL_RISE = 400.0f, STALL_FALL = 800.0f;  // -, PWM per s
 const float STALL_MAX = 200.0f, SPEED_TAU = 0.05f;                           // PWM, s
+// A wheel still held at full PWM after STALL_GIVE_UP gives up: it coasts for STALL_REST and tries again.
+// Without a limit, four wheels locked at full PWM (slow sideways, 2026-11-25) whistled and
+// heated for as long as the command lasted. Each give-up is reported (wheel_stall_fl, ...).
+const float STALL_GIVE_UP = 1.5f, STALL_REST = 1.0f;  // s
 // Below these a command is a stop, and below PWM_MIN a wheel is coasted: a PWM too small to
 // turn the motor only heats it and whistles at the PWM frequency.
 const float V_DEADZONE = 0.01f, W_DEADZONE = 0.02f;  // m/s, rad/s
@@ -66,6 +70,9 @@ float refRpm[4];
 int direction[4];         // sign of the last PWM, to coast one cycle on a reversal
 float stallBoost[4];      // PWM added while a wheel is held by static friction
 float speedLp[4];         // low-passed wheel speed, rpm, for the stall check
+float stallTime[4];       // s held so far
+float restTime[4];        // s left coasting after giving up
+const char *STALL_EVENT[4] = {"wheel_stall_fl", "wheel_stall_fr", "wheel_stall_rl", "wheel_stall_rr"};
 long reportCounts[4];     // pulses since the last odom line
 float reportDt = 0, battery = 0;
 unsigned tick = 0;
@@ -83,13 +90,15 @@ void setAwake(bool on) {
 }
 
 // MPQ6612A, slow decay: one input held high, PWM inverted on the other, so the motor
-// alternates drive and brake (1/1) instead of drive and coast. IN1 = IN2 = 0 is coast.
-void drive(int i, float out) {
+// alternates drive and brake (1/1) instead of drive and coast. IN1 = IN2 = 0 is coast,
+// IN1 = IN2 = 1 is brake: the shorted motor stops the wheel instead of letting it roll on.
+void drive(int i, float out, bool brake = false) {
   int dir = (out > 0) - (out < 0);
   if (dir != 0 && direction[i] != 0 && dir != direction[i]) dir = 0;
   const int duty = dir ? (int)fminf(fabsf(out), 255.0f) : 0;
-  ledcWrite(IN1[i], dir > 0 ? 255 : dir < 0 ? 255 - duty : 0);
-  ledcWrite(IN2[i], dir < 0 ? 255 : dir > 0 ? 255 - duty : 0);
+  const int idle = brake ? 255 : 0;
+  ledcWrite(IN1[i], dir > 0 ? 255 : dir < 0 ? 255 - duty : idle);
+  ledcWrite(IN2[i], dir < 0 ? 255 : dir > 0 ? 255 - duty : idle);
   direction[i] = dir;
 }
 
@@ -103,6 +112,7 @@ void stopControl() {
   for (int i = 0; i < 4; ++i) {
     refRpm[i] = 0;
     wheelPI[i].reset();
+    stallBoost[i] = stallTime[i] = restTime[i] = 0;
     drive(i, 0);
   }
 }
@@ -189,21 +199,33 @@ void control() {
     if (counts != 0 || refRpm[i] != 0) lastMotionMs = millis();
     const float rpm = counts / COUNTS_PER_REV * 60.0f / dt;
     speedLp[i] += (rpm - speedLp[i]) * fminf(dt / SPEED_TAU, 1.0f);
-    // A wheel told to stand still coasts, with its PI and stall boost cleared: nothing left
-    // over from the last motion keeps pushing it.
+    // A wheel told to stand still brakes, and one resting after giving up coasts, both with
+    // their PI and stall boost cleared: nothing left over from the last motion keeps pushing.
+    // Coasting a stop let Martha roll on after the policy asked for zero (2026-11-25).
     float out = 0;
-    if (cmdActive && refRpm[i] != 0) {
+    restTime[i] = fmaxf(restTime[i] - dt, 0.0f);
+    if (cmdActive && refRpm[i] != 0 && restTime[i] == 0) {
       const bool stalled = speedLp[i] * refRpm[i] < STALL_FRACTION * refRpm[i] * refRpm[i];
       stallBoost[i] = constrain(stallBoost[i] + (stalled ? STALL_RISE : -STALL_FALL) * dt,
                                 0.0f, STALL_MAX);
-      out = feedforward(refRpm[i]) + copysignf(stallBoost[i], refRpm[i])
-            + wheelPI[i].update(refRpm[i] - rpm, dt);
+      out = wheelPI[i].update(refRpm[i] - rpm, dt,
+                              feedforward(refRpm[i]) + copysignf(stallBoost[i], refRpm[i]));
+      // Only a wheel already at full PWM counts as held: one crawling under load still has
+      // room to push and is left to the PI.
+      stallTime[i] = stalled && fabsf(out) >= 255.0f ? stallTime[i] + dt : 0;
       if (fabsf(out) < PWM_MIN) out = 0;
-    } else {
+      if (stallTime[i] > STALL_GIVE_UP) {
+        restTime[i] = STALL_REST;
+        Serial.println(STALL_EVENT[i]);
+      }
+    }
+    if (restTime[i] > 0 || !cmdActive || refRpm[i] == 0) {
+      out = 0;
       wheelPI[i].reset();
       stallBoost[i] = 0;
+      stallTime[i] = 0;
     }
-    drive(i, MOTOR_SIGN[i] * out);
+    drive(i, MOTOR_SIGN[i] * out, refRpm[i] == 0 && !latched);
   }
 
   if (BATTERY_SENSE) {

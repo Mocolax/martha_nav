@@ -2,17 +2,20 @@
 #pragma once
 #include <Arduino.h>
 
-// PI on one wheel, in PWM counts per RPM of error. Conditional integration: while the
-// output is saturated and the error pushes it further, the integral stops growing, so a
-// blocked wheel does not wind it up and the wheel reverses as soon as it is told to.
+// PI on one wheel, in PWM counts per RPM of error, on top of `base` (the feedforward and
+// anything else already in the output); returns the whole output, clipped. Conditional
+// integration on that whole output: while it is saturated and the error pushes it further,
+// the integral stops growing, so a blocked wheel does not wind it up and the wheel neither
+// overshoots when it breaks away nor lags when told to reverse. Checking the PI alone
+// against the limit let the integral climb while the feedforward already held 255.
 struct WheelPI {
   float kp, ki, limit, integral = 0;
 
-  float update(float error, float dt) {
-    float out = kp * error + ki * integral;
+  float update(float error, float dt, float base = 0) {
+    float out = base + kp * error + ki * integral;
     if (fabsf(out) < limit || error * out < 0) {
       integral += error * dt;
-      out = kp * error + ki * integral;
+      out = base + kp * error + ki * integral;
     }
     return constrain(out, -limit, limit);
   }

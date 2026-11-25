@@ -38,8 +38,13 @@ ve el patinaje que los encoders no ven. Retardo: hasta el 20 % del comando; `tau
   arrastra cuenta algunos.
 - `KI` 4 (antes 1.6): el integrador cubre antes la fuerza sostenida.
 - `PWM_MIN` 20.
-- Pendiente: limitar cuánto dura el empuje. Con las cuatro ruedas trabadas a tope (lateral
-  lento) los motores pitan sin parar.
+- Límite del empuje: una rueda que lleva 1.5 s trabada con PWM 255 descansa 1 s sin
+  corriente, avisa `wheel_stall_fl` (`_fr`, `_rl`, `_rr`) y vuelve a intentar. Antes, con las
+  cuatro ruedas trabadas a tope (lateral lento), los motores pitaban sin parar.
+- Anti-windup sobre la salida total (feedforward + empuje + PI), no solo sobre el PI: con el
+  feedforward ya en 255 el integrador seguía creciendo y la rueda se pasaba al despegar.
+- Con referencia cero la rueda frena (motor en cortocircuito) en vez de quedar suelta: Martha
+  seguía rodando por inercia cuando la política mandaba cero.
 
 Con este firmware el giro lento arranca en ~0.4 s y gira 44-49° en 2 s (57° ideal).
 

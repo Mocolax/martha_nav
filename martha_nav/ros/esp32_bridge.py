@@ -10,6 +10,7 @@ Serial protocol (115200 baud), one line per message:
     ESP32 -> PC   ready                 on boot and after an accepted reset
     ESP32 -> PC   motor_overcurrent, battery_too_low    on entering the latch (once)
     ESP32 -> PC   cmd_vel_timeout       when the timeout expires
+    ESP32 -> PC   wheel_stall_fl, _fr, _rl, _rr   a wheel held 1.5 s at full push: it rests 1 s
     ESP32 -> PC   reset_blocked         reset refused
     ESP32 -> PC   imu_missing           on boot without the IMU
 
