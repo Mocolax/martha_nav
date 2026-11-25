@@ -18,7 +18,7 @@ from martha_nav.sim2d.scenarios import (CONDITIONS, TRAIN_SOURCES, ScenarioConfi
 
 def make_vec_env(cfgs):
     fns = [lambda c=c: NavEnv(c) for c in cfgs]
-    return DummyVecEnv(fns) if len(fns) == 1 else SubprocVecEnv(fns)
+    return DummyVecEnv(fns) if len(fns) == 1 else SubprocVecEnv(fns, start_method='fork')
 
 
 def run_episodes(model, env_cfg, seeds, n_envs=8, deterministic=True):

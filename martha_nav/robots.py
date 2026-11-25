@@ -58,6 +58,9 @@ ROBOTS['martha_tower'] = replace(
     posts=tuple((x, y, 0.04, 0.02) for x in (-0.033, -0.208) for y in (0.11, -0.11))
     + ((0.006, 0.144, 0.038, 0.044), (0.022, -0.141, 0.070, 0.032),
        (-0.1205, 0.095, 0.135, 0.010)))
+# The same Martha forbidden to reverse: the posts shadow most of what is behind it, and it can
+# still turn in place or slide sideways to get out of a dead end.
+ROBOTS['martha_tower_fwd'] = replace(ROBOTS['martha_tower'], name='martha_tower_fwd', v_reverse=0.0)
 
 
 def checkpoint_robot(path):

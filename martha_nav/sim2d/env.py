@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 import gymnasium as gym
 import numpy as np
+import scipy.ndimage
 from gymnasium import spaces
 
 from martha_nav.robots import ROBOTS
@@ -78,6 +79,9 @@ class NavEnv(gym.Env):
         else:
             self.episode_seed = int(self.np_random.integers(TRAIN_SEED_LIMIT))
         self.sc = generate(self.episode_seed, self.cfg.scenario)
+        if self.cfg.reward.clearance > 0:
+            self.clearance_map = (scipy.ndimage.distance_transform_edt(~self.sc.full.occ)
+                                  * self.sc.full.resolution)
         self.rng = np.random.default_rng([self.episode_seed, 1])
         self.dyn = Dynamics(sample_params(self.rng, self.cfg.dynamics))
         self.dyn.reset(self.sc.start)
@@ -111,7 +115,9 @@ class NavEnv(gym.Env):
         step = self.dyn.step_holonomic if len(commands) == 3 else self.dyn.step
         collided = step(*commands,
                         lambda x, y, t: footprint_collides(self.sc.full, x, y, t, self.footprint))
-        x, y, _ = self.dyn.pose
+        x, y, th = self.dyn.pose
+        dx, dy = self.dyn.pose[:2] - before
+        backward = max(-(np.cos(th) * dx + np.sin(th) * dy), 0.0)
         self.travelled += float(np.hypot(*(self.dyn.pose[:2] - before)))
         self.steps += 1
         self._record()
@@ -122,8 +128,9 @@ class NavEnv(gym.Env):
                    and self.progress.seconds_without_progress >= self.cfg.no_progress_time)
         if (self.steps + self.scan_phase) % self.scan_every == 0:
             self._scan()
+        clearance = self._clearance(x, y, th) if self.cfg.reward.clearance > 0 else np.inf
         reward, terms = compute_reward(self._reward_progress(gain, x, y), reached, collided,
-                                       self.cfg.reward)
+                                       self.cfg.reward, clearance, backward)
         for k, v in terms.items():
             self.terms[k] += v
         self.prev_action = action
@@ -136,6 +143,18 @@ class NavEnv(gym.Env):
                        else 'stalled' if stalled else 'timeout')
             info = self._summary(outcome)
         return self._obs(), float(reward), terminated, truncated, info
+
+    def _clearance(self, x, y, th):
+        """m from the contact rectangle to the nearest occupied cell, on the true map: the
+        privileged reward sees behind the posts, where the LiDAR is blind."""
+        c, s = np.cos(th), np.sin(th)
+        px = x + c * self.footprint[:, 0] - s * self.footprint[:, 1]
+        py = y + s * self.footprint[:, 0] + c * self.footprint[:, 1]
+        row, col = self.sc.full.to_cell(px, py)
+        rows, cols = self.sc.full.shape
+        if ((row < 0) | (row >= rows) | (col < 0) | (col >= cols)).any():
+            return 0.0
+        return float(self.clearance_map[row, col].min())
 
     def _record(self):
         if self.cfg.record_trajectory:

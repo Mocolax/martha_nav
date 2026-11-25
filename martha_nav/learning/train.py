@@ -105,7 +105,9 @@ class PeriodicEval(BaseCallback):
 
 def make_vec_env(env_cfg, n_envs, seed):
     """Parallel environments, monitored and with normalised reward."""
-    venv = SubprocVecEnv([lambda: NavEnv(env_cfg) for _ in range(n_envs)])
+    # fork: the workers share the parent's imports (torch alone is ~330 MB per worker under
+    # forkserver), so several runs fit in RAM at once. They only run numpy, never CUDA.
+    venv = SubprocVecEnv([lambda: NavEnv(env_cfg) for _ in range(n_envs)], start_method='fork')
     venv.seed(seed)
     return VecNormalize(VecMonitor(venv), norm_obs=False, norm_reward=True,
                         gamma=PPO_PARAMS['gamma'])
@@ -122,7 +124,7 @@ def build_model(venv, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
-                 wide_dynamics=False, robot='martha'):
+                 wide_dynamics=False, robot='martha', clearance=None, reverse=None):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     if action_dim == 3 and not ROBOTS[robot].holonomic:
@@ -131,6 +133,10 @@ def build_config(preset, collision=None, action_dim=2, target='carrot', progress
     reward = replace(cfg.reward, progress_mode=progress_mode)
     if collision is not None:
         reward = replace(reward, collision=collision)
+    if clearance is not None:
+        reward = replace(reward, clearance=clearance)
+    if reverse is not None:
+        reward = replace(reward, reverse=reverse)
     if wide_dynamics:
         cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
     return replace(cfg, reward=reward, action_dim=action_dim, target=target, robot=robot,
@@ -151,6 +157,10 @@ def main(argv=None):
     ap.add_argument('--runs-dir', default=str(RUNS_DIR))
     ap.add_argument('--name', default=None)
     ap.add_argument('--reward-collision', type=float, default=None, help='override RewardConfig.collision')
+    ap.add_argument('--reward-clearance', type=float, default=None,
+                    help='privileged dense penalty near obstacles, measured on the map; e.g. 0.05')
+    ap.add_argument('--reward-reverse', type=float, default=None,
+                    help='penalty per metre driven backward; e.g. 1.0')
     ap.add_argument('--action-dim', type=int, choices=[2, 3], default=2,
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
     ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
@@ -171,7 +181,8 @@ def main(argv=None):
     steps = args.steps or PRESETS[args.preset]['steps']
     name = args.name or f'{args.preset}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
     env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
-                           args.reward_progress, args.wide_dynamics, args.robot)
+                           args.reward_progress, args.wide_dynamics, args.robot,
+                           clearance=args.reward_clearance, reverse=args.reward_reverse)
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     config = {'preset': args.preset, 'recurrent': args.recurrent,
