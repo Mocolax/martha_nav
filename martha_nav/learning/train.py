@@ -124,7 +124,8 @@ def build_model(venv, recurrent, seed, device, tensorboard_log):
 
 
 def build_config(preset, collision=None, action_dim=2, target='carrot', progress_mode='route',
-                 wide_dynamics=False, robot='martha', clearance=None, reverse=None):
+                 wide_dynamics=False, robot='martha', clearance=None, reverse=None,
+                 thin=0.0, n_rays=180):
     """EnvConfig for a preset; the optional arguments are experiment overrides."""
     p = PRESETS[preset]
     if action_dim == 3 and not ROBOTS[robot].holonomic:
@@ -140,7 +141,8 @@ def build_config(preset, collision=None, action_dim=2, target='carrot', progress
     if wide_dynamics:
         cfg = replace(cfg, dynamics=WIDE_DYNAMICS)
     return replace(cfg, reward=reward, action_dim=action_dim, target=target, robot=robot,
-                   scenario=replace(cfg.scenario, sources=tuple(p['sources']),
+                   n_rays=n_rays,
+                   scenario=replace(cfg.scenario, sources=tuple(p['sources']), thin=thin,
                                     obstacle_mode=p['obstacle_mode'],
                                     inflation=ROBOTS[robot].inflation))
 
@@ -161,6 +163,10 @@ def main(argv=None):
                     help='privileged dense penalty near obstacles, measured on the map; e.g. 0.05')
     ap.add_argument('--reward-reverse', type=float, default=None,
                     help='penalty per metre driven backward; e.g. 1.0')
+    ap.add_argument('--thin-obstacles', type=float, default=0.0,
+                    help='share of surprise obstacles that are thin legs (r 2.5-4 cm); e.g. 0.3')
+    ap.add_argument('--n-rays', type=int, default=180,
+                    help='simulated LiDAR beams; 360 (1 deg) keeps a thin leg from falling between them')
     ap.add_argument('--action-dim', type=int, choices=[2, 3], default=2,
                     help='3 adds the lateral command (vx, vy, w) of the mecanum wheels')
     ap.add_argument('--target', choices=['carrot', 'goal'], default='carrot',
@@ -182,7 +188,8 @@ def main(argv=None):
     name = args.name or f'{args.preset}_s{args.seed}_{time.strftime("%Y%m%d_%H%M%S")}'
     env_cfg = build_config(args.preset, args.reward_collision, args.action_dim, args.target,
                            args.reward_progress, args.wide_dynamics, args.robot,
-                           clearance=args.reward_clearance, reverse=args.reward_reverse)
+                           clearance=args.reward_clearance, reverse=args.reward_reverse,
+                           thin=args.thin_obstacles, n_rays=args.n_rays)
     run_dir = Path(args.runs_dir) / name
     run_dir.mkdir(parents=True, exist_ok=False)
     config = {'preset': args.preset, 'recurrent': args.recurrent,

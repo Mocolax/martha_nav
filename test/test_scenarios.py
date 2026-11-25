@@ -76,3 +76,11 @@ def test_point_episodes_have_a_route():
     for seed in range(1_000_000, 1_000_010):
         sc = generate(seed, cfg)
         assert sc.path.length >= 1.0
+
+
+def test_thin_obstacles_are_legs_and_off_by_default():
+    radii = [o.radius for s in range(300) for o in generate(s, ScenarioConfig(obstacle_mode='always',
+                                                                              thin=1.0)).obstacles]
+    assert radii and all(0.025 <= r <= 0.04 for r in radii)
+    assert all(o.extent >= 0.1 for s in range(100)
+               for o in generate(s, ScenarioConfig(obstacle_mode='always')).obstacles)

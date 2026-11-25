@@ -122,7 +122,9 @@ def trained_env_config(model_path):
     check_profile(config.get('robot_profile'), robot, model_path)
     return EnvConfig(dynamics=dynamics, action_dim=saved.get('action_dim', 2),
                      target=saved.get('target', 'carrot'), robot=robot,
-                     scenario=ScenarioConfig(inflation=ROBOTS[robot].inflation))
+                     n_rays=saved.get('n_rays', 180),
+                     scenario=ScenarioConfig(inflation=ROBOTS[robot].inflation,
+                                             thin=saved.get('scenario', {}).get('thin', 0.0)))
 
 
 def load_model(path):

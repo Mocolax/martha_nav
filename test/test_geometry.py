@@ -88,3 +88,9 @@ def test_slam_toolbox_maps_nothing_of_the_tower():
     r = post_ranges(tower, np.deg2rad(np.arange(-180, 180, 0.1)))
     assert r[np.isfinite(r)].max() < own_reach(tower) < 0.5
     assert own_reach(ROBOTS['martha']) == 0.0
+
+
+def test_a_circle_thinner_than_a_cell_still_fills_its_cell():
+    grid = empty_grid(1.0, 1.0)
+    draw_circle(grid, 0.512, 0.537, 0.02)       # off every cell centre
+    assert grid.occ.sum() == 1 and grid.occupied(0.512, 0.537)

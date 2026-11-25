@@ -85,6 +85,10 @@ def draw_box(grid, cx, cy, sx, sy, yaw=0.0):
 def draw_circle(grid, cx, cy, radius):
     win, xs, ys = _local_centers(grid, cx, cy, radius)
     grid.occ[win] |= (xs - cx) ** 2 + (ys - cy) ** 2 <= radius ** 2
+    # A circle thinner than a cell may contain no cell centre: it still fills the cell it is in.
+    r, c = grid.to_cell(cx, cy)
+    if 0 <= r < grid.occ.shape[0] and 0 <= c < grid.occ.shape[1]:
+        grid.occ[r, c] = True
     grid._padded = None
 
 

@@ -180,6 +180,9 @@ class ScenarioConfig:
     start_clearance: float = 1.0
     goal_clearance: float = 0.6
     lateral_offset: float = 0.5
+    # Share of the surprise obstacles that are thin legs (r 2.5-4 cm, one 5 cm cell): chair and
+    # table legs, which the LiDAR sees as a single dip. 0 keeps the obstacles of earlier runs.
+    thin: float = 0.0
     # When set, the seed picks one of these fixed (start, goal) pairs instead of
     # sampling them, so the same seed is the same episode in 2D and in Gazebo.
     point_pairs: tuple = ()
@@ -218,7 +221,10 @@ def _sample_obstacle(rng, path, start, goal, cfg):
         t = path.point_at(min(s + 0.1, path.length)) - path.point_at(max(s - 0.1, 0.0))
         n = np.array([-t[1], t[0]]) / max(np.hypot(*t), 1e-9)
         c = p + n * rng.uniform(-cfg.lateral_offset, cfg.lateral_offset)
-        if rng.random() < 0.5:
+        u = rng.random()
+        if u < cfg.thin:
+            ob = Obstacle('cylinder', c[0], c[1], radius=rng.uniform(0.025, 0.04))
+        elif u < cfg.thin + (1 - cfg.thin) / 2:
             ob = Obstacle('box', c[0], c[1], sx=rng.uniform(0.2, 0.6), sy=rng.uniform(0.2, 0.6),
                           yaw=rng.uniform(0, np.pi))
         else:
