@@ -29,7 +29,7 @@ base() {
     [ -e "$port" ] || { say "$port is not plugged in (./robot.sh help for other ports)"; exit 1; }
   done
   up
-  run 'pkill -f "[r]eal.launch.py"; pkill -x esp32_bridge; pkill -x rplidar_node; true' < /dev/null
+  run 'pkill -f "[r]eal.launch.py|[e]sp32_bridge|[r]plidar_node|[r]obot_state_publisher|[e]kf_node|[s]lam_toolbox|[r]viz2|[w]orld_map_publisher"; sleep 1; true' < /dev/null
   run "ros2 launch martha_nav real.launch.py esp32_port:=$ESP32 lidar_port:=$LIDAR $1"
 }
 

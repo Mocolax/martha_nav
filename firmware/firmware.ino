@@ -192,6 +192,10 @@ void control() {
   if (now - lastControlUs < CONTROL_US) return;
   const float dt = (now - lastControlUs) * 1e-6f;
   lastControlUs = now;
+  // Brake only a full stop. While Martha moves, a wheel with a zero reference (one diagonal of
+  // a diagonal move) coasts: its push is across the motion, and braked it was dragged anyway
+  // (rollers stiff under the weight), so FL+RR at 0.25 m/s could not start (2026-11-25).
+  const bool halt = refRpm[0] == 0 && refRpm[1] == 0 && refRpm[2] == 0 && refRpm[3] == 0;
 
   for (int i = 0; i < 4; ++i) {
     const int counts = ENCODER_SIGN[i] * encoders[i].delta();
@@ -199,8 +203,8 @@ void control() {
     if (counts != 0 || refRpm[i] != 0) lastMotionMs = millis();
     const float rpm = counts / COUNTS_PER_REV * 60.0f / dt;
     speedLp[i] += (rpm - speedLp[i]) * fminf(dt / SPEED_TAU, 1.0f);
-    // A wheel told to stand still brakes, and one resting after giving up coasts, both with
-    // their PI and stall boost cleared: nothing left over from the last motion keeps pushing.
+    // A wheel told to stand still (brakes on a full stop), or resting after giving up, has
+    // its PI and stall boost cleared: nothing left over from the last motion keeps pushing.
     // Coasting a stop let Martha roll on after the policy asked for zero (2026-11-25).
     float out = 0;
     restTime[i] = fmaxf(restTime[i] - dt, 0.0f);
@@ -225,7 +229,7 @@ void control() {
       stallBoost[i] = 0;
       stallTime[i] = 0;
     }
-    drive(i, MOTOR_SIGN[i] * out, refRpm[i] == 0 && !latched);
+    drive(i, MOTOR_SIGN[i] * out, halt && !latched);
   }
 
   if (BATTERY_SENSE) {

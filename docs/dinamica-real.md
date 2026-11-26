@@ -43,8 +43,10 @@ ve el patinaje que los encoders no ven. Retardo: hasta el 20 % del comando; `tau
   cuatro ruedas trabadas a tope (lateral lento), los motores pitaban sin parar.
 - Anti-windup sobre la salida total (feedforward + empuje + PI), no solo sobre el PI: con el
   feedforward ya en 255 el integrador seguía creciendo y la rueda se pasaba al despegar.
-- Con referencia cero la rueda frena (motor en cortocircuito) en vez de quedar suelta: Martha
-  seguía rodando por inercia cuando la política mandaba cero.
+- Cuando el comando entero es cero, las cuatro ruedas frenan (motor en cortocircuito) en vez
+  de quedar sueltas: Martha seguía rodando por inercia cuando la política mandaba cero. Mientras
+  se mueve, una rueda con referencia cero (la diagonal quieta de un movimiento en diagonal) queda
+  suelta: frenada, FL+RR a 0.25 m/s no alcanzaba a arrancar (segunda ronda).
 
 Con este firmware el giro lento arranca en ~0.4 s y gira 44-49° en 2 s (57° ideal).
 
@@ -58,17 +60,108 @@ Con este firmware el giro lento arranca en ~0.4 s y gira 44-49° en 2 s (57° id
 | Lateral, 0.10-0.25 m/s | desde reposo | - | - | **0**: no arranca | - |
 | Lateral, 0.35-0.45 m/s | desde reposo | 0.04-0.39 s | - | **0.14-0.24** | **giro -0.34 a +0.29 rad/s** |
 
+Ojo con la ganancia del avance de esta tabla: se midió con el escaneo tomado después de
+parar, así que incluye lo que rodaba por inercia (hasta 18 cm). Mientras dura el comando, el
+avance real va a 0.94-1.16 del pedido (segunda ronda).
+
 Con firmwares intermedios el giro dio 0.71-0.85 y el avance hasta 1.6: el rango de ganancias
 depende del ajuste fino del control, así que el entrenamiento debe cubrirlo entero.
 
 Combinados (firmware intermedio): avance + giro deja el giro en 0.47-0.59 de lo pedido;
 avance + lateral da un lateral inconsistente (-0.04 a +0.30).
 
-**El lateral es débil de verdad**, también con las cuatro ruedas bien y el PWM a tope: entrega
-13-42 % del comando y mete un giro de ~0.3-0.9 rad/s por cada m/s de lateral, con signo que
-cambió entre sesiones. La explicación más simple es mecánica: el peso repartido desigual entre
-ejes (la garra y sus motores van adelante) hace que un eje frene más al deslizar de lado.
-Moverle peso hacia atrás (la batería) sería el arreglo más directo.
+**El lateral es débil de verdad**: entrega 13-42 % del comando y mete un giro de ~0.3-0.9 rad/s
+por cada m/s de lateral. La segunda ronda descartó el reparto de peso y encontró la causa
+principal en la rueda FL.
+
+## Segunda ronda: firmware f51e403 y freno solo en parada total
+
+Mismo método, pero con todos los escaneos de cada escalón seguidos por ICP contra el primero:
+la trayectoria real da la velocidad estable (última mitad del comando) y el frenado después.
+Datos: `check`, `brake`, `diag`, `diagfast`, `flrr`, `lat3`, `mix`, `latbase` y `latback`
+(`.pkl`) en el scratchpad de la sesión, con `sysid2.py` y `analyze2.py`.
+
+**Freno.** Desplazamiento después de mandar cero:
+
+| Avance | Velocidad real | Recorre (LiDAR / ruedas) | Antes (ruedas, firmware sin freno) | Para en |
+|---|---|---|---|---|
+| +0.15 m/s | 0.15 | 1.4 / 2.0 cm | 4-5 cm | 0.14 s |
+| +0.25 m/s | 0.25 | 5.3 / 4.9 cm | 11-12 cm | 0.27 s |
+| +0.35 m/s | 0.40 | 6.9 / 6.2 cm | 17-18 cm | 0.32 s |
+| -0.15 m/s | 0.15 | 2.6 / 2.9 cm | 1.6-2.2 cm | 0.30 s (ruedas) |
+| -0.25 m/s | 0.34 | 7.1 / 6.0 cm | 5-6 cm | 0.51 s (ruedas) |
+| -0.35 m/s | 0.46 | 9.8 / 8.0 cm | 10-13 cm | 0.46 s (ruedas) |
+
+Adelante recorre de un tercio a la mitad que antes. Atrás frena con la misma desaceleración
+(~1.1 m/s²), pero va 1.3-1.4 veces más rápido que lo pedido. Unos 2 cm de cada frenada son el
+retardo del comando. La torre no cabecea.
+
+**Diagonales** (solo un par de ruedas con referencia; las otras dos frenadas, con f51e403):
+
+| Diagonal | Pedido por eje | Ganancia | Dirección real (pedido ±45°, ±135°) | Giro | Par motriz / par quieto |
+|---|---|---|---|---|---|
+| FL+RR | ±0.10-0.20 | 0.51-0.73 | -23 a -33° / +148 a +150° | ≤ 0.03 | 49-60 % de su referencia / arrastrado a 0.04-0.11 m/s |
+| FL+RR, adelante | 0.25 | **0** (3 de 3) | - | - | FL y RR hacen fuerza y no giran |
+| FL+RR, atrás | 0.25 | 0.24-0.40 | +149° | 0.12-0.22 | - |
+| FR+RL, adelante | 0.10 | **0** | - | - | - |
+| FR+RL, adelante | 0.15-0.25 | 0.52-0.64 | +25 a +31° | ≤ 0.04 | 58-63 % / 0.07-0.10 m/s |
+| FR+RL, atrás | 0.10-0.25 | 0.67-0.83 | -162 a -167° | 0.02-0.14 | 68-80 % / hasta 0.29 m/s |
+
+Las dos diagonales van al cuadrante correcto, así que las cuatro ruedas están bien montadas, y
+en diagonal casi no se cuela giro. Pero todas se tuercen 12-32° hacia el avance, y las ruedas
+que deberían quedar quietas giran arrastradas: sus rodillos no ruedan libres con el peso encima.
+Girarlos a mano sin carga no lo muestra. Por eso el freno pasó a ser solo de parada total
+(pendiente: repetir las diagonales con ese firmware).
+
+**Lateral con ventanas de 3 s** (firmware final):
+
+| Lateral | Ganancia | Dirección real | Giro | Giro / lateral pedido | Primera rueda en rendirse |
+|---|---|---|---|---|---|
+| ±0.15 m/s | 0.28-0.32 | +73° / -131° | ∓0.08-0.09 rad/s | -0.53 a -0.60 | FL, a 1.9-2.0 s |
+| ±0.25 m/s | 0.22-0.37 | +51° / -133 a -135° | ∓0.16-0.20 | -0.64 a -0.80 | FL, a 1.8 s |
+| ±0.40 m/s (1.2 s y 3 s) | 0.21-0.29 | +47 a +64° / -140° | ∓0.20-0.40 | -0.5 a -1.0 | FL; luego FR o RR |
+
+**La rueda que se rinde es siempre FL**, en todas las corridas, en los dos sentidos. Las fugas
+tienen su huella: quitándole a FL su aporte en la cinemática, un lateral mete -1/(4·0.385) =
+-0.65 rad/s de giro y +0.25 m/s de avance por cada m/s, o sea unos 18° hacia adelante.
+Medido: -0.44 a -1.0 rad/s y 17-41°. Que FL+RR no arranque hacia adelante a 0.25 m/s es la
+misma rueda. Queda por saber si es la rueda (motor, caja, rodillos, cable) o el canal de la
+placa (driver, conector): se sabe intercambiando los cables de FL y RL (mismos signos) y los
+pines 0 ↔ 2 del firmware.
+
+Hay ganancia lateral también entre 0.15 y 0.25 m/s (0.22-0.37). La primera ronda daba 0 porque
+FL tenía el conector suelto.
+
+**Batería movida atrás**: lateral ±0.25 y ±0.40 m/s, 3 s. No cambia nada medible: ganancia
+0.15-0.36, giro -0.44 a -0.80 rad/s por m/s, y FL se rinde primero en las cuatro corridas. El
+reparto de peso no es la causa.
+
+**Combinados** (firmware final, ganancia por eje):
+
+| Comando | Avance | Lateral | Giro | Primera ronda (firmware intermedio) |
+|---|---|---|---|---|
+| vx 0.25 + w 0.5 | 0.9-1.2 | - | 0.54-0.72 | giro 0.47-0.59 |
+| vx 0.25 + vy 0.15 | 0.8-1.0 | 0.15-0.35 | 0.05-0.08 rad/s colado | lateral -0.04 a +0.30 |
+| 0.15 + 0.15 + w 0.4 | ~0.9 | casi 0 | 0.35-0.53 | giro 0.39-0.76 |
+
+**El signo del giro que se cuela.** El coeficiente giro / lateral pedido es negativo en todas
+las corridas con ICP fiable: -0.53, -0.64, -0.76 y -0.64 en la primera ronda (sysid_2), y de
+-0.44 a -1.0 en la segunda. El "-0.34 a +0.29 rad/s" de la tabla de arriba es el giro con el
+lateral hacia un lado y hacia el otro, no un cambio de signo del coeficiente.
+
+### Rangos propuestos para `REAL_DYNAMICS` (no aplicados)
+
+| Parámetro | Ahora | Propuesto | Por qué |
+|---|---|---|---|
+| `gain_vy` | 0.1-0.35 | **0.1-0.45** | 0.15-0.45 medido de 0.15 a 0.40 m/s; el piso de 0.1 cubre los descansos de FL |
+| `yaw_leak` | -0.9 a 0.9 | **-1.0 a -0.3** | siempre negativo, de -0.44 a -1.0 |
+| `gain_w` | 0.4-0.9 | **0.35-0.9** | 0.35-0.53 en giro combinado con avance y lateral |
+| `gain` | 0.6-1.3 | 0.6-1.4 | atrás va 1.3-1.4 veces lo pedido |
+
+El resto se queda. Si se arregla FL, `yaw_leak` debería acercarse a 0 y `gain_vy` subir:
+habría que repetir el lateral y volver a un rango que incluya el 0. El lateral también empuja
+al avance (+0.25 a +0.8 m/s por m/s, mismo signo que el lateral), que el simulador todavía no
+modela.
 
 ## Lo que el simulador ahora modela
 
