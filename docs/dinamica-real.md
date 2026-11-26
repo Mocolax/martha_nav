@@ -149,36 +149,39 @@ las corridas con ICP fiable: -0.53, -0.64, -0.76 y -0.64 en la primera ronda (sy
 -0.44 a -1.0 en la segunda. El "-0.34 a +0.29 rad/s" de la tabla de arriba es el giro con el
 lateral hacia un lado y hacia el otro, no un cambio de signo del coeficiente.
 
-### Rangos propuestos para `REAL_DYNAMICS` (no aplicados)
+### Rangos de `REAL_DYNAMICS` tras la segunda ronda
 
-| Parámetro | Ahora | Propuesto | Por qué |
+Los rangos que salen de estas medidas describen a Martha con FL fallando. Si FL se arregla,
+el giro que se cuela cae a ~0 y el lateral sube, así que los rangos laterales cubren las dos
+Martha: la política no aprende a compensar un giro que puede desaparecer.
+
+| Parámetro | Medido | Rango | Por qué |
 |---|---|---|---|
-| `gain_vy` | 0.1-0.35 | **0.1-0.45** | 0.15-0.45 medido de 0.15 a 0.40 m/s; el piso de 0.1 cubre los descansos de FL |
-| `yaw_leak` | -0.9 a 0.9 | **-1.0 a -0.3** | siempre negativo, de -0.44 a -1.0 |
-| `gain_w` | 0.4-0.9 | **0.35-0.9** | 0.35-0.53 en giro combinado con avance y lateral |
-| `gain` | 0.6-1.3 | 0.6-1.4 | atrás va 1.3-1.4 veces lo pedido |
-
-El resto se queda. Si se arregla FL, `yaw_leak` debería acercarse a 0 y `gain_vy` subir:
-habría que repetir el lateral y volver a un rango que incluya el 0. El lateral también empuja
-al avance (+0.25 a +0.8 m/s por m/s, mismo signo que el lateral), que el simulador todavía no
-modela.
+| `gain_vy` | 0.15-0.45 | **0.1-0.7** | con FL bien debería subir; las diagonales muestran rodillos que arrastran con carga, así que no llegará a 1 |
+| `yaw_leak` | -0.44 a -1.0 | **-1.0 a 0** | siempre negativo; el 0 es FL arreglada |
+| `vx_leak` (nuevo) | +0.25 a +0.8 | **0 a 0.8** | m/s de avance por m/s de lateral pedido, mismo signo; el 0 es FL arreglada |
+| `gain_w` | 0.35-0.53 combinado | **0.35-0.9** | |
+| `gain` | atrás 1.3-1.4 | **0.6-1.4** | |
 
 ## Lo que el simulador ahora modela
 
-`DynamicsRanges` tiene tres campos nuevos; con sus valores por defecto las corridas anteriores
+`DynamicsRanges` tiene cuatro campos nuevos; con sus valores por defecto las corridas anteriores
 y sus episodios no cambian:
 - `gain_vy`: ganancia lateral propia (antes el lateral usaba la del avance).
 - `gain_w`: rango de la ganancia de giro aparte del avance.
 - `yaw_leak`: rad/s de giro por m/s de lateral pedido, sorteado por episodio con su signo.
+- `vx_leak`: m/s de avance por m/s de lateral pedido.
 
-`--real-dynamics` (`REAL_DYNAMICS`) usa los rangos medidos, con margen:
+`--real-dynamics` (`REAL_DYNAMICS`) usa los rangos medidos, con margen (los laterales y las
+ganancias, de la tabla de la segunda ronda):
 
 | Parámetro | Rango | Por qué |
 |---|---|---|
-| `gain` (avance) | 0.6-1.3 | avance atrás 0.60, adelante hasta 1.27 |
-| `gain_w` | 0.4-0.9 | 0.44-0.57 ahora, 0.71-0.85 con otro ajuste |
-| `gain_vy` | 0.1-0.35 | 0.14-0.24 medido, 0 a baja velocidad |
-| `yaw_leak` | -0.9 a 0.9 rad/s por m/s | ±0.3-0.9, signo variable |
+| `gain` (avance) | 0.6-1.4 | avance atrás 0.60-1.4, adelante 0.94-1.16 |
+| `gain_w` | 0.35-0.9 | 0.35-0.72 ahora, 0.71-0.85 con otro ajuste |
+| `gain_vy` | 0.1-0.7 | 0.15-0.45 con FL fallando, más con FL arreglada |
+| `yaw_leak` | -1.0 a 0 rad/s por m/s | -0.44 a -1.0 con FL fallando, 0 arreglada |
+| `vx_leak` | 0 a 0.8 m/s por m/s | +0.25 a +0.8 con FL fallando, 0 arreglada |
 | `tau` | 0.15-0.6 s | 0.13-0.56 medido |
 | `delay` | 0-2 ciclos | 0.03-0.15 s del robot más ~0.13 s del escaneo al comando |
 | `acc_v`, `acc_w` | 0.5-2.5 m/s², 1-5 rad/s² | alcanza 0.35 m/s en ~0.3 s |

@@ -18,21 +18,25 @@ class DynamicsRanges:
     # Empty: the same draw as gain_v (vy) or from gain (w), as before these existed.
     gain_vy: tuple = ()
     gain_w: tuple = ()
-    # rad/s of turn per m/s of commanded vy: on Martha a lateral command also turns her.
+    # rad/s of turn and m/s of forward motion per m/s of commanded vy: on Martha a lateral
+    # command also turns her and pushes her forward.
     yaw_leak: tuple = (0.0, 0.0)
+    vx_leak: tuple = (0.0, 0.0)
 
 
 # Also covers Gazebo's mecanum, which obeys in the same period with 2.5 m/s^2 and
 # 6.5 rad/s^2 (docs/resultados.md, "Causa de la brecha").
 WIDE_DYNAMICS = DynamicsRanges(tau=(0.02, 0.4), acc_v=(0.3, 3.0), acc_w=(1.0, 7.0), delay=(0, 2))
 
-# Martha on the lab floor with the claw tower (docs/dinamica-real.md, 2026-11-25): steps of
-# 1.2 s from standstill, wheel encoders and gyro against the LiDAR's own motion (ICP). Forward
-# gives 0.6-1.3 of the command depending on the direction, turning 0.45-0.85, sideways only
-# 0.1-0.35 and it turns her by 0.3-0.9 rad/s per m/s, either way; tau 0.15-0.6 s.
+# Martha on the lab floor with the claw tower (docs/dinamica-real.md, 2026-11-25): steps from
+# standstill, wheel encoders and gyro against the LiDAR's own motion (ICP). Forward gives
+# 0.6-1.4 of the command depending on the direction, turning 0.35-0.9, sideways 0.15-0.45, which
+# turns her by -0.44 to -1.0 rad/s and pushes her forward by 0.25-0.8 m/s per m/s: the FL wheel
+# gives up first. The lateral ranges also reach FL fixed (no leaks, a stronger lateral), so the
+# policy holds whichever Martha it meets; tau 0.15-0.6 s.
 REAL_DYNAMICS = DynamicsRanges(tau=(0.15, 0.6), acc_v=(0.5, 2.5), acc_w=(1.0, 5.0),
-                               gain=(0.6, 1.3), gain_w=(0.4, 0.9), gain_vy=(0.1, 0.35),
-                               yaw_leak=(-0.9, 0.9), delay=(0, 2))
+                               gain=(0.6, 1.4), gain_w=(0.35, 0.9), gain_vy=(0.1, 0.7),
+                               yaw_leak=(-1.0, 0.0), vx_leak=(0.0, 0.8), delay=(0, 2))
 
 
 @dataclass
@@ -46,6 +50,7 @@ class DynamicsParams:
     delay: int = 1
     gain_vy: float = None         # None: gain_v
     yaw_leak: float = 0.0         # rad/s per m/s of commanded vy
+    vx_leak: float = 0.0          # m/s forward per m/s of commanded vy
 
 
 def sample_params(rng, r=DynamicsRanges()):
@@ -60,6 +65,8 @@ def sample_params(rng, r=DynamicsRanges()):
         p.gain_vy = rng.uniform(*r.gain_vy)
     if r.yaw_leak[0] != r.yaw_leak[1]:
         p.yaw_leak = rng.uniform(*r.yaw_leak)
+    if r.vx_leak[0] != r.vx_leak[1]:
+        p.vx_leak = rng.uniform(*r.vx_leak)
     return p
 
 
@@ -97,7 +104,7 @@ class Dynamics:
         """
         self.pending.append((cmd_v, cmd_vy, cmd_w))
         acting_v, acting_vy, acting_w = self.pending.pop(0)
-        target_v = self.p.gain_v * acting_v
+        target_v = self.p.gain_v * acting_v + self.p.vx_leak * acting_vy
         target_vy = (self.p.gain_v if self.p.gain_vy is None else self.p.gain_vy) * acting_vy
         target_w = self.p.gain_w * acting_w + self.p.yaw_leak * acting_vy
         for _ in range(self.substeps):

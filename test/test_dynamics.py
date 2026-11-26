@@ -108,11 +108,13 @@ def test_martha_on_the_floor_slides_weakly_and_turns_when_sliding():
         assert REAL_DYNAMICS.gain_vy[0] <= p.gain_vy <= REAL_DYNAMICS.gain_vy[1] < p.gain_v + 1
         assert REAL_DYNAMICS.gain_w[0] <= p.gain_w <= REAL_DYNAMICS.gain_w[1]
         assert REAL_DYNAMICS.yaw_leak[0] <= p.yaw_leak <= REAL_DYNAMICS.yaw_leak[1]
+        assert REAL_DYNAMICS.vx_leak[0] <= p.vx_leak <= REAL_DYNAMICS.vx_leak[1]
     d = Dynamics(DynamicsParams(tau_v=0.05, tau_w=0.05, acc_v=10, acc_w=10, delay=0,
-                                gain_vy=0.2, yaw_leak=-0.7))
+                                gain_vy=0.2, yaw_leak=-0.7, vx_leak=0.5))
     for _ in range(30):
         d.step_holonomic(0.0, 0.3, 0.0, lambda *a: False)
     assert d.vy == pytest.approx(0.06, abs=1e-3) and d.w == pytest.approx(-0.21, abs=1e-3)
+    assert d.v == pytest.approx(0.15, abs=1e-3)
 
 
 def test_without_its_own_lateral_gain_vy_follows_gain_v_as_before():

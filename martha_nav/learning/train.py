@@ -4,6 +4,8 @@ python3 -m martha_nav.learning.train --preset gate --seed 0
 python3 -m martha_nav.learning.train --preset full --seed 0
 python3 -m martha_nav.learning.train --preset full --robot martha_tower --steps 350000 \
     --init-from runs/martha_tower_s0/best_model.zip     # fine-tune after a robot change
+python3 -m martha_nav.learning.train <the cut run's own arguments> --name X_resumed \
+    --resume runs/X                                     # go on with a run that was cut
 """
 import argparse
 import csv
@@ -57,9 +59,11 @@ class EpisodeLogger(BaseCallback):
             row.update({k: v for k, v in info.items()
                         if k not in ('terminal_observation', 'TimeLimit.truncated', 'episode')})
             if self.writer is None:
-                self.file = open(self.path, 'w', newline='')
+                new = not self.path.exists()
+                self.file = open(self.path, 'a', newline='')
                 self.writer = csv.DictWriter(self.file, fieldnames=list(row), extrasaction='ignore')
-                self.writer.writeheader()
+                if new:
+                    self.writer.writeheader()
             self.writer.writerow(row)
         return True
 
@@ -71,11 +75,11 @@ class EpisodeLogger(BaseCallback):
 class PeriodicEval(BaseCallback):
     """Every `every` steps: deterministic evaluation on fixed seeds; keeps best_model.zip."""
 
-    def __init__(self, env_cfg, run_dir, every, episodes, n_envs=8):
+    def __init__(self, env_cfg, run_dir, every, episodes, n_envs=8, start=0, best=-1.0):
         super().__init__()
         self.env_cfg, self.run_dir = env_cfg, run_dir
         self.every, self.seeds, self.n_envs = every, eval_seeds(episodes), n_envs
-        self.next_eval, self.best = every, -1.0
+        self.next_eval, self.best = start + every, best
 
     def _on_step(self):
         if self.num_timesteps < self.next_eval:
@@ -189,6 +193,10 @@ def main(argv=None):
     ap.add_argument('--init-from', default=None,
                     help='start from these weights (a .zip) at a lower learning rate, e.g. to '
                          'fine-tune a policy after a change to the robot profile')
+    ap.add_argument('--resume', default=None,
+                    help="a run that was cut: go on from its best_model.zip, on the run's own "
+                         'learning-rate schedule and step count, up to --steps; its episode and '
+                         'eval logs up to that point are copied over. Give the same arguments')
     args = ap.parse_args(argv)
 
     steps = args.steps or PRESETS[args.preset]['steps']
@@ -206,7 +214,7 @@ def main(argv=None):
               'eval_every': args.eval_every, 'eval_episodes': args.eval_episodes,
               'env': json.loads(json.dumps(asdict(env_cfg))),
               'robot_profile': asdict(ROBOTS[args.robot]),
-              'init_from': args.init_from}
+              'init_from': args.init_from, 'resumed_from': args.resume}
     (run_dir / 'config.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
 
     torch.set_num_threads(4)
@@ -217,18 +225,45 @@ def main(argv=None):
         model = algo.load(args.init_from, env=venv, device=args.device, seed=args.seed,
                           tensorboard_log=str(run_dir / 'tb'),
                           custom_objects={'learning_rate': schedule, 'lr_schedule': schedule})
+    elif args.resume:
+        # The saved model carries its optimizer and step count; with reset_num_timesteps=False
+        # the schedule's progress goes on from there, as if the run had never stopped. Only the
+        # reward normalisation's running statistics start again (saved only at the end).
+        algo = RecurrentPPO if args.recurrent else PPO
+        schedule = lambda f: LEARNING_RATE * f  # noqa: E731
+        model = algo.load(Path(args.resume) / 'best_model.zip', env=venv, device=args.device,
+                          seed=args.seed, tensorboard_log=str(run_dir / 'tb'),
+                          custom_objects={'learning_rate': schedule, 'lr_schedule': schedule})
+        # Fresh episodes rather than the cut run's opening ones over again.
+        venv.seed(args.seed + model.num_timesteps)
     else:
         model = build_model(venv, args.recurrent, args.seed, args.device,
                             str(run_dir / 'tb'))
+    done, best = (model.num_timesteps if args.resume else 0), -1.0
+    if args.resume:
+        for log in ('episodes.csv', 'evals.csv'):
+            with open(Path(args.resume) / log, newline='') as f, \
+                    open(run_dir / log, 'w', newline='') as out:
+                rows = csv.DictReader(f)
+                w = csv.DictWriter(out, fieldnames=rows.fieldnames)
+                w.writeheader()
+                for row in rows:
+                    if int(row['timesteps']) <= done:
+                        w.writerow(row)
+                        if log == 'evals.csv':
+                            best = max(best, float(row['success']))
     callbacks = [EpisodeLogger(run_dir / 'episodes.csv'),
-                 PeriodicEval(env_cfg, run_dir, args.eval_every, args.eval_episodes)]
+                 PeriodicEval(env_cfg, run_dir, args.eval_every, args.eval_episodes, start=done,
+                              best=best)]
     start = time.time()
-    model.learn(total_timesteps=steps, callback=callbacks, tb_log_name='ppo')
+    model.learn(total_timesteps=steps - done, callback=callbacks, tb_log_name='ppo',
+                reset_num_timesteps=not args.resume)
     model.save(run_dir / 'last_model.zip')
     venv.save(str(run_dir / 'vecnormalize.pkl'))
     venv.close()
     minutes = (time.time() - start) / 60
-    print(f'done: {steps} steps in {minutes:.1f} min ({steps / (minutes * 60):.0f} steps/s) -> {run_dir}')
+    print(f'done: {steps} steps ({steps - done} here) in {minutes:.1f} min '
+          f'({(steps - done) / (minutes * 60):.0f} steps/s) -> {run_dir}')
 
 
 if __name__ == '__main__':
